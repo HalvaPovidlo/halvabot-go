@@ -2,8 +2,9 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"io/ioutil"
+
+	"github.com/pkg/errors"
 )
 
 const FilePath = "secret_config.json"
@@ -19,12 +20,12 @@ type Config struct {
 type DiscordConfig struct {
 	Token  string `json:"token"`
 	Bot    string `json:"bot"`
-	Id     int64  `json:"id"`
+	ID     int64  `json:"id"`
 	Prefix string `json:"prefix"`
 }
 
 type SheetsConfig struct {
-	Id   string `json:"id"`
+	ID   string `json:"id"`
 	Film string `json:"film"`
 }
 

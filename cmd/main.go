@@ -1,12 +1,14 @@
 package main
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
-	"github.com/bwmarrin/discordgo"
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/bwmarrin/discordgo"
+	"go.uber.org/zap"
+
+	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 )
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -50,7 +52,7 @@ func main() {
 	}
 
 	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
 	dg.Close()
