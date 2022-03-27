@@ -30,7 +30,6 @@ linters:
   disable-all: true
   enable:
     # - deadcode
-    # - errcheck
     - staticcheck
     - structcheck
     - typecheck
