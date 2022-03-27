@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -39,6 +38,11 @@ func main() {
 			"err", err)
 		return
 	}
+	logger.Infow("Bot initialized")
+
+	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+		logger.Infof("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+	})
 
 	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
 	err = session.Open()
@@ -46,13 +50,14 @@ func main() {
 		logger.Errorw("error opening connection", "err", err)
 		return
 	}
-	defer session.Close()
+	logger.Infow("Bot session opened", "SessionID", session.State.SessionID)
+
+	defer func(session *discordgo.Session) {
+		_ = session.Close()
+		logger.Infow("Bot session closed")
+	}(session)
 
 	session.AddHandler(messageCreate)
-
-	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
-	})
 
 	musicPlayer := music.NewPlayer(logger)
 	musicPlayer.RegisterCommands(session)
@@ -60,5 +65,7 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
+
 	logger.Infow("Gracefully shutdowning")
+	defer logger.Sync()
 }

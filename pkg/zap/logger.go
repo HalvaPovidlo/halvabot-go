@@ -1,13 +1,18 @@
 package zap
 
-import "go.uber.org/zap"
+import (
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
 
 type Logger struct {
 	*zap.SugaredLogger
 }
 
 func NewLogger() *Logger {
-	zapLogger, _ := zap.NewProduction()
+	config := zap.NewDevelopmentConfig()
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	zapLogger, _ := config.Build()
 	return &Logger{
 		SugaredLogger: zapLogger.Sugar(),
 	}
