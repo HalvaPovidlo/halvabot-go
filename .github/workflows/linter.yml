@@ -1,0 +1,21 @@
+name: runLinters
+on: [push, pull_request]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        go: [ 1.17, 1.18 ]
+    name: Tests Go ${{ matrix.go }}
+    runs-on: ubuntu-latest
+
+  golangci:
+    name: golangci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3.1.0
+        with:
+          version: latest
+          github-token: ${{ github.token }}
+          only-new-issues: true
