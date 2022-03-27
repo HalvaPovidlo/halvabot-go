@@ -1,14 +1,16 @@
 package main
 
 import (
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
-	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -24,36 +26,39 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func main() {
-	zapLogger, _ := zap.NewProduction()
-	defer zapLogger.Sync()
-	log := zapLogger.Sugar()
-	log.Infow("Starting bot")
-
 	cfg, err := config.InitConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	dg, err := discordgo.New("Bot " + cfg.Discord.Token)
+	logger := zap.NewLogger()
+
+	session, err := discordgo.New("Bot " + cfg.Discord.Token)
 	if err != nil {
-		log.Errorw("error creating Discord session",
+		logger.Errorw("error creating Discord session",
 			"err", err)
 		return
 	}
 
-	dg.AddHandler(messageCreate)
-
-	dg.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
-
-	err = dg.Open()
+	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
+	err = session.Open()
 	if err != nil {
-		log.Errorw("error opening connection", "err", err)
+		logger.Errorw("error opening connection", "err", err)
 		return
 	}
+	defer session.Close()
+
+	session.AddHandler(messageCreate)
+
+	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+	})
+
+	musicPlayer := music.NewPlayer(logger)
+	musicPlayer.RegisterCommands(session)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
-
-	dg.Close()
+	logger.Infow("Gracefully shutdowning")
 }
