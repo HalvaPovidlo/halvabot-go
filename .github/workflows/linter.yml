@@ -2,13 +2,6 @@ name: runLinters
 on: [push, pull_request]
 
 jobs:
-  test:
-    strategy:
-      matrix:
-        go: [ 1.17, 1.18 ]
-    name: Tests Go ${{ matrix.go }}
-    runs-on: ubuntu-latest
-
   golangci:
     name: golangci
     runs-on: ubuntu-latest
