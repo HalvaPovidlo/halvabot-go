@@ -1,8 +1,16 @@
 package rest
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
+	"github.com/gin-gonic/gin"
+)
+
+type Player interface {
+	PlayYoutube(query string) (*voice.QueueEntry, error)
+}
 
 type Handler struct {
+	player Player
 }
 
 func (h *Handler) Router() *gin.RouterGroup {

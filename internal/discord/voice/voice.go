@@ -3,6 +3,7 @@ package voice
 import (
 	"fmt"
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 	"github.com/pkg/errors"
 	"hash"
 	"hash/fnv"
@@ -60,8 +61,8 @@ type Voice struct {
 	Deafened        bool               `json:"deafened"`        //Whether or not audio should be received from Discord
 
 	//Contains data about the current queue
-	Entries    []*QueueEntry    `json:"queueEntries"` //Holds a list of queue entries
-	NowPlaying *VoiceNowPlaying `json:"nowPlaying"`   //Holds the queue entry currently in the now playing slot
+	Entries    []*QueueEntry `json:"queueEntries"` //Holds a list of queue entries
+	NowPlaying *NowPlaying   `json:"nowPlaying"`   //Holds the queue entry currently in the now playing slot
 
 	//Miscellaneous
 	TextChannelID string     `json:"textChannelID"` //The channel that was last used to interact with the voice session
@@ -70,12 +71,12 @@ type Voice struct {
 }
 
 // Connect connects to a given voice channel
-func (voice *Voice) Connect(guildID, vChannelID string) error {
-	voice.Lock()
-	defer voice.Unlock()
+func (v *Voice) Connect(guildID, vChannelID string) error {
+	v.Lock()
+	defer v.Unlock()
 
-	if voice.IsConnected() {
-		err := voice.VoiceConnection.ChangeChannel(vChannelID, voice.Muted, voice.Deafened)
+	if v.IsConnected() {
+		err := v.VoiceConnection.ChangeChannel(vChannelID, v.Muted, v.Deafened)
 		if err != nil {
 			return err
 		}
@@ -84,109 +85,133 @@ func (voice *Voice) Connect(guildID, vChannelID string) error {
 	}
 
 	fmt.Println("ChannelVoiceJoin")
-	voiceConnection, err := voice.DiscordSession.ChannelVoiceJoin(guildID, vChannelID, voice.Muted, voice.Deafened)
+	voiceConnection, err := v.DiscordSession.ChannelVoiceJoin(guildID, vChannelID, v.Muted, v.Deafened)
 	if err != nil {
 		return err
 	}
 
-	voice.VoiceConnection = voiceConnection
+	v.VoiceConnection = voiceConnection
 	return nil
 }
 
 // Disconnect disconnects from the current voice channel
-func (voice *Voice) Disconnect() error {
-	voice.Lock()
-	defer voice.Unlock()
+func (v *Voice) Disconnect() error {
+	v.Lock()
+	defer v.Unlock()
 
-	//If a voice connection is already established...
-	if voice.IsConnected() {
-		err := voice.VoiceConnection.Disconnect()
-		voice.VoiceConnection = nil
-		voice.Started = false
+	if v.IsConnected() {
+		err := v.VoiceConnection.Disconnect()
+		v.VoiceConnection = nil
+		v.Started = false
 		return err
 	}
 
-	//We're not in a voice channel right now
-	return nil // eror
+	return errVoiceLeaveNotConnected
 }
 
-// Play plays a given queue entry in a connected voice channel
+func (v *Voice) Play(logger *zap.Logger) error {
+	if !v.IsConnected() {
+		return errVoicePlayNotConnected
+	}
+	if v.IsStreaming() {
+		return errVoicePlayAlreadyStreaming
+	}
+	nextQueueEntry, index := v.QueueGetNext()
+	v.QueueRemove(index)
+	v.PlaySong(nextQueueEntry, false, logger)
+	return nil
+}
+
+// PlaySong plays a given queue entry in a connected voice channel
 // - queueEntry: The queue entry to play/add to the queue
 // - announceQueueAdded: Whether or not to announce a queue added message if something is already playing (used internally for mass playlist additions)
-func (voice *Voice) Play(queueEntry *QueueEntry, announceQueueAdded bool) error {
-	//Make sure we're conected first
-	if !voice.IsConnected() {
-		return nil // eror
+func (v *Voice) PlaySong(queueEntry *QueueEntry, announceQueueAdded bool, logger *zap.Logger) {
+	go v.playSong(queueEntry, announceQueueAdded, logger)
+}
+
+func (v *Voice) playSong(queueEntry *QueueEntry, announceQueueAdded bool, logger *zap.Logger) {
+	//Make sure we're connected first
+	if !v.IsConnected() {
+		logger.Error(errVoicePlayNotConnected)
+		return
 	}
 
 	//Make sure we're not streaming already
-	if voice.IsStreaming() {
+	if v.IsStreaming() {
 		//If we are streaming, add to the queue instead
-		voice.QueueAdd(queueEntry)
+		v.QueueAdd(queueEntry)
 		if announceQueueAdded {
-			// send message play
+			// TODO: send message play
 		}
-		return nil
+		return
 	}
 
 	//Make sure we're allowed to speak
-	if voice.Muted {
-		return nil
+	if v.Muted {
+		logger.Error(errVoicePlayMuted)
+		return
 	}
 
-	voice.Lock()
+	v.Lock()
 
 	//Let others know we're beginning to play something
-	voice.Started = true
-	voice.NowPlaying = &VoiceNowPlaying{Entry: queueEntry}
-	updateListeningStatus(voice.DiscordSession, voice.NowPlaying.Entry.Metadata.Artists[0].Name, voice.NowPlaying.Entry.Metadata.Title)
+	v.Started = true
+	v.NowPlaying = &NowPlaying{Entry: queueEntry}
+	updateListeningStatus(v.DiscordSession, v.NowPlaying.Entry.Metadata.Artists[0].Name, v.NowPlaying.Entry.Metadata.Title)
 
-	voice.done = make(chan error)
-	voice.Unlock()
-	fmt.Println("PlayRaw", voice.NowPlaying.Entry.Metadata.StreamURL)
-	msg, err := voice.playRaw(voice.NowPlaying.Entry.Metadata.StreamURL)
+	v.done = make(chan error)
+	v.Unlock()
+	logger.Infow("Start playing",
+		"streamURL", v.NowPlaying.Entry.Metadata.StreamURL)
+	msg, err := v.playRaw(v.NowPlaying.Entry.Metadata.StreamURL)
 
 	if msg != nil {
-		if msg == nil { //errVoiceStoppedManually {
-			voice.Started = false
-			return nil
+		if msg == errVoiceStoppedManually {
+			v.Started = false
+			logger.Info(errVoiceStoppedManually)
+			return
 		}
 	}
 
 	if err != nil {
-		voice.Started = false
+		v.Started = false
 		switch err {
 		case io.ErrUnexpectedEOF:
-			if msg != nil { // errVoiceSkippedManually {
-				return err
+			if msg != errVoiceSkippedManually {
+				logger.Error(err)
+				return
 			}
 		default:
-			return err
+			logger.Error(err)
+			return
 		}
 	}
 
-	nextQueueEntry := &QueueEntry{}
+	var nextQueueEntry *QueueEntry
 	index := 0
 
-	switch voice.RepeatLevel {
+	switch v.RepeatLevel {
 	case RepeatNone:
-		voice.NowPlaying = nil
-		if len(voice.Entries) <= 0 {
-			voice.Disconnect()
-			return nil
+		v.NowPlaying = nil
+		if len(v.Entries) <= 0 {
+			err := v.Disconnect()
+			if err != nil {
+				logger.Error(err)
+			}
+			return
 		}
-		nextQueueEntry, index = voice.QueueGetNext()
-		voice.QueueRemove(index)
+		nextQueueEntry, index = v.QueueGetNext()
+		v.QueueRemove(index)
 	case RepeatPlaylist:
-		voice.QueueAdd(voice.NowPlaying.Entry)
-		nextQueueEntry, index = voice.QueueGetNext()
-		voice.QueueRemove(index)
+		v.QueueAdd(v.NowPlaying.Entry)
+		nextQueueEntry, index = v.QueueGetNext()
+		v.QueueRemove(index)
 	case RepeatNowPlaying:
-		nextQueueEntry = voice.NowPlaying.Entry
+		nextQueueEntry = v.NowPlaying.Entry
 	}
 
-	voice.NowPlaying = nil
-	return voice.Play(nextQueueEntry, announceQueueAdded)
+	v.NowPlaying = nil
+	v.playSong(nextQueueEntry, announceQueueAdded, logger)
 }
 
 func updateListeningStatus(session *discordgo.Session, name string, title string) {
@@ -197,17 +222,17 @@ func updateListeningStatus(session *discordgo.Session, name string, title string
 }
 
 // playRaw plays a given media URL in a connected voice channel
-func (voice *Voice) playRaw(mediaURL string) (error, error) {
-	if !voice.IsConnected() {
+func (v *Voice) playRaw(mediaURL string) (error, error) {
+	if !v.IsConnected() {
 		return nil, nil
 	}
-	if voice.IsStreaming() {
+	if v.IsStreaming() {
 		return nil, nil
 	}
 
-	voice.Lock()
+	v.Lock()
 
-	if voice.Muted {
+	if v.Muted {
 		return nil, nil
 	}
 
@@ -217,167 +242,136 @@ func (voice *Voice) playRaw(mediaURL string) (error, error) {
 	}
 
 	fmt.Println("dca.EncodeFile")
-	voice.EncodingSession, err = dca.EncodeFile(mediaURL, voice.EncodingOptions)
+	v.EncodingSession, err = dca.EncodeFile(mediaURL, v.EncodingOptions)
 	if err != nil {
 		return nil, err
 	}
-	voice.speaking()
+	v.speaking()
 	fmt.Println("dca.NewStream")
-	voice.StreamingSession = dca.NewStream(voice.EncodingSession, voice.VoiceConnection, voice.done)
-	voice.Unlock()
+	v.StreamingSession = dca.NewStream(v.EncodingSession, v.VoiceConnection, v.done)
+	v.Unlock()
 
 	//Start a goroutine to update the current streaming position
-	go voice.updatePosition()
+	go v.updatePosition()
 
 	//Wait for the streaming session to finish
-	msg := <-voice.done
+	msg := <-v.done
 
-	voice.Lock()
+	v.Lock()
 
-	voice.silent()
-	_, err = voice.StreamingSession.Finished()
-	voice.StreamingSession = nil
+	v.silent()
+	_, err = v.StreamingSession.Finished()
+	v.StreamingSession = nil
 
 	//Clean up the encoding session
-	voice.EncodingSession.Stop()
-	voice.EncodingSession.Cleanup()
-	voice.EncodingSession = nil
+	v.EncodingSession.Stop()
+	v.EncodingSession.Cleanup()
+	v.EncodingSession = nil
 
-	voice.Unlock()
+	v.Unlock()
 
 	//Return any streaming errors, if any
 	return msg, err
 }
 
 // updatePosition updates the current position of a playing media
-func (voice *Voice) updatePosition() {
+func (v *Voice) updatePosition() {
 	for {
-		voice.Lock()
+		v.Lock()
 
-		if voice.StreamingSession == nil || voice.NowPlaying == nil {
-			voice.Unlock()
+		if v.StreamingSession == nil || v.NowPlaying == nil {
+			v.Unlock()
 			return
 		}
-		voice.NowPlaying.Position = voice.StreamingSession.PlaybackPosition()
+		v.NowPlaying.Position = v.StreamingSession.PlaybackPosition()
 
-		voice.Unlock()
+		v.Unlock()
 	}
 }
 
 // Stop stops the playback of a media
-func (voice *Voice) Stop() error {
-	if !voice.IsStreaming() {
+func (v *Voice) Stop() error {
+	if !v.IsStreaming() {
 		return errVoiceNotStreaming
 	}
 
-	voice.done <- errVoiceStoppedManually
+	v.done <- errVoiceStoppedManually
 
-	if err := voice.EncodingSession.Stop(); err != nil {
+	if err := v.EncodingSession.Stop(); err != nil {
 		return err
 	}
-	voice.EncodingSession.Cleanup()
+	v.EncodingSession.Cleanup()
 
 	return nil
 }
 
 // Skip stops the encoding session of a playing media, allowing the play wrapper to continue to the next media in a queue
-func (voice *Voice) Skip() error {
-	if !voice.IsStreaming() {
-		return errVoiceNotStreaming
+func (v *Voice) Skip() (*QueueEntry, error) {
+	if !v.IsStreaming() {
+		return nil, errVoiceNotStreaming
 	}
 
+	nextQueueEntry, _ := v.QueueGetNext()
+
 	//Stop the current now playing
-	voice.done <- errVoiceSkippedManually
+	v.done <- errVoiceSkippedManually
 
 	//Stop the encoding session
-	if err := voice.EncodingSession.Stop(); err != nil {
-		return err
+	if err := v.EncodingSession.Stop(); err != nil {
+		return nil, err
 	}
 
 	//Clean up the encoding session
-	voice.EncodingSession.Cleanup()
+	v.EncodingSession.Cleanup()
 
-	return nil
-}
-
-// Pause pauses the playback of a media
-func (voice *Voice) Pause() (bool, error) {
-	if !voice.IsStreaming() {
-		return false, errVoiceNotStreaming
-	}
-
-	if isPaused := voice.StreamingSession.Paused(); isPaused {
-		return true, errVoicePausedAlready
-	}
-
-	voice.StreamingSession.SetPaused(true)
-	return true, nil
-}
-
-// Resume resumes the playback of a media
-func (voice *Voice) Resume() (bool, error) {
-	if !voice.IsStreaming() {
-		return false, errVoiceNotStreaming
-	}
-
-	if isPaused := voice.StreamingSession.Paused(); !isPaused {
-		return true, errVoicePlayingAlready
-	}
-
-	voice.StreamingSession.SetPaused(false)
-	return true, nil
-}
-
-// ToggleShuffle toggles the current shuffle setting and manages the queue accordingly
-func (voice *Voice) ToggleShuffle() error {
-	return nil
+	return nextQueueEntry, nil
 }
 
 // speaking allows the sending of audio to Discord
-func (voice *Voice) speaking() {
-	if voice.IsConnected() {
-		voice.VoiceConnection.Speaking(true)
+func (v *Voice) speaking() {
+	if v.IsConnected() {
+		v.VoiceConnection.Speaking(true)
 	}
 }
 
 // silent prevents the sending of audio to Discord
-func (voice *Voice) silent() {
-	if voice.IsConnected() {
-		voice.VoiceConnection.Speaking(false)
+func (v *Voice) silent() {
+	if v.IsConnected() {
+		v.VoiceConnection.Speaking(false)
 	}
 }
 
 // IsConnected returns whether or not a voice connection exists
-func (voice *Voice) IsConnected() bool {
-	if voice == nil {
+func (v *Voice) IsConnected() bool {
+	if v == nil {
 		return false
 	}
 
-	return voice.VoiceConnection != nil
+	return v.VoiceConnection != nil
 }
 
 // IsStreaming returns whether a media is playing
-func (voice *Voice) IsStreaming() bool {
-	voice.Lock()
-	defer voice.Unlock()
+func (v *Voice) IsStreaming() bool {
+	v.Lock()
+	defer v.Unlock()
 
-	//Return false if a voice connection does not exist
-	if !voice.IsConnected() {
+	//Return false if a v connection does not exist
+	if !v.IsConnected() {
 		return false
 	}
 
 	//Return false if the playback session hasn't started
-	if !voice.Started {
+	if !v.Started {
 		return false
 	}
 
 	//Return false if a streaming session does not exist
-	if voice.StreamingSession == nil {
+	if v.StreamingSession == nil {
 		return false
 	}
 
 	//Return false if an encoding session does not exist
-	if voice.EncodingSession == nil {
+	if v.EncodingSession == nil {
 		return false
 	}
 
@@ -386,12 +380,12 @@ func (voice *Voice) IsStreaming() bool {
 }
 
 // SetTextChannel sets the text channel to send messages to
-func (voice *Voice) SetTextChannel(tChannelID string) {
-	//Set voice message output to current text channel
-	voice.TextChannelID = tChannelID
+func (v *Voice) SetTextChannel(tChannelID string) {
+	//Set v message output to current text channel
+	v.TextChannelID = tChannelID
 }
 
-// VoiceInit initializes a voice object for the given guild
+// NewVoice VoiceInit initializes a voice object for the given guild
 func NewVoice(session *discordgo.Session, config config.VoiceConfig) *Voice {
 	return &Voice{
 		DiscordSession:  session,

@@ -6,23 +6,31 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
 )
 
-// ShowAccount godoc
-// @summary        Swagger Example API
-// @produce      json
-// @param        song  query     string  false  "Название песни или url"
-// @success      200              {object} voice.QueueEntry  "ok"
-// @failure      400              {object}  Response "error"
-// @Router  /discord/music/play [get]
+type songQuery struct {
+	Song string `json:"song" binding:"required"`
+}
+
+// play godoc
+// @summary  Play song from youtube by name or url
+// @accept   json
+// @produce  json
+// @param    query  body      songQuery      true  "Название песни или url"
+// @success  200    {object}  voice.QueueEntry
+// @failure  400    {object}  Response          "Неверные параметры"
+// @router   /discord/music/play [post]
 func (h *Handler) play(c *gin.Context) {
-	q := voice.QueueEntry{}
-	firstname := c.DefaultQuery("firstname", "Guest")
-	q.ServiceName = firstname
-	//lastname := c.Query("lastname") // shortcut for c.Request.URL.Query().Get("lastname")
+	var json songQuery
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-	c.JSON(http.StatusOK, q)
+	entry, err := h.player.PlayYoutube(json.Song)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{Message: err.Error()})
+	}
 
+	c.JSON(http.StatusOK, entry)
 }
