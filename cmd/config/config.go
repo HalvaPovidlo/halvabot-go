@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"github.com/jonas747/dca"
 	"io/ioutil"
 
 	"github.com/pkg/errors"
@@ -18,10 +19,15 @@ type Config struct {
 }
 
 type DiscordConfig struct {
-	Token  string `json:"token"`
-	Bot    string `json:"bot"`
-	ID     int64  `json:"id"`
-	Prefix string `json:"prefix"`
+	Token  string      `json:"token"`
+	Bot    string      `json:"bot"`
+	ID     int64       `json:"id"`
+	Prefix string      `json:"prefix"`
+	Voice  VoiceConfig `json:"voice"`
+}
+
+type VoiceConfig struct {
+	dca.EncodeOptions
 }
 
 type SheetsConfig struct {
@@ -51,6 +57,29 @@ func InitConfig() (*Config, error) {
 	err = json.Unmarshal(jsonFile, &config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unmarshal failed")
+	}
+	//config.Discord.Voice = VoiceConfig{
+	//	EncodeOptions: dca.EncodeOptions{
+	//		Volume:        256,
+	//		Channels:      1,
+	//		FrameRate:     48000,
+	//		FrameDuration: 40,
+	//		Bitrate:       64,
+	//		PacketLoss:    5,
+	//		RawOutput:     false,
+	//		Application:   "ffmpeg",
+	//		//CoverFormat:      "",
+	//		//CompressionLevel: 5,
+	//		//BufferedFrames: 1000,
+	//		VBR: true,
+	//		//Threads:        0,
+	//		//StartTime:      0,
+	//		//AudioFilter:    "",
+	//		//Comment:        "",
+	//	},
+	//}
+	config.Discord.Voice = VoiceConfig{
+		EncodeOptions: *dca.StdEncodeOptions,
 	}
 	return &config, nil
 }
