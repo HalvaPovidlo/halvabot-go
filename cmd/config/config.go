@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
+	"github.com/jonas747/dca"
 	"github.com/pkg/errors"
 )
 
@@ -18,10 +19,15 @@ type Config struct {
 }
 
 type DiscordConfig struct {
-	Token  string `json:"token"`
-	Bot    string `json:"bot"`
-	ID     int64  `json:"id"`
-	Prefix string `json:"prefix"`
+	Token  string      `json:"token"`
+	Bot    string      `json:"bot"`
+	ID     int64       `json:"id"`
+	Prefix string      `json:"prefix"`
+	Voice  VoiceConfig `json:"voice"`
+}
+
+type VoiceConfig struct {
+	dca.EncodeOptions
 }
 
 type SheetsConfig struct {
@@ -51,6 +57,10 @@ func InitConfig() (*Config, error) {
 	err = json.Unmarshal(jsonFile, &config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unmarshal failed")
+	}
+
+	config.Discord.Voice = VoiceConfig{
+		EncodeOptions: *dca.StdEncodeOptions,
 	}
 	return &config, nil
 }

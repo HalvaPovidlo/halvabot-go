@@ -16,5 +16,6 @@
 
 # Secrets
 secret_config.json
+halvabot-*.json
 
 vendor/
