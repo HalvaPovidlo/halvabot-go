@@ -1,23 +1,23 @@
 package main
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/search"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
-	"github.com/bwmarrin/discordgo"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/bwmarrin/discordgo"
 	ytdl "github.com/kkdai/youtube/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/context"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 

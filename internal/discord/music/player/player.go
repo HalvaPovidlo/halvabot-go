@@ -2,11 +2,13 @@ package player
 
 import (
 	"fmt"
+
+	"github.com/pkg/errors"
+
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/search"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
-	"github.com/pkg/errors"
 )
 
 type Player struct {

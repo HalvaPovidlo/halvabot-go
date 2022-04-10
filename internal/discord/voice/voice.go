@@ -2,17 +2,16 @@ package voice
 
 import (
 	"fmt"
-	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
-	"github.com/pkg/errors"
-	"hash"
-	"hash/fnv"
 	"io"
 	"net/url"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jonas747/dca"
+	"github.com/pkg/errors"
+
+	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 type RepeatLevel int
@@ -24,50 +23,48 @@ const (
 )
 
 var (
-	fnvHash hash.Hash32 = fnv.New32a()
-
-	errVoiceJoinAlreadyInChannel = errors.New("voice: error joining channel, already in selected voice channel")
-	errVoiceJoinBusy             = errors.New("voice: error joining channel, busy in another channel")
-	errVoiceJoinChannel          = errors.New("voice: error joining channel")
-	errVoiceJoinChangeChannel    = errors.New("voice: error changing channel")
-	errVoiceLeaveChannel         = errors.New("voice: error leaving channel")
-	errVoiceLeaveNotConnected    = errors.New("voice: error leaving channel, not connected")
-	errVoiceNotStreaming         = errors.New("voice: not streaming")
-	errVoicePausedAlready        = errors.New("voice: already paused")
+	// errVoiceJoinAlreadyInChannel = errors.New("voice: error joining channel, already in selected voice channel")
+	// errVoiceJoinBusy             = errors.New("voice: error joining channel, busy in another channel")
+	// errVoiceJoinChannel          = errors.New("voice: error joining channel")
+	// errVoiceJoinChangeChannel    = errors.New("voice: error changing channel")
+	// errVoiceLeaveChannel         = errors.New("voice: error leaving channel")
+	errVoiceLeaveNotConnected = errors.New("voice: error leaving channel, not connected")
+	errVoiceNotStreaming      = errors.New("voice: not streaming")
+	// errVoicePausedAlready        = errors.New("voice: already paused")
 	errVoicePlayAlreadyStreaming = errors.New("voice: error playing audio, already streaming")
-	errVoicePlayInvalidURL       = errors.New("voice: error playing audio, invalid URL")
-	errVoicePlayMuted            = errors.New("voice: error playing audio, muted")
-	errVoicePlayNotConnected     = errors.New("voice: error playing audio, not connected")
-	errVoicePlayingAlready       = errors.New("voice: already playing")
-	errVoiceSkippedManually      = errors.New("voice: skipped audio manually")
-	errVoiceStoppedManually      = errors.New("voice: stopped audio manually")
+	// errVoicePlayInvalidURL       = errors.New("voice: error playing audio, invalid URL")
+	errVoicePlayMuted        = errors.New("voice: error playing audio, muted")
+	errVoicePlayNotConnected = errors.New("voice: error playing audio, not connected")
+	// errVoicePlayingAlready       = errors.New("voice: already playing")
+	errVoiceSkippedManually = errors.New("voice: skipped audio manually")
+	errVoiceStoppedManually = errors.New("voice: stopped audio manually")
 )
 
-//Voice contains data about the current voice session
+// Voice contains data about the current voice session
 type Voice struct {
-	sync.Mutex `json:"-"` //This struct gets accessed very repeatedly throughout various goroutines so we need a mutex to prevent race conditions
+	sync.Mutex `json:"-"` // This struct gets accessed very repeatedly throughout various goroutines so we need a mutex to prevent race conditions
 
-	//Voice connections and audio sessions
-	VoiceConnection  *discordgo.VoiceConnection `json:"voiceConnection"` //The current Discord voice connection
+	// Voice connections and audio sessions
+	VoiceConnection  *discordgo.VoiceConnection `json:"voiceConnection"`
 	DiscordSession   *discordgo.Session
-	EncodingSession  *dca.EncodeSession    `json:"encodingSession"`  //The encoding session for encoding the audio stream to Opus
-	StreamingSession *dca.StreamingSession `json:"streamingSession"` //The streaming session for sending the Opus audio to Discord
+	EncodingSession  *dca.EncodeSession    `json:"encodingSession"`
+	StreamingSession *dca.StreamingSession `json:"streamingSession"`
 
-	//Voice configurations
-	EncodingOptions *dca.EncodeOptions `json:"encodingOptions"` //The settings that will be used for encoding the audio stream to Opus
-	RepeatLevel     RepeatLevel        `json:"repeatLevel"`     //0 = No Repeat, 1 = Repeat Playlist, 2 = Repeat Now Playing
-	Shuffle         bool               `json:"shuffle"`         //If enabled, entries will be pulled from the queue at random instead of in order
-	Muted           bool               `json:"muted"`           //Whether or not audio should be sent to Discord
-	Deafened        bool               `json:"deafened"`        //Whether or not audio should be received from Discord
+	// Voice configurations
+	EncodingOptions *dca.EncodeOptions `json:"encodingOptions"`
+	RepeatLevel     RepeatLevel        `json:"repeatLevel"`
+	Shuffle         bool               `json:"shuffle"`
+	Muted           bool               `json:"muted"`    // Whether audio should be sent to Discord
+	Deafened        bool               `json:"deafened"` // Whether audio should be received from Discord
 
-	//Contains data about the current queue
-	Entries    []*QueueEntry `json:"queueEntries"` //Holds a list of queue entries
-	NowPlaying *NowPlaying   `json:"nowPlaying"`   //Holds the queue entry currently in the now playing slot
+	// Contains data about the current queue
+	Entries    []*QueueEntry `json:"queueEntries"`
+	NowPlaying *NowPlaying   `json:"nowPlaying"`
 
-	//Miscellaneous
-	TextChannelID string     `json:"textChannelID"` //The channel that was last used to interact with the voice session
-	Started       bool       `json:"-"`             //If the playback session has started
-	done          chan error //Used to signal when streaming is done or other actions are performed
+	// Miscellaneous
+	TextChannelID string     `json:"textChannelID"` // TODO: The channel that was last used to interact with the voice session
+	Started       bool       `json:"-"`             // If the playback session has started
+	done          chan error // Used to signal when streaming is done or other actions are performed
 }
 
 // Connect connects to a given voice channel
@@ -124,29 +121,26 @@ func (v *Voice) Play(logger *zap.Logger) error {
 
 // PlaySong plays a given queue entry in a connected voice channel
 // - queueEntry: The queue entry to play/add to the queue
-// - announceQueueAdded: Whether or not to announce a queue added message if something is already playing (used internally for mass playlist additions)
+// - announceQueueAdded: Whether to announce a queue added message if something is already playing (used internally for mass playlist additions)
 func (v *Voice) PlaySong(queueEntry *QueueEntry, announceQueueAdded bool, logger *zap.Logger) {
 	go v.playSong(queueEntry, announceQueueAdded, logger)
 }
 
 func (v *Voice) playSong(queueEntry *QueueEntry, announceQueueAdded bool, logger *zap.Logger) {
-	//Make sure we're connected first
 	if !v.IsConnected() {
 		logger.Error(errVoicePlayNotConnected)
 		return
 	}
 
-	//Make sure we're not streaming already
 	if v.IsStreaming() {
-		//If we are streaming, add to the queue instead
 		v.QueueAdd(queueEntry)
 		if announceQueueAdded {
 			// TODO: send message play
+			logger.Info("Added to queue")
 		}
 		return
 	}
 
-	//Make sure we're allowed to speak
 	if v.Muted {
 		logger.Error(errVoicePlayMuted)
 		return
@@ -154,7 +148,6 @@ func (v *Voice) playSong(queueEntry *QueueEntry, announceQueueAdded bool, logger
 
 	v.Lock()
 
-	//Let others know we're beginning to play something
 	v.Started = true
 	v.NowPlaying = &NowPlaying{Entry: queueEntry}
 	updateListeningStatus(v.DiscordSession, v.NowPlaying.Entry.Metadata.Artists[0].Name, v.NowPlaying.Entry.Metadata.Title)
@@ -193,7 +186,7 @@ func (v *Voice) playSong(queueEntry *QueueEntry, announceQueueAdded bool, logger
 	switch v.RepeatLevel {
 	case RepeatNone:
 		v.NowPlaying = nil
-		if len(v.Entries) <= 0 {
+		if len(v.Entries) == 0 {
 			err := v.Disconnect()
 			if err != nil {
 				logger.Error(err)
@@ -251,10 +244,7 @@ func (v *Voice) playRaw(mediaURL string) (error, error) {
 	v.StreamingSession = dca.NewStream(v.EncodingSession, v.VoiceConnection, v.done)
 	v.Unlock()
 
-	//Start a goroutine to update the current streaming position
 	go v.updatePosition()
-
-	//Wait for the streaming session to finish
 	msg := <-v.done
 
 	v.Lock()
@@ -263,14 +253,12 @@ func (v *Voice) playRaw(mediaURL string) (error, error) {
 	_, err = v.StreamingSession.Finished()
 	v.StreamingSession = nil
 
-	//Clean up the encoding session
 	v.EncodingSession.Stop()
 	v.EncodingSession.Cleanup()
 	v.EncodingSession = nil
 
 	v.Unlock()
 
-	//Return any streaming errors, if any
 	return msg, err
 }
 
@@ -312,16 +300,10 @@ func (v *Voice) Skip() (*QueueEntry, error) {
 	}
 
 	nextQueueEntry, _ := v.QueueGetNext()
-
-	//Stop the current now playing
 	v.done <- errVoiceSkippedManually
-
-	//Stop the encoding session
 	if err := v.EncodingSession.Stop(); err != nil {
 		return nil, err
 	}
-
-	//Clean up the encoding session
 	v.EncodingSession.Cleanup()
 
 	return nextQueueEntry, nil
@@ -341,7 +323,7 @@ func (v *Voice) silent() {
 	}
 }
 
-// IsConnected returns whether or not a voice connection exists
+// IsConnected returns whether a voice connection exists
 func (v *Voice) IsConnected() bool {
 	if v == nil {
 		return false
@@ -355,33 +337,11 @@ func (v *Voice) IsStreaming() bool {
 	v.Lock()
 	defer v.Unlock()
 
-	//Return false if a v connection does not exist
-	if !v.IsConnected() {
-		return false
-	}
-
-	//Return false if the playback session hasn't started
-	if !v.Started {
-		return false
-	}
-
-	//Return false if a streaming session does not exist
-	if v.StreamingSession == nil {
-		return false
-	}
-
-	//Return false if an encoding session does not exist
-	if v.EncodingSession == nil {
-		return false
-	}
-
-	//Otherwise return true
-	return true
+	return !(!v.IsConnected() || !v.Started || v.StreamingSession == nil || v.EncodingSession == nil)
 }
 
 // SetTextChannel sets the text channel to send messages to
 func (v *Voice) SetTextChannel(tChannelID string) {
-	//Set v message output to current text channel
 	v.TextChannelID = tChannelID
 }
 

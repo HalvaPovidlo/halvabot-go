@@ -2,8 +2,10 @@ package discord
 
 import (
 	"fmt"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
+
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 func OpenSession(token string, logger *zap.Logger) (*discordgo.Session, error) {

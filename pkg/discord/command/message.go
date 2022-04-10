@@ -1,8 +1,9 @@
 package command
 
 import (
-	"github.com/bwmarrin/discordgo"
 	"strings"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type MessageHandler func(s *discordgo.Session, m *discordgo.MessageCreate)

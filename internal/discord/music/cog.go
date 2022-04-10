@@ -2,13 +2,15 @@ package music
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/pkg/errors"
+
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord/command"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/util"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
-	"github.com/bwmarrin/discordgo"
-	"github.com/pkg/errors"
-	"strings"
 )
 
 const (

@@ -2,9 +2,9 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/jonas747/dca"
 	"io/ioutil"
 
+	"github.com/jonas747/dca"
 	"github.com/pkg/errors"
 )
 
@@ -58,26 +58,7 @@ func InitConfig() (*Config, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Unmarshal failed")
 	}
-	//config.Discord.Voice = VoiceConfig{
-	//	EncodeOptions: dca.EncodeOptions{
-	//		Volume:        256,
-	//		Channels:      1,
-	//		FrameRate:     48000,
-	//		FrameDuration: 40,
-	//		Bitrate:       64,
-	//		PacketLoss:    5,
-	//		RawOutput:     false,
-	//		Application:   "ffmpeg",
-	//		//CoverFormat:      "",
-	//		//CompressionLevel: 5,
-	//		//BufferedFrames: 1000,
-	//		VBR: true,
-	//		//Threads:        0,
-	//		//StartTime:      0,
-	//		//AudioFilter:    "",
-	//		//Comment:        "",
-	//	},
-	//}
+
 	config.Discord.Voice = VoiceConfig{
 		EncodeOptions: *dca.StdEncodeOptions,
 	}

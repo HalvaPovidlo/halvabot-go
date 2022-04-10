@@ -1,7 +1,6 @@
 package search
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
 	"regexp"
 	"sort"
 
@@ -9,6 +8,8 @@ import (
 	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
+
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
 )
 
 const videoPrefix = "https://youtube.com/watch?v="
@@ -95,7 +96,7 @@ func (y *YouTube) GetMetadata(url string) (*voice.Metadata, error) {
 	return metadata, nil
 }
 
-//GetQuery returns YouTube search results
+// getQuery returns YouTube search results
 func (y *YouTube) getQuery(query string) (string, error) {
 	call := y.youtube.Search.List([]string{"id"}).
 		Q(query).
