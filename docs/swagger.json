@@ -13,6 +13,38 @@
     "host": "localhost:8080",
     "basePath": "/api",
     "paths": {
+        "/discord/music/loopstatus": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Is loop mode enabled",
+                "responses": {
+                    "200": {
+                        "description": "Returns true or false as string",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/discord/music/now": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Song that is playing now",
+                "responses": {
+                    "200": {
+                        "description": "The song that is playing right now",
+                        "schema": {
+                            "$ref": "#/definitions/pkg.SongRequest"
+                        }
+                    }
+                }
+            }
+        },
         "/discord/music/play": {
             "post": {
                 "consumes": [
@@ -21,10 +53,10 @@
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Play song from youtube by name or url",
+                "summary": "Play the song from YouTube by name or url",
                 "parameters": [
                     {
-                        "description": "Название песни или url",
+                        "description": "Song name or url",
                         "name": "query",
                         "in": "body",
                         "required": true,
@@ -35,15 +67,99 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "The song that was added to the queue",
                         "schema": {
-                            "$ref": "#/definitions/voice.QueueEntry"
+                            "$ref": "#/definitions/pkg.SongRequest"
                         }
                     },
                     "400": {
-                        "description": "Неверные параметры",
+                        "description": "Incorrect input",
                         "schema": {
                             "$ref": "#/definitions/rest.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/discord/music/setloop": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Set loop mode",
+                "parameters": [
+                    {
+                        "description": "Song name or url",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rest.loopQuery"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Incorrect input",
+                        "schema": {
+                            "$ref": "#/definitions/rest.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/discord/music/skip": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Skip the current song and play next from the queue",
+                "responses": {
+                    "200": {
+                        "description": "The song that will play next",
+                        "schema": {
+                            "$ref": "#/definitions/pkg.SongRequest"
+                        }
+                    }
+                }
+            }
+        },
+        "/discord/music/stats": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Stats of player on current song",
+                "responses": {
+                    "200": {
+                        "description": "The song that is playing right now",
+                        "schema": {
+                            "$ref": "#/definitions/audio.SessionStats"
+                        }
+                    }
+                }
+            }
+        },
+        "/discord/music/stop": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Skip the current song and play next from the queue",
+                "responses": {
+                    "200": {
+                        "description": "The song that will play next",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -51,72 +167,67 @@
         }
     },
     "definitions": {
-        "discordgo.User": {
+        "audio.SessionStats": {
             "type": "object",
             "properties": {
-                "accent_color": {
-                    "description": "User's banner color, encoded as an integer representation of hexadecimal color code",
+                "duration": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg.Metadata": {
+            "type": "object",
+            "properties": {
+                "artists": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg.MetadataArtist"
+                    }
+                },
+                "artwork_url": {
+                    "type": "string"
+                },
+                "display_url": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "number"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg.MetadataArtist": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg.SongRequest": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "$ref": "#/definitions/pkg.Metadata"
+                },
+                "service_color": {
+                    "description": "Color of service used for this queue entry",
                     "type": "integer"
                 },
-                "avatar": {
-                    "description": "The hash of the user's avatar. Use Session.UserAvatar\nto retrieve the avatar itself.",
+                "service_name": {
+                    "description": "Name of service used for this queue entry",
                     "type": "string"
-                },
-                "banner": {
-                    "description": "The hash of the user's banner image.",
-                    "type": "string"
-                },
-                "bot": {
-                    "description": "Whether the user is a bot.",
-                    "type": "boolean"
-                },
-                "discriminator": {
-                    "description": "The discriminator of the user (4 numbers after name).",
-                    "type": "string"
-                },
-                "email": {
-                    "description": "The email of the user. This is only present when\nthe application possesses the email scope for the user.",
-                    "type": "string"
-                },
-                "flags": {
-                    "description": "The flags on a user's account.\nOnly available when the request is authorized via a Bearer token.",
-                    "type": "integer"
-                },
-                "id": {
-                    "description": "The ID of the user.",
-                    "type": "string"
-                },
-                "locale": {
-                    "description": "The user's chosen language option.",
-                    "type": "string"
-                },
-                "mfa_enabled": {
-                    "description": "Whether the user has multi-factor authentication enabled.",
-                    "type": "boolean"
-                },
-                "premium_type": {
-                    "description": "The type of Nitro subscription on a user's account.\nOnly available when the request is authorized via a Bearer token.",
-                    "type": "integer"
-                },
-                "public_flags": {
-                    "description": "The public flags on a user's account.\nThis is a combination of bit masks; the presence of a certain flag can\nbe checked by performing a bitwise AND between this int and the flag.",
-                    "type": "integer"
-                },
-                "system": {
-                    "description": "Whether the user is an Official Discord System user (part of the urgent message system).",
-                    "type": "boolean"
-                },
-                "token": {
-                    "description": "The token of the user. This is only present for\nthe user represented by the current session.",
-                    "type": "string"
-                },
-                "username": {
-                    "description": "The user's username.",
-                    "type": "string"
-                },
-                "verified": {
-                    "description": "Whether the user's email is verified.",
-                    "type": "boolean"
                 }
             }
         },
@@ -128,6 +239,17 @@
                 }
             }
         },
+        "rest.loopQuery": {
+            "type": "object",
+            "required": [
+                "enable"
+            ],
+            "properties": {
+                "enable": {
+                    "type": "boolean"
+                }
+            }
+        },
         "rest.songQuery": {
             "type": "object",
             "required": [
@@ -135,74 +257,6 @@
             ],
             "properties": {
                 "song": {
-                    "type": "string"
-                }
-            }
-        },
-        "voice.Metadata": {
-            "type": "object",
-            "properties": {
-                "artists": {
-                    "description": "List of artists for this queue entry",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/voice.MetadataArtist"
-                    }
-                },
-                "artwork_url": {
-                    "description": "Entry artwork URL",
-                    "type": "string"
-                },
-                "display_url": {
-                    "description": "Entry page URL to display to users",
-                    "type": "string"
-                },
-                "duration": {
-                    "description": "Entry duration",
-                    "type": "number"
-                },
-                "stream_url": {
-                    "description": "Entry URL for streaming",
-                    "type": "string"
-                },
-                "thumbnail_url": {
-                    "description": "Entry artwork thumbnail URL",
-                    "type": "string"
-                },
-                "title": {
-                    "description": "Entry title",
-                    "type": "string"
-                }
-            }
-        },
-        "voice.MetadataArtist": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "description": "Artist name",
-                    "type": "string"
-                },
-                "url": {
-                    "description": "Artist page URL",
-                    "type": "string"
-                }
-            }
-        },
-        "voice.QueueEntry": {
-            "type": "object",
-            "properties": {
-                "metadata": {
-                    "$ref": "#/definitions/voice.Metadata"
-                },
-                "requester": {
-                    "$ref": "#/definitions/discordgo.User"
-                },
-                "service_color": {
-                    "description": "Color of service used for this queue entry",
-                    "type": "integer"
-                },
-                "service_name": {
-                    "description": "Name of service used for this queue entry",
                     "type": "string"
                 }
             }

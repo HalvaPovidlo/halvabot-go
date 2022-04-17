@@ -1,4 +1,4 @@
-package voice
+package audio
 
 import (
 	"fmt"
@@ -10,7 +10,6 @@ import (
 	"github.com/jonas747/dca"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
@@ -51,11 +50,11 @@ type Voice struct {
 	StreamingSession *dca.StreamingSession `json:"streamingSession"`
 
 	// Voice configurations
-	EncodingOptions *dca.EncodeOptions `json:"encodingOptions"`
-	RepeatLevel     RepeatLevel        `json:"repeatLevel"`
-	Shuffle         bool               `json:"shuffle"`
-	Muted           bool               `json:"muted"`    // Whether audio should be sent to Discord
-	Deafened        bool               `json:"deafened"` // Whether audio should be received from Discord
+	EncodingOptions *dca.EncodeOptions
+	RepeatLevel     RepeatLevel `json:"repeatLevel"`
+	Shuffle         bool        `json:"shuffle"`
+	Muted           bool        `json:"muted"`    // Whether audio should be sent to Discord
+	Deafened        bool        `json:"deafened"` // Whether audio should be received from Discord
 
 	// Contains data about the current queue
 	Entries    []*QueueEntry `json:"queueEntries"`
@@ -346,9 +345,9 @@ func (v *Voice) SetTextChannel(tChannelID string) {
 }
 
 // NewVoice VoiceInit initializes a voice object for the given guild
-func NewVoice(session *discordgo.Session, config config.VoiceConfig) *Voice {
+func NewVoice(session *discordgo.Session, config *dca.EncodeOptions) *Voice {
 	return &Voice{
 		DiscordSession:  session,
-		EncodingOptions: &config.EncodeOptions,
+		EncodingOptions: config,
 	}
 }

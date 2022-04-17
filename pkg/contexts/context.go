@@ -1,4 +1,4 @@
-package context
+package contexts
 
 import (
 	"context"
@@ -18,8 +18,9 @@ type Context struct {
 
 var Background = context.Background
 
-func WithLogger(ctx context.Context, logger *zap.Logger) context.Context {
-	return context.WithValue(ctx, loggerKey, logger)
+func WithLogger(ctx context.Context, logger *zap.Logger) (Context, context.CancelFunc) {
+	ctx, f := context.WithCancel(context.WithValue(ctx, loggerKey, logger))
+	return Context{ctx}, f
 }
 func (ctx Context) LoggerFromContext() *zap.Logger {
 	if logger, ok := ctx.Value(loggerKey).(*zap.Logger); ok {

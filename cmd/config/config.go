@@ -6,6 +6,8 @@ import (
 
 	"github.com/jonas747/dca"
 	"github.com/pkg/errors"
+
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
 )
 
 const FilePath = "secret_config.json"
@@ -19,11 +21,12 @@ type Config struct {
 }
 
 type DiscordConfig struct {
-	Token  string      `json:"token"`
-	Bot    string      `json:"bot"`
-	ID     int64       `json:"id"`
-	Prefix string      `json:"prefix"`
-	Voice  VoiceConfig `json:"voice"`
+	Token  string        `json:"token"`
+	Bot    string        `json:"bot"`
+	ID     int64         `json:"id"`
+	Prefix string        `json:"prefix"`
+	Voice  VoiceConfig   `json:"voice"`
+	Player player.Config `json:"player"`
 }
 
 type VoiceConfig struct {
