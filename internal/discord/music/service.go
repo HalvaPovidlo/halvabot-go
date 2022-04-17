@@ -1,13 +1,12 @@
 package music
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord/command"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/util"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
@@ -17,22 +16,21 @@ const (
 	play = "play "
 )
 
-// Player TODO: loop, disconnect commands
 type Player interface {
-	PlayYoutube(query string) (*voice.QueueEntry, error)
-	Skip() (*voice.QueueEntry, error)
-	Stop() error
-	Connect(guildID, channelID string) error
+	PlayYoutube(query string) (*pkg.SongRequest, error)
+	Skip() *pkg.SongRequest
+	Connect(guildID, channelID string)
+	Errors() <-chan error
 }
 
-type Cog struct {
+type Service struct {
 	player Player
 	prefix string
 	logger *zap.Logger
 }
 
-func NewCog(player Player, prefix string, logger *zap.Logger) *Cog {
-	c := Cog{
+func NewCog(player Player, prefix string, logger *zap.Logger) *Service {
+	c := Service{
 		player: player,
 		prefix: prefix,
 		logger: logger,
@@ -55,36 +53,45 @@ func registerSlashBasicCommand(s *discordgo.Session) (unregisterCommand func()) 
 	return sc.RegisterCommand(s)
 }
 
-func (c *Cog) registerMessagePlayCommand(s *discordgo.Session) {
-	mc := command.NewMessageCommand(c.prefix+play, c.playMessageHandler)
-	mc.RegisterCommand(s)
+func (s *Service) registerMessagePlayCommand(session *discordgo.Session) {
+	mc := command.NewMessageCommand(s.prefix+play, s.playMessageHandler)
+	mc.RegisterCommand(session)
 }
 
-func (c *Cog) RegisterCommands(s *discordgo.Session) {
-	registerSlashBasicCommand(s)
-	c.registerMessagePlayCommand(s)
+func (s *Service) RegisterCommands(session *discordgo.Session) {
+	registerSlashBasicCommand(session)
+	s.registerMessagePlayCommand(session)
 }
 
-func (c *Cog) playMessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
-	query := strings.TrimPrefix(m.Content, c.prefix+play)
+func (s *Service) playMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
+	s.logger.Debug("$play command Handled")
+	query := strings.TrimPrefix(m.Content, s.prefix+play)
 	query = util.StandardizeSpaces(query)
 
-	id, err := findAuthorVoiceChannelID(s, m)
+	s.logger.Debug("finding author's voice channel ID")
+	id, err := findAuthorVoiceChannelID(session, m)
 	if err != nil {
-		// TODO: log error
+		s.logger.Error(err, "failed to find author's voice channel")
 		return
 	}
-	err = c.player.Connect(m.GuildID, id)
-	if err != nil {
-		return
-	}
+	s.logger.Debug("connecting")
+	s.player.Connect(m.GuildID, id)
 
-	_, err = c.player.PlayYoutube(query)
+	s.logger.Debug("PlayYoutube")
+	_, err = s.player.PlayYoutube(query)
 	if err != nil {
-		fmt.Println(err)
+		s.logger.Error(err)
+		// TODO: Disconnect
 		return
 	}
 }
+
+// func updateListeningStatus(session *discordgo.Session, name string, title string) {
+//		err := session.UpdateListeningStatus(name + " - " + title)
+//		if err != nil {
+//			return
+//		}
+//	}
 
 func findAuthorVoiceChannelID(s *discordgo.Session, m *discordgo.MessageCreate) (string, error) {
 	guild, err := s.State.Guild(m.GuildID)

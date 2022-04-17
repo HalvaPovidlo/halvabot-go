@@ -9,21 +9,26 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/voice"
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 const videoPrefix = "https://youtube.com/watch?v="
 
+// TODO: work on this
+
 // YouTube exports the methods required to access the YouTube service
 type YouTube struct {
+	ctx     contexts.Context
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
 }
 
-func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service) *YouTube {
+func NewYouTubeClient(ctx contexts.Context, ytdl *ytdl.Client, yt *youtube.Service) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
+		ctx:     ctx,
 	}
 }
 
@@ -44,28 +49,34 @@ func (*YouTube) TestURL(url string) (bool, error) {
 }
 
 // GetMetadata returns the metadata for a given YouTube video URL
-func (y *YouTube) GetMetadata(url string) (*voice.Metadata, error) {
+func (y *YouTube) GetMetadata(url string) (*pkg.Metadata, error) {
+	logger := y.ctx.LoggerFromContext()
+	logger.Debug("GetVideo")
 	videoInfo, err := y.ytdl.GetVideo(url)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
 	}
-
+	logger.Debug("formats := videoInfo.Formats")
 	formats := videoInfo.Formats
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")
 	}
 
+	logger.Debug("sort.SliceStable")
 	sort.SliceStable(formats, func(i, j int) bool {
 		return formats[i].ItagNo < formats[j].ItagNo
 	})
 
+	logger.Debug("formats[0]")
 	format := formats[0]
 
+	logger.Debug("GetStreamURL")
 	videoURL, err := y.ytdl.GetStreamURL(videoInfo, &format)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "unable to get streamURL %s", videoInfo.Title)
 	}
 
+	logger.Debug(" youtube.NewVideosService(y.youtube).")
 	ytCall := youtube.NewVideosService(y.youtube).
 		List([]string{"snippet", "contentDetails"}).
 		Id(videoInfo.ID)
@@ -80,14 +91,14 @@ func (y *YouTube) GetMetadata(url string) (*voice.Metadata, error) {
 		return nil, err
 	}
 
-	metadata := &voice.Metadata{
+	metadata := &pkg.Metadata{
 		Title:      videoInfo.Title,
 		DisplayURL: url,
 		StreamURL:  videoURL,
 		Duration:   duration.ToDuration().Seconds(),
 	}
 
-	videoAuthor := &voice.MetadataArtist{
+	videoAuthor := &pkg.MetadataArtist{
 		Name: ytResponse.Items[0].Snippet.ChannelTitle,
 		URL:  "https://youtube.com/channel/" + ytResponse.Items[0].Snippet.ChannelId,
 	}
@@ -117,27 +128,31 @@ func (y *YouTube) getQuery(query string) (string, error) {
 	return "", errors.New("could not find a video result for the specified query")
 }
 
-func (y *YouTube) FindSong(query string) (*voice.QueueEntry, error) {
+func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
+	logger := y.ctx.LoggerFromContext()
+	logger.Debug("get query")
 	url, err := y.getQuery(query)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "search in youtube")
 	}
 
+	logger.Debug("TestURL")
 	test, err := y.TestURL(url)
 	if err != nil {
 		return nil, err
 	}
 	if test {
+		logger.Debug("GetMetadata")
 		metadata, err := y.GetMetadata(url)
 		if err != nil {
-			return nil, errors.Wrap(err, "Find song")
+			return nil, errors.Wrap(err, "get metadata")
 		}
-		queueEntry := &voice.QueueEntry{
+		req := &pkg.SongRequest{
 			Metadata:     metadata,
 			ServiceName:  y.GetName(),
 			ServiceColor: y.GetColor(),
 		}
-		return queueEntry, nil
+		return req, nil
 	}
 
 	return nil, errors.New("wrong youtube url")
