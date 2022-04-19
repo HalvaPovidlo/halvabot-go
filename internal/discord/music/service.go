@@ -22,7 +22,6 @@ const (
 
 type Player interface {
 	Play(s *pkg.SongRequest)
-	Enqueue(s *pkg.SongRequest)
 	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool
@@ -31,6 +30,9 @@ type Player interface {
 	Connect(guildID, channelID string)
 	Disconnect()
 	SubscribeOnErrors(h player.ErrorHandler)
+	// Enqueue(s *pkg.SongRequest)
+	// Stop()
+	// Radio()
 }
 
 type YouTube interface {

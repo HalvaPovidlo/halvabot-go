@@ -15,6 +15,10 @@ import (
 
 const videoPrefix = "https://youtube.com/watch?v="
 
+var (
+	ErrSongNotFound = errors.New("song not found")
+)
+
 // TODO: work on this
 
 // YouTube exports the methods required to access the YouTube service
@@ -125,7 +129,7 @@ func (y *YouTube) getQuery(query string) (string, error) {
 		}
 	}
 
-	return "", errors.New("could not find a video result for the specified query")
+	return "", ErrSongNotFound
 }
 
 func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
@@ -133,6 +137,9 @@ func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
 	logger.Debug("get query")
 	url, err := y.getQuery(query)
 	if err != nil {
+		if err == ErrSongNotFound {
+			return nil, ErrSongNotFound
+		}
 		return nil, errors.Wrap(err, "search in youtube")
 	}
 
