@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
@@ -25,11 +25,12 @@ type VoiceClient interface {
 	Disconnect() error
 }
 
-type YouTube interface {
-	FindSong(query string) (*pkg.SongRequest, error)
+type ErrorHandler interface {
+	HandleError(err error)
 }
 
 var (
+	ErrNotConnected   = errors.New("voice client not connected")
 	ErrConnectFailed  = errors.New("connect to voice channel failed")
 	ErrNotImplemented = errors.New("this command is not implemented")
 )
@@ -39,6 +40,7 @@ type commandType int
 const (
 	play commandType = iota
 	next
+	enqueue
 	skip
 	stop
 	radio
@@ -57,28 +59,28 @@ type Config struct {
 }
 
 type Player struct {
-	ctx     contexts.Context
-	youtube YouTube
-	voice   VoiceClient
-	audio   MediaPlayer
-	config  Config
+	ctx    contexts.Context
+	voice  VoiceClient
+	audio  MediaPlayer
+	config Config
 
-	currentLock sync.Mutex
-	current     pkg.SongRequest
-	queue       Queue
-	errs        chan error
-	commands    chan *command
+	currentLock   sync.Mutex
+	current       pkg.SongRequest
+	queue         Queue
+	errs          chan error
+	commands      chan *command
+	errorHandlers chan ErrorHandler
 }
 
-func NewPlayer(ctx contexts.Context, youtube YouTube, voice VoiceClient, audio MediaPlayer, config Config) *Player {
+func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, config Config) *Player {
 	p := Player{
-		ctx:     ctx,
-		youtube: youtube,
-		voice:   voice,
-		audio:   audio,
-		config:  config,
+		ctx:    ctx,
+		voice:  voice,
+		audio:  audio,
+		config: config,
 	}
 	p.commands, p.errs = p.processCommands()
+	p.errorHandlers = p.processErrors(p.errs)
 	return &p
 }
 
@@ -109,11 +111,12 @@ func (p *Player) processCommands() (chan *command, chan error) {
 				}
 				if err != nil {
 					p.ctx.LoggerFromContext().Error(errors.Wrap(err, "player"))
-					// out <- err
+					out <- err
 				}
 			case <-p.ctx.Done():
 				p.queue.Clear()
 				p.audio.Stop()
+				return
 			}
 		}
 	}()
@@ -126,7 +129,10 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 	log.Debugf("process command %d", c.Type)
 	switch c.Type {
 	case play:
-		log.Debugf("adding to queue")
+		if !p.voice.IsConnected() {
+			return ErrNotConnected
+		}
+		log.Debugf("adding to queue %s", c.entry.Metadata.Title)
 		p.queue.Add(c.entry)
 		if !p.audio.IsPlaying() {
 			s := p.queue.Next()
@@ -135,6 +141,9 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 			out <- requestFromEntry(s, p.voice.Connection())
 		}
 	case next:
+		if !p.voice.IsConnected() {
+			return nil
+		}
 		if !p.audio.IsPlaying() {
 			if !p.queue.IsEmpty() {
 				s := p.queue.Next()
@@ -147,6 +156,8 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 				}
 			}
 		}
+	case enqueue:
+		p.queue.Add(c.entry)
 	case skip:
 		p.audio.Stop()
 	case radio:
@@ -179,28 +190,29 @@ func (p *Player) reset() {
 	p.audio.Stop()
 }
 
-func (p *Player) PlayYoutube(query string) (*pkg.SongRequest, error) {
-	log := p.ctx.LoggerFromContext()
-	log.Debug("Finding song")
-	song, err := p.youtube.FindSong(query)
-	if err != nil {
-		return nil, errors.Wrap(err, "player: youtube song not found")
+// Enqueue song to the player
+func (p *Player) Enqueue(s *pkg.SongRequest) {
+	p.commands <- &command{
+		Type:  enqueue,
+		entry: s,
 	}
+}
+
+// Play next song and enqueue input
+func (p *Player) Play(s *pkg.SongRequest) {
+	log := p.ctx.LoggerFromContext()
 	log.Debug("sending command play")
 	p.commands <- &command{
 		Type:  play,
-		entry: song,
+		entry: s,
 	}
-	return song, nil
 }
 
 // Skip returns nil if there is nothing to play next
-func (p *Player) Skip() *pkg.SongRequest {
-	next := p.queue.Front()
+func (p *Player) Skip() {
 	p.commands <- &command{
 		Type: skip,
 	}
-	return next
 }
 
 func (p *Player) Stop() {
@@ -217,10 +229,7 @@ func (p *Player) SetLoop(b bool) {
 	p.queue.SetLoop(b)
 }
 
-func (p *Player) Stats() audio.SessionStats {
-	return p.audio.Stats()
-}
-
+// Radio TODO: implement radio
 func (p *Player) Radio() bool {
 	p.commands <- &command{
 		Type: radio,
@@ -254,7 +263,32 @@ func (p *Player) setNowPlaying(s pkg.SongRequest) {
 	p.current = s
 }
 
-// Errors TODO: make smth like subscribe on errors function to prevent deadlocks and implement possibility of multiple error readers
-func (p *Player) Errors() <-chan error {
-	return p.errs
+func (p *Player) Stats() audio.SessionStats {
+	return p.audio.Stats()
+}
+
+func (p *Player) SubscribeOnErrors(h ErrorHandler) {
+	p.errorHandlers <- h
+}
+
+func (p *Player) processErrors(errs <-chan error) chan ErrorHandler {
+	handlers := make([]ErrorHandler, 0)
+	newHandlers := make(chan ErrorHandler)
+	go func() {
+		defer close(newHandlers)
+		for {
+			select {
+			case err, ok := <-errs:
+				if !ok {
+					return
+				}
+				for _, h := range handlers {
+					h.HandleError(err)
+				}
+			case h := <-newHandlers:
+				handlers = append(handlers, h)
+			}
+		}
+	}()
+	return newHandlers
 }

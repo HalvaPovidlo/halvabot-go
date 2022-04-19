@@ -1,9 +1,10 @@
 package rest
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
 	"github.com/gin-gonic/gin"
+
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 )
 
 type Player interface {

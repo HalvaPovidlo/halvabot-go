@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 )
 
 func (v *Voice) QueueAdd(entry *QueueEntry) {

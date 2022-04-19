@@ -16,8 +16,7 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/search"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
@@ -50,12 +49,14 @@ func main() {
 		logger.Infow("Bot session closed")
 	}(session)
 
+	session.Debug = true
+	session.LogLevel = 100
+
 	// YouTube services
 	ytService, err := youtube.NewService(ctx, option.WithCredentialsFile("halvabot-google.json"))
 	if err != nil {
 		panic(errors.Wrap(err, "youtube init failed"))
 	}
-
 	ytClient := search.NewYouTubeClient(ctx,
 		&ytdl.Client{
 			Debug:      true,
@@ -64,11 +65,11 @@ func main() {
 		ytService)
 
 	// Music stage
-	voiceClient := pkg.NewVoiceClient(session)
+	voiceClient := audio.NewVoiceClient(session)
 	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions, logger)
-	musicPlayer := player.NewPlayer(ctx, ytClient, voiceClient, rawAudioPlayer, cfg.Discord.Player)
+	musicPlayer := player.NewPlayer(ctx, voiceClient, rawAudioPlayer, cfg.Discord.Player)
 
-	musicCog := music.NewCog(musicPlayer, cfg.Discord.Prefix, logger)
+	musicCog := music.NewCog(musicPlayer, ytClient, cfg.Discord.Prefix, logger)
 	musicCog.RegisterCommands(session)
 
 	// Graceful shutdown

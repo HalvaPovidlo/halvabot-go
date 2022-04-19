@@ -1,4 +1,4 @@
-package pkg
+package audio
 
 import "github.com/bwmarrin/discordgo"
 
@@ -7,14 +7,14 @@ type Client struct {
 	session *discordgo.Session
 }
 
-func (c *Client) Connection() *discordgo.VoiceConnection {
-	return c.conn
-}
-
 func NewVoiceClient(s *discordgo.Session) *Client {
 	return &Client{
 		session: s,
 	}
+}
+
+func (c *Client) Connection() *discordgo.VoiceConnection {
+	return c.conn
 }
 
 func (c *Client) Connect(guildID, channelID string) error {
@@ -32,5 +32,9 @@ func (c *Client) IsConnected() bool {
 }
 
 func (c *Client) Disconnect() error {
-	return c.conn.Disconnect()
+	if err := c.conn.Disconnect(); err != nil {
+		return err
+	}
+	c.conn = nil
+	return nil
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
@@ -56,7 +56,7 @@ func (y *YouTube) GetMetadata(url string) (*pkg.Metadata, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
 	}
-	logger.Debug("formats := videoInfo.Formats")
+	logger.Debug("GetVideo")
 	formats := videoInfo.Formats
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")

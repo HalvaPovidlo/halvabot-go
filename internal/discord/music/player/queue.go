@@ -6,7 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 )
 
 type Queue struct {
