@@ -9,11 +9,15 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 const videoPrefix = "https://youtube.com/watch?v="
+
+var (
+	ErrSongNotFound = errors.New("song not found")
+)
 
 // TODO: work on this
 
@@ -56,7 +60,7 @@ func (y *YouTube) GetMetadata(url string) (*pkg.Metadata, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
 	}
-	logger.Debug("formats := videoInfo.Formats")
+	logger.Debug("GetVideo")
 	formats := videoInfo.Formats
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")
@@ -125,7 +129,7 @@ func (y *YouTube) getQuery(query string) (string, error) {
 		}
 	}
 
-	return "", errors.New("could not find a video result for the specified query")
+	return "", ErrSongNotFound
 }
 
 func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
@@ -133,6 +137,9 @@ func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
 	logger.Debug("get query")
 	url, err := y.getQuery(query)
 	if err != nil {
+		if err == ErrSongNotFound {
+			return nil, ErrSongNotFound
+		}
 		return nil, errors.Wrap(err, "search in youtube")
 	}
 

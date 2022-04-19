@@ -1,29 +1,42 @@
 package rest
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
 	"github.com/gin-gonic/gin"
+
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 )
 
 type Player interface {
-	PlayYoutube(query string) (*pkg.SongRequest, error)
-	Skip() *pkg.SongRequest
-	Stop()
-	LoopStatus() bool
+	Enqueue(s *pkg.SongRequest)
+	Skip()
 	SetLoop(b bool)
+	LoopStatus() bool
 	NowPlaying() pkg.SongRequest
 	Stats() audio.SessionStats
 }
 
+type YouTube interface {
+	FindSong(query string) (*pkg.SongRequest, error)
+}
+
 type Handler struct {
-	player Player
+	player  Player
+	youtube YouTube
+	super   *gin.RouterGroup
+}
+
+func NewHandler(player Player, tube YouTube, superGroup *gin.RouterGroup) *Handler {
+	return &Handler{
+		player:  player,
+		youtube: tube,
+		super:   superGroup,
+	}
 }
 
 func (h *Handler) Router() *gin.RouterGroup {
-	r := gin.Default()
-	music := r.Group("/music")
-	music.POST("/play", h.playHandler)
+	music := h.super.Group("/music")
+	music.POST("/enqueue", h.enqueueHandler)
 	music.GET("/skip", h.skipHandler)
 	music.GET("/stop", h.stopHandler)
 	music.GET("/loopstatus", h.loopStatusHandler)

@@ -10,42 +10,10 @@
         },
         "version": "1.0"
     },
-    "host": "localhost:8080",
+    "host": "localhost:9091",
     "basePath": "/api",
     "paths": {
-        "/discord/music/loopstatus": {
-            "get": {
-                "produces": [
-                    "text/plain"
-                ],
-                "summary": "Is loop mode enabled",
-                "responses": {
-                    "200": {
-                        "description": "Returns true or false as string",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/discord/music/now": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "summary": "Song that is playing now",
-                "responses": {
-                    "200": {
-                        "description": "The song that is playing right now",
-                        "schema": {
-                            "$ref": "#/definitions/pkg.SongRequest"
-                        }
-                    }
-                }
-            }
-        },
-        "/discord/music/play": {
+        "/discord/music/enqueue": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -76,6 +44,38 @@
                         "description": "Incorrect input",
                         "schema": {
                             "$ref": "#/definitions/rest.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/discord/music/loopstatus": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Is loop mode enabled",
+                "responses": {
+                    "200": {
+                        "description": "Returns true or false as string",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/discord/music/now": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Song that is playing now",
+                "responses": {
+                    "200": {
+                        "description": "The song that is playing right now",
+                        "schema": {
+                            "$ref": "#/definitions/pkg.SongRequest"
                         }
                     }
                 }
@@ -125,9 +125,9 @@
                 "summary": "Skip the current song and play next from the queue",
                 "responses": {
                     "200": {
-                        "description": "The song that will play next",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/pkg.SongRequest"
+                            "type": "string"
                         }
                     }
                 }
@@ -157,7 +157,7 @@
                 "summary": "Skip the current song and play next from the queue",
                 "responses": {
                     "200": {
-                        "description": "The song that will play next",
+                        "description": "OK",
                         "schema": {
                             "type": "string"
                         }

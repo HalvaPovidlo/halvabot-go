@@ -7,10 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 	"github.com/bwmarrin/discordgo"
 	"github.com/jonas747/dca"
 	"github.com/pkg/errors"
+
+	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 var (

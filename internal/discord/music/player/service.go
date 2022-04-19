@@ -2,12 +2,13 @@ package player
 
 import (
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
@@ -25,11 +26,12 @@ type VoiceClient interface {
 	Disconnect() error
 }
 
-type YouTube interface {
-	FindSong(query string) (*pkg.SongRequest, error)
+type ErrorHandler interface {
+	HandleError(err error)
 }
 
 var (
+	ErrNotConnected   = errors.New("voice client not connected")
 	ErrConnectFailed  = errors.New("connect to voice channel failed")
 	ErrNotImplemented = errors.New("this command is not implemented")
 )
@@ -44,6 +46,9 @@ const (
 	radio
 	connect
 	disconnect
+	enqueue
+	// shuffle
+	loop
 )
 
 type command struct {
@@ -51,35 +56,116 @@ type command struct {
 	guildID   string
 	channelID string
 	entry     *pkg.SongRequest
+	loop      bool
 }
 
 type Config struct {
 }
 
+// Player all public methods are concurrent and
+// most private methods are designed to be synchronous
 type Player struct {
-	ctx     contexts.Context
-	youtube YouTube
-	voice   VoiceClient
-	audio   MediaPlayer
-	config  Config
+	ctx    contexts.Context
+	voice  VoiceClient
+	audio  MediaPlayer
+	config Config
 
-	currentLock sync.Mutex
-	current     pkg.SongRequest
-	queue       Queue
-	errs        chan error
-	commands    chan *command
+	currentLock   sync.Mutex
+	current       pkg.SongRequest
+	isWaited      bool
+	queue         Queue
+	errs          chan error
+	commands      chan *command
+	errorHandlers chan ErrorHandler
 }
 
-func NewPlayer(ctx contexts.Context, youtube YouTube, voice VoiceClient, audio MediaPlayer, config Config) *Player {
+func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, config Config) *Player {
 	p := Player{
-		ctx:     ctx,
-		youtube: youtube,
-		voice:   voice,
-		audio:   audio,
-		config:  config,
+		ctx:    ctx,
+		voice:  voice,
+		audio:  audio,
+		config: config,
 	}
 	p.commands, p.errs = p.processCommands()
+	p.errorHandlers = p.processErrors(p.errs)
 	return &p
+}
+
+// Play next song and enqueue input
+func (p *Player) Play(s *pkg.SongRequest) {
+	log := p.ctx.LoggerFromContext()
+	log.Debug("sending command play")
+	p.commands <- &command{
+		Type:  play,
+		entry: s,
+	}
+}
+
+// Enqueue song to the player
+func (p *Player) Enqueue(s *pkg.SongRequest) {
+	p.commands <- &command{
+		Type:  enqueue,
+		entry: s,
+	}
+}
+
+// Skip returns nil if there is nothing to play next
+func (p *Player) Skip() {
+	p.commands <- &command{
+		Type: skip,
+	}
+}
+
+func (p *Player) Stop() {
+	p.commands <- &command{
+		Type: stop,
+	}
+}
+
+func (p *Player) LoopStatus() bool {
+	return p.queue.LoopStatus()
+}
+
+func (p *Player) SetLoop(b bool) {
+	p.commands <- &command{
+		Type: loop,
+		loop: b,
+	}
+}
+
+// Radio TODO: implement radio
+func (p *Player) Radio() bool {
+	p.commands <- &command{
+		Type: radio,
+	}
+	return false
+}
+
+func (p *Player) Connect(guildID, channelID string) {
+	p.commands <- &command{
+		Type:      connect,
+		guildID:   guildID,
+		channelID: channelID,
+	}
+}
+
+func (p *Player) Disconnect() {
+	p.commands <- &command{
+		Type: disconnect,
+	}
+}
+
+func (p *Player) NowPlaying() pkg.SongRequest {
+	p.currentLock.Lock()
+	defer p.currentLock.Unlock()
+	return p.current
+}
+
+// Concurrent method
+func (p *Player) setNowPlaying(s pkg.SongRequest) {
+	p.currentLock.Lock()
+	defer p.currentLock.Unlock()
+	p.current = s
 }
 
 func (p *Player) processCommands() (chan *command, chan error) {
@@ -109,11 +195,12 @@ func (p *Player) processCommands() (chan *command, chan error) {
 				}
 				if err != nil {
 					p.ctx.LoggerFromContext().Error(errors.Wrap(err, "player"))
-					// out <- err
+					out <- err
 				}
 			case <-p.ctx.Done():
 				p.queue.Clear()
 				p.audio.Stop()
+				return
 			}
 		}
 	}()
@@ -124,29 +211,19 @@ func (p *Player) processCommands() (chan *command, chan error) {
 func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 	log := p.ctx.LoggerFromContext()
 	log.Debugf("process command %d", c.Type)
+	if c.Type != next {
+		p.isWaited = false
+	}
+
 	switch c.Type {
 	case play:
-		log.Debugf("adding to queue")
-		p.queue.Add(c.entry)
-		if !p.audio.IsPlaying() {
-			s := p.queue.Next()
-			p.setNowPlaying(*s)
-			log.Debugf("pushing song req")
-			out <- requestFromEntry(s, p.voice.Connection())
-		}
+		return p.processPlay(c.entry, out)
 	case next:
-		if !p.audio.IsPlaying() {
-			if !p.queue.IsEmpty() {
-				s := p.queue.Next()
-				p.setNowPlaying(*s)
-				out <- requestFromEntry(s, p.voice.Connection())
-			} else {
-				err := p.voice.Disconnect()
-				if err != nil {
-					log.Error(errors.Wrap(err, "player: disconnecting because there is nothing to play next"))
-				}
-			}
-		}
+		return p.processNext(out)
+	case enqueue:
+		p.queue.Add(c.entry)
+	case loop:
+		p.queue.SetLoop(c.loop)
 	case skip:
 		p.audio.Stop()
 	case radio:
@@ -159,17 +236,71 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 			return err
 		}
 	case connect:
-		if p.voice.IsConnected() && p.voice.Connection().GuildID == c.guildID && p.voice.Connection().ChannelID == c.channelID {
-			return nil
+		return p.processConnect(c.guildID, c.channelID)
+	}
+	return nil
+}
+
+func (p *Player) Stats() audio.SessionStats {
+	return p.audio.Stats()
+}
+
+func (p *Player) SubscribeOnErrors(h ErrorHandler) {
+	p.errorHandlers <- h
+}
+
+func (p *Player) processPlay(entry *pkg.SongRequest, out chan *audio.SongRequest) error {
+	log := p.ctx.LoggerFromContext()
+	if !p.voice.IsConnected() {
+		return ErrNotConnected
+	}
+	log.Debugf("adding to queue %s", entry.Metadata.Title)
+	p.queue.Add(entry)
+	if !p.audio.IsPlaying() {
+		s := p.queue.Next()
+		p.setNowPlaying(*s)
+		log.Debugf("pushing song req")
+		out <- requestFromEntry(s, p.voice.Connection())
+	}
+	return nil
+}
+
+func (p *Player) processNext(out chan *audio.SongRequest) error {
+	if !p.voice.IsConnected() {
+		return nil
+	}
+	if !p.audio.IsPlaying() {
+		if !p.queue.IsEmpty() {
+			s := p.queue.Next()
+			p.setNowPlaying(*s)
+			out <- requestFromEntry(s, p.voice.Connection())
+		} else {
+			if p.isWaited {
+				p.isWaited = false
+				err := p.voice.Disconnect()
+				if err != nil {
+					return errors.Wrap(err, "player: disconnecting because there is nothing to play next")
+				}
+			} else {
+				p.isWaited = true
+				p.tryNextAfterTimeout(time.Minute)
+			}
 		}
-		p.reset()
-		if err := p.voice.Connect(c.guildID, c.channelID); err != nil {
-			p.ctx.LoggerFromContext().Errorw("player command connect",
-				"err", err,
-				"guildID", c.guildID,
-				"channelID", c.channelID)
-			return ErrConnectFailed
-		}
+	}
+	return nil
+}
+
+func (p *Player) processConnect(gID, cID string) error {
+	if p.voice.IsConnected() && p.voice.Connection().GuildID == gID && p.voice.Connection().ChannelID == cID {
+		return nil
+	}
+	p.reset()
+	if err := p.voice.Connect(gID, cID); err != nil {
+		p.ctx.LoggerFromContext().Errorw("player command connect",
+			"err", err,
+			"guildID", gID,
+			"channelID", cID)
+		return ErrConnectFailed
 	}
 	return nil
 }
@@ -179,82 +310,33 @@ func (p *Player) reset() {
 	p.audio.Stop()
 }
 
-func (p *Player) PlayYoutube(query string) (*pkg.SongRequest, error) {
-	log := p.ctx.LoggerFromContext()
-	log.Debug("Finding song")
-	song, err := p.youtube.FindSong(query)
-	if err != nil {
-		return nil, errors.Wrap(err, "player: youtube song not found")
-	}
-	log.Debug("sending command play")
-	p.commands <- &command{
-		Type:  play,
-		entry: song,
-	}
-	return song, nil
+func (p *Player) processErrors(errs <-chan error) chan ErrorHandler {
+	handlers := make([]ErrorHandler, 0)
+	newHandlers := make(chan ErrorHandler)
+	go func() {
+		defer close(newHandlers)
+		for {
+			select {
+			case err, ok := <-errs:
+				if !ok {
+					return
+				}
+				for _, h := range handlers {
+					h.HandleError(err)
+				}
+			case h := <-newHandlers:
+				handlers = append(handlers, h)
+			}
+		}
+	}()
+	return newHandlers
 }
 
-// Skip returns nil if there is nothing to play next
-func (p *Player) Skip() *pkg.SongRequest {
-	next := p.queue.Front()
-	p.commands <- &command{
-		Type: skip,
-	}
-	return next
-}
-
-func (p *Player) Stop() {
-	p.commands <- &command{
-		Type: stop,
-	}
-}
-
-func (p *Player) LoopStatus() bool {
-	return p.queue.LoopStatus()
-}
-
-func (p *Player) SetLoop(b bool) {
-	p.queue.SetLoop(b)
-}
-
-func (p *Player) Stats() audio.SessionStats {
-	return p.audio.Stats()
-}
-
-func (p *Player) Radio() bool {
-	p.commands <- &command{
-		Type: radio,
-	}
-	return false
-}
-
-func (p *Player) Connect(guildID, channelID string) {
-	p.commands <- &command{
-		Type:      connect,
-		guildID:   guildID,
-		channelID: channelID,
-	}
-}
-
-func (p *Player) Disconnect() {
-	p.commands <- &command{
-		Type: disconnect,
-	}
-}
-
-func (p *Player) NowPlaying() pkg.SongRequest {
-	p.currentLock.Lock()
-	defer p.currentLock.Unlock()
-	return p.current
-}
-
-func (p *Player) setNowPlaying(s pkg.SongRequest) {
-	p.currentLock.Lock()
-	defer p.currentLock.Unlock()
-	p.current = s
-}
-
-// Errors TODO: make smth like subscribe on errors function to prevent deadlocks and implement possibility of multiple error readers
-func (p *Player) Errors() <-chan error {
-	return p.errs
+func (p *Player) tryNextAfterTimeout(d time.Duration) {
+	go func() {
+		time.Sleep(d)
+		p.commands <- &command{
+			Type: next,
+		}
+	}()
 }

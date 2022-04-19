@@ -23,40 +23,43 @@ type loopQuery struct {
 // @param    query  body      songQuery        true  "Song name or url"
 // @success  200    {object}  pkg.SongRequest  "The song that was added to the queue"
 // @failure  400    {object}  Response         "Incorrect input"
-// @router   /discord/music/play [post]
-func (h *Handler) playHandler(c *gin.Context) {
+// @router   /discord/music/enqueue [post]
+func (h *Handler) enqueueHandler(c *gin.Context) {
 	var json songQuery
 	if err := c.ShouldBindJSON(&json); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	entry, err := h.player.PlayYoutube(json.Song)
+	song, err := h.youtube.FindSong(json.Song)
+	if err != nil {
+		return
+	}
+	h.player.Enqueue(song)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{Message: err.Error()})
 	}
 
-	c.JSON(http.StatusOK, entry)
+	c.JSON(http.StatusOK, song)
 }
 
 // skip godoc
 // @summary  Skip the current song and play next from the queue
 // @produce  json
-// @success  200  {object}  pkg.SongRequest  "The song that will play next"
+// @success  200  string  string
 // @router   /discord/music/skip [get]
 func (h *Handler) skipHandler(c *gin.Context) {
-	entry := h.player.Skip()
-	c.JSON(http.StatusOK, entry)
+	h.player.Skip()
+	c.String(http.StatusOK, "")
 }
 
 // stop godoc
 // @summary  Skip the current song and play next from the queue
 // @produce  plain
-// @success  200  string  string  "The song that will play next"
+// @success  200  string  string
 // @router   /discord/music/stop [get]
 func (h *Handler) stopHandler(c *gin.Context) {
-	h.player.Stop()
-	c.String(http.StatusOK, "")
+	// h.player.Stop()
+	c.String(http.StatusNotImplemented, "")
 }
 
 // loopStatus godoc

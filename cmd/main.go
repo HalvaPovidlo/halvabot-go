@@ -7,19 +7,20 @@ import (
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/gin-gonic/gin"
 	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
+	"github.com/HalvaPovidlo/discordBotGo/internal/discord"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/search"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
+	discordpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
@@ -30,7 +31,7 @@ import (
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:8080
+// @host      localhost:9091
 // @BasePath  /api
 func main() {
 	cfg, err := config.InitConfig()
@@ -41,7 +42,7 @@ func main() {
 	ctx, cancel := contexts.WithLogger(contexts.Background(), logger)
 
 	// Initialize discord session
-	session, err := discord.OpenSession(cfg.Discord.Token, logger)
+	session, err := discordpkg.OpenSession(cfg.Discord.Token, logger)
 	if err != nil {
 		panic(errors.Wrap(err, "discord open session failed"))
 	}
@@ -50,12 +51,14 @@ func main() {
 		logger.Infow("Bot session closed")
 	}(session)
 
+	session.Debug = true
+	session.LogLevel = 100
+
 	// YouTube services
 	ytService, err := youtube.NewService(ctx, option.WithCredentialsFile("halvabot-google.json"))
 	if err != nil {
 		panic(errors.Wrap(err, "youtube init failed"))
 	}
-
 	ytClient := search.NewYouTubeClient(ctx,
 		&ytdl.Client{
 			Debug:      true,
@@ -64,12 +67,26 @@ func main() {
 		ytService)
 
 	// Music stage
-	voiceClient := pkg.NewVoiceClient(session)
+	voiceClient := audio.NewVoiceClient(session)
 	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions, logger)
-	musicPlayer := player.NewPlayer(ctx, ytClient, voiceClient, rawAudioPlayer, cfg.Discord.Player)
+	musicPlayer := player.NewPlayer(ctx, voiceClient, rawAudioPlayer, cfg.Discord.Player)
 
-	musicCog := music.NewCog(musicPlayer, cfg.Discord.Prefix, logger)
+	// Discord commands
+	musicCog := music.NewCog(musicPlayer, ytClient, cfg.Discord.Prefix, logger)
 	musicCog.RegisterCommands(session)
+
+	// Http routers
+	router := gin.Default()
+	apiRouter := router.Group("/api")
+	discordRouter := discord.NewHandler(apiRouter).Router()
+	discord.NewHandler(discordRouter).Router()
+	go func() {
+		err := router.Run(":9091")
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+	}()
 
 	// Graceful shutdown
 	sc := make(chan os.Signal, 1)
