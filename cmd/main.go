@@ -10,14 +10,18 @@ import (
 	"github.com/gin-gonic/gin"
 	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
+	"github.com/HalvaPovidlo/discordBotGo/docs"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
+	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/discord/music/rest"
 	"github.com/HalvaPovidlo/discordBotGo/internal/search"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	discordpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
@@ -32,7 +36,7 @@ import (
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
 // @host      localhost:9091
-// @BasePath  /api
+// @BasePath  /api/v1
 func main() {
 	cfg, err := config.InitConfig()
 	if err != nil {
@@ -77,9 +81,11 @@ func main() {
 
 	// Http routers
 	router := gin.Default()
-	apiRouter := router.Group("/api")
+	docs.SwaggerInfo.BasePath = "/api/v1"
+	apiRouter := router.Group("/api/v1")
 	discordRouter := discord.NewHandler(apiRouter).Router()
-	discord.NewHandler(discordRouter).Router()
+	musicrest.NewHandler(musicPlayer, ytClient, discordRouter).Router()
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":9091")
 		if err != nil {

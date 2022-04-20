@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 type songQuery struct {
@@ -16,7 +17,7 @@ type loopQuery struct {
 	Enable bool `json:"enable" binding:"required"`
 }
 
-// play godoc
+// enqueue godoc
 // @summary  Play the song from YouTube by name or url
 // @accept   json
 // @produce  json
@@ -32,6 +33,7 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 	}
 	song, err := h.youtube.FindSong(json.Song)
 	if err != nil {
+		c.JSON(http.StatusNotFound, Response{Message: errors.Wrap(err, "song not found").Error()})
 		return
 	}
 	h.player.Enqueue(song)

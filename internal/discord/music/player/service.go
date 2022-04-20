@@ -161,11 +161,23 @@ func (p *Player) NowPlaying() pkg.SongRequest {
 	return p.current
 }
 
-// Concurrent method
 func (p *Player) setNowPlaying(s pkg.SongRequest) {
 	p.currentLock.Lock()
 	defer p.currentLock.Unlock()
 	p.current = s
+}
+
+func (p *Player) Stats() audio.SessionStats {
+	s := p.audio.Stats()
+	if s.Duration == 0 {
+		s.Duration = p.NowPlaying().Metadata.Duration
+	}
+	return s
+}
+
+// SubscribeOnErrors TODO: try to path functions not objects
+func (p *Player) SubscribeOnErrors(h ErrorHandler) {
+	p.errorHandlers <- h
 }
 
 func (p *Player) processCommands() (chan *command, chan error) {
@@ -239,14 +251,6 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 		return p.processConnect(c.guildID, c.channelID)
 	}
 	return nil
-}
-
-func (p *Player) Stats() audio.SessionStats {
-	return p.audio.Stats()
-}
-
-func (p *Player) SubscribeOnErrors(h ErrorHandler) {
-	p.errorHandlers <- h
 }
 
 func (p *Player) processPlay(entry *pkg.SongRequest, out chan *audio.SongRequest) error {
