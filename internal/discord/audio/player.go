@@ -1,7 +1,6 @@
 package audio
 
 import (
-	"encoding/json"
 	"io"
 	"net/url"
 	"sync"
@@ -19,16 +18,8 @@ var (
 )
 
 type SessionStats struct {
-	Pos            time.Duration `json:"-"`
-	Duration       time.Duration `json:"-"`
-	PosString      string        `json:"position"`
-	DurationString string        `json:"duration"`
-}
-
-func (s SessionStats) MarshalJSON() ([]byte, error) {
-	s.PosString = s.Pos.String()
-	s.DurationString = s.Duration.String()
-	return json.Marshal(s)
+	Pos      float64 `json:"position"` // seconds
+	Duration float64 `json:"duration"` // seconds
 }
 
 type SongRequest struct {
@@ -75,14 +66,12 @@ func (p *Player) Process(requests <-chan *SongRequest) <-chan error {
 			} else {
 				out <- err
 			}
-			// TODO: Is ErrManualStop and UnexpectedEOF drops together? (probably fixed with stream pause)
 		}
 	}()
 	return out
 }
 
 func (p *Player) Stop() {
-	// TODO: deadlock if not waiting command (playing)
 	if p.IsPlaying() {
 		p.done <- ErrManualStop
 	}
@@ -92,6 +81,18 @@ func (p *Player) Stats() SessionStats {
 	p.statsLock.Lock()
 	defer p.statsLock.Unlock()
 	return p.stats
+}
+
+func (p *Player) setStatsDuration(d time.Duration) {
+	p.statsLock.Lock()
+	defer p.statsLock.Unlock()
+	p.stats.Duration = d.Seconds()
+}
+
+func (p *Player) setStatsPos(d time.Duration) {
+	p.statsLock.Lock()
+	defer p.statsLock.Unlock()
+	p.stats.Pos = d.Seconds()
 }
 
 func (p *Player) IsPlaying() bool {
@@ -122,9 +123,7 @@ func (p *Player) play(v *discordgo.VoiceConnection, uri string) error {
 	}
 	defer encodeSession.Cleanup()
 
-	p.statsLock.Lock()
-	p.stats.Duration = encodeSession.Stats().Duration
-	p.statsLock.Unlock()
+	p.setStatsDuration(encodeSession.Stats().Duration)
 
 	stream := dca.NewStream(encodeSession, v, p.done)
 	err = p.updatePosition(stream)
@@ -141,9 +140,7 @@ func (p *Player) updatePosition(stream *dca.StreamingSession) error {
 			stream.SetPaused(true)
 			return err
 		case <-ticker.C:
-			p.statsLock.Lock()
-			p.stats.Pos = stream.PlaybackPosition()
-			p.statsLock.Unlock()
+			p.setStatsPos(stream.PlaybackPosition())
 		}
 	}
 }

@@ -17,6 +17,7 @@ func (c *Client) Connection() *discordgo.VoiceConnection {
 	return c.conn
 }
 
+// Connect TODO: deadlock super rare
 func (c *Client) Connect(guildID, channelID string) error {
 	conn, err := c.session.ChannelVoiceJoin(guildID, channelID, false, false)
 	if err != nil {
