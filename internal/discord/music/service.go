@@ -1,6 +1,7 @@
 package music
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -18,6 +19,8 @@ const (
 	play       = "play "
 	skip       = "skip"
 	disconnect = "disconnect"
+
+	messageSearching = ":trumpet: Searching :mag_right:"
 )
 
 type Player interface {
@@ -90,14 +93,16 @@ func (s *Service) playMessageHandler(session *discordgo.Session, m *discordgo.Me
 		s.logger.Error(err, "failed to find author's voice channel")
 		return
 	}
+	channelMessageSend(messageSearching, session, m, s.logger)
 	s.logger.Debug("Finding song")
 	song, err := s.youtube.FindSong(query)
 	if err != nil {
-		s.logger.Errorw("find song",
-			"err", err,
-			"query", query)
+		s.logger.Errorw("find song", "err", err, "query", query)
 		return
 	}
+	// TODO: return beautiful embed
+	channelMessageSend(fmt.Sprintf("Song found! `%s - %s`", song.Metadata.Artists[0].Name, song.Metadata.Title),
+		session, m, s.logger)
 
 	s.logger.Debug("connecting")
 	s.player.Connect(m.GuildID, id)
@@ -142,4 +147,14 @@ func findAuthorVoiceChannelID(s *discordgo.Session, m *discordgo.MessageCreate) 
 	}
 
 	return id, nil
+}
+
+func channelMessageSend(msg string, s *discordgo.Session, m *discordgo.MessageCreate, logger *zap.Logger) {
+	_, err := s.ChannelMessageSend(m.ChannelID, msg)
+	if err != nil {
+		logger.Errorw("sending message",
+			"channel", m.ChannelID,
+			"msg", msg,
+			"err", err)
+	}
 }

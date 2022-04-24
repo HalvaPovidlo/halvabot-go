@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jonas747/dca"
 	"github.com/pkg/errors"
+	"github.com/robrotheram/dca"
 
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
@@ -48,7 +48,6 @@ func NewPlayer(options *dca.EncodeOptions, logger *zap.Logger) *Player {
 }
 
 func (p *Player) Process(requests <-chan *SongRequest) <-chan error {
-	// TODO: ctx.withLogger and ctx.cancel for graceful shutdown
 	out := make(chan error)
 	go func() {
 		defer close(out)

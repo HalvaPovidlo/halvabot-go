@@ -20,6 +20,7 @@ type YouTube interface {
 	FindSong(query string) (*pkg.SongRequest, error)
 }
 
+// Handler TODO: Auth
 type Handler struct {
 	player  Player
 	youtube YouTube
