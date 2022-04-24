@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/gin-gonic/gin"
 	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
@@ -50,10 +49,14 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "discord open session failed"))
 	}
-	defer func(session *discordgo.Session) {
-		_ = session.Close()
-		logger.Infow("Bot session closed")
-	}(session)
+	defer func() {
+		err = session.Close()
+		if err != nil {
+			logger.Error(errors.Wrap(err, "close session"))
+		} else {
+			logger.Infow("Bot session closed")
+		}
+	}()
 
 	session.Debug = true
 	session.LogLevel = 100
@@ -94,7 +97,7 @@ func main() {
 		}
 	}()
 
-	// Graceful shutdown
+	// TODO: Graceful shutdown
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc

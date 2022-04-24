@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/jonas747/dca"
 	"github.com/pkg/errors"
+	"github.com/robrotheram/dca"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
 )

@@ -13,13 +13,17 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
-const videoPrefix = "https://youtube.com/watch?v="
+const (
+	videoPrefix   = "https://youtube.com/watch?v="
+	channelPrefix = "https://youtube.com/channel/"
+)
 
 var (
 	ErrSongNotFound = errors.New("song not found")
 )
 
 // TODO: work on this
+// TODO: race conditions?
 
 // YouTube exports the methods required to access the YouTube service
 type YouTube struct {
@@ -104,7 +108,7 @@ func (y *YouTube) GetMetadata(url string) (*pkg.Metadata, error) {
 
 	videoAuthor := &pkg.MetadataArtist{
 		Name: ytResponse.Items[0].Snippet.ChannelTitle,
-		URL:  "https://youtube.com/channel/" + ytResponse.Items[0].Snippet.ChannelId,
+		URL:  channelPrefix + ytResponse.Items[0].Snippet.ChannelId,
 	}
 	metadata.Artists = append(metadata.Artists, *videoAuthor)
 
@@ -143,7 +147,6 @@ func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
 		return nil, errors.Wrap(err, "search in youtube")
 	}
 
-	logger.Debug("TestURL")
 	test, err := y.TestURL(url)
 	if err != nil {
 		return nil, err

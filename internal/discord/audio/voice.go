@@ -1,6 +1,8 @@
 package audio
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"github.com/bwmarrin/discordgo"
+)
 
 type Client struct {
 	conn    *discordgo.VoiceConnection
@@ -19,7 +21,20 @@ func (c *Client) Connection() *discordgo.VoiceConnection {
 
 // Connect TODO: deadlock super rare
 func (c *Client) Connect(guildID, channelID string) error {
-	conn, err := c.session.ChannelVoiceJoin(guildID, channelID, false, false)
+	if c.conn != nil {
+		c.conn.Lock()
+		r := c.conn.Ready
+		cid := c.conn.ChannelID
+		gid := c.conn.GuildID
+		c.conn.Unlock()
+		if r && cid == channelID && gid == guildID {
+			return nil
+		}
+		_ = c.Disconnect()
+		c.conn = nil
+	}
+
+	conn, err := c.session.ChannelVoiceJoin(guildID, channelID, false, true)
 	if err != nil {
 		c.conn = nil
 		return err
