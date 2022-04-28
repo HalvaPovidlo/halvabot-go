@@ -1,4 +1,4 @@
-package music
+package discord
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord/command"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/util"
@@ -19,16 +19,15 @@ const (
 	play       = "play "
 	skip       = "skip"
 	disconnect = "disconnect"
-
-	messageSearching = ":trumpet: Searching :mag_right:"
+	hello      = "hello"
 )
 
 type Player interface {
-	Play(s *pkg.SongRequest)
+	Play(s *pkg.Song) (int, error)
 	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool
-	NowPlaying() pkg.SongRequest
+	NowPlaying() pkg.Song
 	Stats() audio.SessionStats
 	Connect(guildID, channelID string)
 	Disconnect()
@@ -39,7 +38,7 @@ type Player interface {
 }
 
 type YouTube interface {
-	FindSong(query string) (*pkg.SongRequest, error)
+	FindSong(query string) (*pkg.Song, error)
 }
 
 type Service struct {
@@ -60,7 +59,7 @@ func NewCog(player Player, youtube YouTube, prefix string, logger *zap.Logger) *
 	return &s
 }
 
-func registerSlashBasicCommand(s *discordgo.Session) (unregisterCommand func()) {
+func registerSlashBasicCommand(s *discordgo.Session, debug bool) (unregisterCommand func()) {
 	sc := command.NewSlashCommand(
 		&discordgo.ApplicationCommand{Name: "basic2-command", Description: "Basic command"},
 		func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -70,16 +69,21 @@ func registerSlashBasicCommand(s *discordgo.Session) (unregisterCommand func()) 
 					Content: "Hey there! Congratulations, you just executed your first slash command",
 				},
 			})
-		},
+		}, debug,
 	)
 	return sc.RegisterCommand(s)
 }
 
-func (s *Service) RegisterCommands(session *discordgo.Session) {
-	registerSlashBasicCommand(session)
-	command.NewMessageCommand(s.prefix+play, s.playMessageHandler).RegisterCommand(session)
-	command.NewMessageCommand(s.prefix+skip, s.skipMessageHandler).RegisterCommand(session)
-	command.NewMessageCommand(s.prefix+disconnect, s.disconnectMessageHandler).RegisterCommand(session)
+func (s *Service) RegisterCommands(session *discordgo.Session, debug bool) {
+	registerSlashBasicCommand(session, debug)
+	command.NewMessageCommand(s.prefix+play, s.playMessageHandler, debug).RegisterCommand(session)
+	command.NewMessageCommand(s.prefix+skip, s.skipMessageHandler, debug).RegisterCommand(session)
+	command.NewMessageCommand(s.prefix+disconnect, s.disconnectMessageHandler, debug).RegisterCommand(session)
+	command.NewMessageCommand(s.prefix+hello, s.helloMessageHandler, debug).RegisterCommand(session)
+}
+
+func (s *Service) helloMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
+	_, _ = session.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Hello, %s %s!", m.Author.Token, m.Author.Username))
 }
 
 func (s *Service) playMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
@@ -93,20 +97,22 @@ func (s *Service) playMessageHandler(session *discordgo.Session, m *discordgo.Me
 		s.logger.Error(err, "failed to find author's voice channel")
 		return
 	}
-	channelMessageSend(messageSearching, session, m, s.logger)
+	sp := sendParams{S: session, M: m, L: s.logger}
+	sendSearchingMessage(sp)
 	s.logger.Debug("Finding song")
 	song, err := s.youtube.FindSong(query)
 	if err != nil {
 		s.logger.Errorw("find song", "err", err, "query", query)
 		return
 	}
-	// TODO: return beautiful embed
-	channelMessageSend(fmt.Sprintf("Song found! `%s - %s`", song.Metadata.Artists[0].Name, song.Metadata.Title),
-		session, m, s.logger)
 
 	s.logger.Debug("connecting")
 	s.player.Connect(m.GuildID, id)
-	s.player.Play(song)
+	playbacks, err := s.player.Play(song)
+	if err != nil {
+		s.logger.Error(errors.Wrap(err, "play song"))
+	}
+	sendFoundMessage(song.ArtistName, song.Title, playbacks, sp)
 }
 
 func (s *Service) skipMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
@@ -147,14 +153,4 @@ func findAuthorVoiceChannelID(s *discordgo.Session, m *discordgo.MessageCreate) 
 	}
 
 	return id, nil
-}
-
-func channelMessageSend(msg string, s *discordgo.Session, m *discordgo.MessageCreate, logger *zap.Logger) {
-	_, err := s.ChannelMessageSend(m.ChannelID, msg)
-	if err != nil {
-		logger.Errorw("sending message",
-			"channel", m.ChannelID,
-			"msg", msg,
-			"err", err)
-	}
 }

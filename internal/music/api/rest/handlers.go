@@ -3,6 +3,7 @@ package rest
 //go:generate swag fmt -d ./ -g play.go
 
 import (
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,13 +18,20 @@ type loopQuery struct {
 	Enable bool `json:"enable" binding:"required"`
 }
 
+type EnqueueResponse struct {
+	Song           pkg.SongRequest `json:"song"`
+	PlaybacksCount int             `json:"playbacks_count"`
+}
+
 // enqueue godoc
 // @summary  Play the song from YouTube by name or url
 // @accept   json
 // @produce  json
 // @param    query  body      songQuery        true  "Song name or url"
-// @success  200    {object}  pkg.SongRequest  "The song that was added to the queue"
+// @success  200    {object}  EnqueueResponse  "The song that was added to the queue"
 // @failure  400    {object}  Response         "Incorrect input"
+// @failure  500    {object}  Response         "Unknown internal error occurred"
+// @failure  500    {object}  Response         "Internal error. This does not necessarily mean that the song will not play. For example, if there is a database error, the song will still be added to the queue."
 // @router   /discord/music/enqueue [post]
 func (h *Handler) enqueueHandler(c *gin.Context) {
 	var json songQuery
@@ -36,12 +44,11 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, Response{Message: errors.Wrap(err, "song not found").Error()})
 		return
 	}
-	h.player.Enqueue(song)
+	p, err := h.player.Enqueue(song)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Message: err.Error()})
+		c.JSON(http.StatusInternalServerError, Response{Message: errors.Wrap(err, "song added to the queue").Error()})
 	}
-
-	c.JSON(http.StatusOK, song)
+	c.JSON(http.StatusOK, EnqueueResponse{Song: *song, PlaybacksCount: p})
 }
 
 // skip godoc

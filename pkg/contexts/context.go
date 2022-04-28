@@ -26,5 +26,5 @@ func (ctx Context) LoggerFromContext() *zap.Logger {
 	if logger, ok := ctx.Value(loggerKey).(*zap.Logger); ok {
 		return logger
 	}
-	return zap.NewLogger()
+	return zap.NewLogger(true)
 }

@@ -2,11 +2,13 @@ package firestore
 
 import (
 	"cloud.google.com/go/firestore"
+	"context"
 	firebase "firebase.google.com/go"
 	"github.com/HalvaPovidlo/discordBotGo/internal/storage"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/pkg/errors"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -20,16 +22,22 @@ const (
 
 type Client struct {
 	*firestore.Client
+	debug bool
 }
 
 var ErrNotFound = errors.New("no docs found")
 
-func NewClient(ctx contexts.Context, app *firebase.App) (*Client, error) {
+func NewFirestoreClient(ctx contexts.Context, creds string, debug bool) (*Client, error) {
+	sa := option.WithCredentialsFile(creds)
+	app, err := firebase.NewApp(ctx, nil, sa)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create firebase app")
+	}
 	c, err := app.Firestore(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create firestore client")
 	}
-	return &Client{c}, nil
+	return &Client{c, debug}, nil
 }
 
 func (c *Client) GetSongByID(ctx contexts.Context, id storage.SongID) (*storage.Song, error) {
@@ -49,6 +57,9 @@ func (c *Client) GetSongByID(ctx contexts.Context, id storage.SongID) (*storage.
 }
 
 func (c *Client) SetSong(ctx contexts.Context, song *storage.Song) error {
+	if c.debug {
+		return nil
+	}
 	_, err := c.Collection(songsCollection).Doc(song.ID.String()).Set(ctx, song)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set %s from %s", song.ID.String(), songsCollection)
@@ -75,6 +86,31 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]storage.SongID, error) {
 		res = append(res, s.ID)
 	}
 	return res, nil
+}
+
+// UpsertSongIncPlaybacks We don't use it because our cash of songs is always consistent
+// As we have only one writer to the song db - this bot
+func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *storage.Song) (int, error) {
+	ref := c.Collection(songsCollection).Doc(new.ID.String())
+	playbacks := 0
+	err := c.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		doc, err := tx.Get(ref) // tx.Get, NOT ref.Get!
+		if err != nil {
+			return err
+		}
+		var old storage.Song
+		if err := doc.DataTo(&old); err != nil {
+			return errors.Wrap(err, "parsing data to Song failed")
+		}
+		playbacks = old.Playbacks + 1
+		new.MergeWithOld(&old)
+		new.Playbacks = playbacks
+		return tx.Set(ref, new)
+	})
+	if err != nil {
+		return 0, errors.Wrap(err, "transaction failed")
+	}
+	return playbacks, nil
 }
 
 func (c *Client) WriteBatch(ctx contexts.Context, songs []*storage.Song) error {

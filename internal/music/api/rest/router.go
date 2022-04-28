@@ -8,7 +8,7 @@ import (
 )
 
 type Player interface {
-	Enqueue(s *pkg.SongRequest)
+	Enqueue(s *pkg.SongRequest) (int, error)
 	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool

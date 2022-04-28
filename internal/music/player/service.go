@@ -1,13 +1,14 @@
 package player
 
 import (
+	"github.com/HalvaPovidlo/discordBotGo/internal/storage"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
@@ -17,6 +18,13 @@ type MediaPlayer interface {
 	Stats() audio.SessionStats
 	IsPlaying() bool
 	Stop()
+}
+
+type FirestoreService interface {
+	UpsertSongIncPlaybacks(ctx contexts.Context, new storage.Song) (int, error)
+	GetSong(ctx contexts.Context, id storage.SongID) (*storage.Song, error)
+	SetSong(ctx contexts.Context, song storage.Song) error
+	GetRandomSongs(ctx contexts.Context, n int) ([]*storage.Song, error)
 }
 
 type VoiceClient interface {
@@ -29,12 +37,6 @@ type VoiceClient interface {
 type ErrorHandler interface {
 	HandleError(err error)
 }
-
-var (
-	ErrNotConnected   = errors.New("voice client not connected")
-	ErrConnectFailed  = errors.New("connect to voice channel failed")
-	ErrNotImplemented = errors.New("this command is not implemented")
-)
 
 type commandType int
 
@@ -65,10 +67,11 @@ type Config struct {
 // Player all public methods are concurrent and
 // most private methods are designed to be synchronous
 type Player struct {
-	ctx    contexts.Context
-	voice  VoiceClient
-	audio  MediaPlayer
-	config Config
+	ctx     contexts.Context
+	voice   VoiceClient
+	audio   MediaPlayer
+	storage FirestoreService
+	config  Config
 
 	currentLock   sync.Mutex
 	current       pkg.SongRequest
@@ -79,12 +82,13 @@ type Player struct {
 	errorHandlers chan ErrorHandler
 }
 
-func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, config Config) *Player {
+func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, storage FirestoreService, config Config) *Player {
 	p := Player{
-		ctx:    ctx,
-		voice:  voice,
-		audio:  audio,
-		config: config,
+		ctx:     ctx,
+		voice:   voice,
+		audio:   audio,
+		storage: storage,
+		config:  config,
 	}
 	p.commands, p.errs = p.processCommands()
 	p.errorHandlers = p.processErrors(p.errs)
@@ -92,24 +96,39 @@ func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, confi
 }
 
 // Play next song and enqueue input
-func (p *Player) Play(s *pkg.SongRequest) {
+// returns playbacks count and error
+func (p *Player) Play(s *pkg.SongRequest) (int, error) {
 	log := p.ctx.LoggerFromContext()
 	log.Debug("sending command play")
+	song := storage.SongRequestToSong(s, storage.GetID(s))
+	song.LastPlay = storage.PlayDate{Time: time.Now()}
+	playbacks, err := p.storage.UpsertSongIncPlaybacks(p.ctx, song)
+	if err != nil {
+		err = ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
+	}
 	p.commands <- &command{
 		Type:  play,
 		entry: s,
 	}
+	return playbacks, err
 }
 
 // Enqueue song to the player
-func (p *Player) Enqueue(s *pkg.SongRequest) {
+// returns playbacks count and error
+func (p *Player) Enqueue(s *pkg.SongRequest) (int, error) {
+	song := storage.SongRequestToSong(s, storage.GetID(s))
+	song.LastPlay = storage.PlayDate{Time: time.Now()}
+	playbacks, err := p.storage.UpsertSongIncPlaybacks(p.ctx, song)
+	if err != nil {
+		err = ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
+	}
 	p.commands <- &command{
 		Type:  enqueue,
 		entry: s,
 	}
+	return playbacks, err
 }
 
-// Skip returns nil if there is nothing to play next
 func (p *Player) Skip() {
 	p.commands <- &command{
 		Type: skip,
@@ -239,7 +258,7 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 	case skip:
 		p.audio.Stop()
 	case radio:
-		return ErrNotImplemented
+		return ErrNotImplemented.Wrap("radio func is not implemented")
 	case stop:
 		p.reset()
 	case disconnect:
@@ -256,7 +275,7 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 func (p *Player) processPlay(entry *pkg.SongRequest, out chan *audio.SongRequest) error {
 	log := p.ctx.LoggerFromContext()
 	if !p.voice.IsConnected() {
-		return ErrNotConnected
+		return ErrNotConnected.Wrap("voice client not connected")
 	}
 	log.Debugf("adding to queue %s", entry.Metadata.Title)
 	p.queue.Add(entry)
@@ -300,11 +319,7 @@ func (p *Player) processConnect(gID, cID string) error {
 	}
 	p.reset()
 	if err := p.voice.Connect(gID, cID); err != nil {
-		p.ctx.LoggerFromContext().Errorw("player command connect",
-			"err", err,
-			"guildID", gID,
-			"channelID", cID)
-		return ErrConnectFailed
+		return ErrConnectFailed.Wrap(errors.Wrapf(err, "connect on gid:%s cid:%s failed", gID, cID).Error())
 	}
 	return nil
 }

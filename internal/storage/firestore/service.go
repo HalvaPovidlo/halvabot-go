@@ -5,96 +5,123 @@ import (
 	"sync"
 	"time"
 
-	firebase "firebase.google.com/go"
-	"github.com/pkg/errors"
-	"google.golang.org/api/option"
-
 	"github.com/HalvaPovidlo/discordBotGo/internal/storage"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
+	"github.com/pkg/errors"
 )
 
 type shortCache struct {
 	sync.RWMutex
 	List []storage.SongID
-	// if we want to update this map in realtime
-	// Map map[string]struct{}
 }
 
-type Firestore struct {
-	songs SongsCache
-	app   *firebase.App
+type Service struct {
+	songs  *SongsCache
+	client *Client
 
 	songsShort   shortCache
 	updatesMutex sync.Mutex
 	updated      bool
 }
 
-func NewFirestoreService(ctx contexts.Context, credsPath string, songs SongsCache) (*Firestore, error) {
-	sa := option.WithCredentialsFile(credsPath)
-	app, err := firebase.NewApp(ctx, nil, sa)
-	if err != nil {
-		return nil, errors.Wrap(err, "firebase.NewApp failed")
-	}
-	f := Firestore{
+func NewFirestoreService(ctx contexts.Context, client *Client, songs *SongsCache) (*Service, error) {
+	f := Service{
 		songs:      songs,
+		client:     client,
 		songsShort: shortCache{},
-		app:        app,
 	}
 	f.updateShortCache(ctx)
 	return &f, nil
 }
 
-func (f *Firestore) GetSong(ctx contexts.Context, id storage.SongID) (*storage.Song, error) {
-	if s, ok := f.songs.Get(f.songs.KeyFromID(id)); ok {
+func (s *Service) GetSong(ctx contexts.Context, id storage.SongID) (*storage.Song, error) {
+	key := s.songs.KeyFromID(id)
+	log := ctx.LoggerFromContext()
+	log.Debugf("Get song %s from cache", id)
+	if s, ok := s.songs.Get(key); ok {
 		return s, nil
 	}
-	client, err := NewClient(ctx, f.app)
+
+	log.Debugf("Get song %s from db", id)
+	song, err := s.client.GetSongByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "get song by id %s", id)
 	}
-	song, err := client.GetSongByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	f.songs.Set(f.songs.KeyFromID(id), song)
+	log.Debugf("Set song %s to cache", id)
+	s.songs.Set(key, song)
 	return song, nil
 }
 
-func (f *Firestore) SetSong(ctx contexts.Context, song *storage.Song) error {
-	f.setUpdate(true)
-	client, err := NewClient(ctx, f.app)
-	if err != nil {
-		return err
-	}
-	if err := client.SetSong(ctx, song); err != nil {
+func (s *Service) SetSong(ctx contexts.Context, song storage.Song) error {
+	s.setUpdate(true)
+	if err := s.client.SetSong(ctx, &song); err != nil {
 		return errors.Wrap(err, "firestore set song")
 	}
-	f.songs.Set(f.songs.KeyFromID(song.ID), song)
+	s.songs.Set(s.songs.KeyFromID(song.ID), &song)
 	return nil
 }
 
-func (f *Firestore) updateShortCache(ctx contexts.Context) {
+func (s *Service) UpsertSongIncPlaybacks(ctx contexts.Context, new storage.Song) (int, error) {
+	log := ctx.LoggerFromContext()
+	log.Debug("UpsertSongIncPlaybacks new", new)
+	old, err := s.GetSong(ctx, new.ID)
+	log.Debug("UpsertSongIncPlaybacks old", old)
+	if err != nil && err != ErrNotFound {
+		return 0, errors.Wrap(err, "failed to get song from db")
+	}
+	playbacks := 0
+	new.MergeWithOld(old)
+	new.Playbacks += 1
+	playbacks = new.Playbacks
+	if err = s.SetSong(ctx, new); err != nil {
+		return 0, errors.Wrap(err, "failed to set song into db")
+	} else {
+		return playbacks, nil
+	}
+}
+
+func (s *Service) GetRandomSongs(ctx contexts.Context, n int) ([]*storage.Song, error) {
+	set := make(map[string]storage.SongID)
+	max := len(s.songsShort.List)
+
+	cooldown := n * 10
+	for len(set) < n && cooldown > 0 {
+		cooldown--
+		rand.Seed(time.Now().UnixNano())
+		i := rand.Intn(max)
+		s.songsShort.RLock()
+		set[s.songsShort.List[i].ID] = s.songsShort.List[i]
+		s.songsShort.RUnlock()
+	}
+
+	result := make([]*storage.Song, 0, len(set))
+	for _, v := range set {
+		song, err := s.GetSong(ctx, v)
+		if err != nil {
+			return nil, errors.Wrap(err, "get random songs failed")
+		}
+		result = append(result, song)
+	}
+	return result, nil
+}
+
+func (s *Service) updateShortCache(ctx contexts.Context) {
 	ticker := time.NewTicker(6 * time.Hour)
 	go func() {
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				if f.needUpdate() {
-					f.setUpdate(false)
-					client, err := NewClient(ctx, f.app)
+				if s.needUpdate() {
+					s.setUpdate(false)
+					list, err := s.client.GetAllSongsID(ctx)
 					if err != nil {
-						f.setUpdate(true)
-						continue
-					}
-					list, err := client.GetAllSongsID(ctx)
-					if err != nil {
-						f.setUpdate(true)
+						s.setUpdate(true)
 						ctx.LoggerFromContext().Error(errors.Wrap(err, "getting all songs"))
 					}
-					f.songsShort.Lock()
-					f.songsShort.List = list
-					f.songsShort.Unlock()
+					s.songsShort.Lock()
+					s.songsShort.List = list
+					s.songsShort.Unlock()
 				}
 			case <-ctx.Done():
 				return
@@ -103,39 +130,14 @@ func (f *Firestore) updateShortCache(ctx contexts.Context) {
 	}()
 }
 
-func (f *Firestore) GetRandomSongs(ctx contexts.Context, n int) ([]storage.Song, error) {
-	set := make(map[string]storage.SongID)
-	max := len(f.songsShort.List)
-
-	cooldown := n * 10
-	for len(set) < n && cooldown > 0 {
-		cooldown--
-		rand.Seed(time.Now().UnixNano())
-		i := rand.Intn(max)
-		f.songsShort.RLock()
-		set[f.songsShort.List[i].ID] = f.songsShort.List[i]
-		f.songsShort.RUnlock()
-	}
-
-	result := make([]storage.Song, 0, len(set))
-	for _, v := range set {
-		song, err := f.GetSong(ctx, v)
-		if err != nil {
-			return nil, errors.Wrap(err, "get random songs failed")
-		}
-		result = append(result, *song)
-	}
-	return result, nil
+func (s *Service) setUpdate(b bool) {
+	s.updatesMutex.Lock()
+	s.updated = b
+	s.updatesMutex.Unlock()
 }
 
-func (f *Firestore) setUpdate(b bool) {
-	f.updatesMutex.Lock()
-	f.updated = b
-	f.updatesMutex.Unlock()
-}
-
-func (f *Firestore) needUpdate() bool {
-	f.updatesMutex.Lock()
-	defer f.updatesMutex.Unlock()
-	return f.updated
+func (s *Service) needUpdate() bool {
+	s.updatesMutex.Lock()
+	defer s.updatesMutex.Unlock()
+	return s.updated
 }

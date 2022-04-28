@@ -1,10 +1,13 @@
 package main
 
 import (
+	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/discord/music/api/rest"
+	"github.com/HalvaPovidlo/discordBotGo/internal/storage/firestore"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	ytdl "github.com/kkdai/youtube/v2"
@@ -20,7 +23,6 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
 	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
-	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/discord/music/rest"
 	"github.com/HalvaPovidlo/discordBotGo/internal/search"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	discordpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
@@ -37,15 +39,16 @@ import (
 // @host      localhost:9091
 // @BasePath  /api/v1
 func main() {
+	// TODO: all magic vars to config
 	cfg, err := config.InitConfig()
 	if err != nil {
 		panic(errors.Wrap(err, "config read failed"))
 	}
-	logger := zap.NewLogger()
+	logger := zap.NewLogger(cfg.General.Debug)
 	ctx, cancel := contexts.WithLogger(contexts.Background(), logger)
 
 	// Initialize discord session
-	session, err := discordpkg.OpenSession(cfg.Discord.Token, logger)
+	session, err := discordpkg.OpenSession(cfg.Discord.Token, cfg.General.Debug, logger)
 	if err != nil {
 		panic(errors.Wrap(err, "discord open session failed"))
 	}
@@ -58,9 +61,6 @@ func main() {
 		}
 	}()
 
-	session.Debug = true
-	session.LogLevel = 100
-
 	// YouTube services
 	ytService, err := youtube.NewService(ctx, option.WithCredentialsFile("halvabot-google.json"))
 	if err != nil {
@@ -68,19 +68,30 @@ func main() {
 	}
 	ytClient := search.NewYouTubeClient(ctx,
 		&ytdl.Client{
-			Debug:      true,
+			Debug:      cfg.General.Debug,
 			HTTPClient: http.DefaultClient,
 		},
 		ytService)
 
+	// Firestore stage
+	fireSongsCache := firestore.NewSongsCache(ctx, 12*time.Hour)
+	fireStorage, err := firestore.NewFirestoreClient(ctx, "halvabot-firebase.json", cfg.General.Debug)
+	if err != nil {
+		panic(err)
+	}
+	fireService, err := firestore.NewFirestoreService(ctx, fireStorage, fireSongsCache)
+	if err != nil {
+		panic(err)
+	}
+
 	// Music stage
 	voiceClient := audio.NewVoiceClient(session)
 	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions, logger)
-	musicPlayer := player.NewPlayer(ctx, voiceClient, rawAudioPlayer, cfg.Discord.Player)
+	musicPlayer := player.NewPlayer(ctx, voiceClient, rawAudioPlayer, fireService, cfg.Discord.Player)
 
 	// Discord commands
 	musicCog := music.NewCog(musicPlayer, ytClient, cfg.Discord.Prefix, logger)
-	musicCog.RegisterCommands(session)
+	musicCog.RegisterCommands(session, cfg.General.Debug)
 
 	// Http routers
 	router := gin.Default()

@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	videoPrefix   = "https://youtube.com/watch?v="
-	channelPrefix = "https://youtube.com/channel/"
+	videoPrefix     = "https://youtube.com/watch?v="
+	channelPrefix   = "https://youtube.com/channel/"
+	maxSearchResult = 50
 )
 
 var (
@@ -40,51 +41,60 @@ func NewYouTubeClient(ctx contexts.Context, ytdl *ytdl.Client, yt *youtube.Servi
 	}
 }
 
-// GetName returns the service's name
-func (*YouTube) GetName() string {
-	return "YouTube"
-}
+func (y *YouTube) getQuery(query string) (*pkg.Song, error) {
+	call := y.youtube.Search.List([]string{"id"}).
+		Q(query).
+		MaxResults(maxSearchResult)
 
-// GetColor returns the service's color
-func (*YouTube) GetColor() int {
-	return 0xFF0000
-}
+	response, err := call.Do()
+	if err != nil {
+		// TODO: NOT FOUND?
+		return nil, errors.Wrap(err, "could not find any results for the specified query")
+	}
 
-// TestURL tests if the given URL is a YouTube video URL
-func (*YouTube) TestURL(url string) (bool, error) {
-	test, err := regexp.MatchString("(?:https?://)?(?:www\\.)?youtu\\.?be(?:\\.com)?/?.*(?:watch|embed)?(?:.*v=|v/|/)[\\w-_]+", url)
-	return test, err
+	for _, item := range response.Items {
+		if item.Id.Kind == "youtube#video" {
+			return &pkg.Song{
+				Title:        item.Snippet.Title,
+				URL:          videoPrefix + item.Id.VideoId,
+				Service:      pkg.ServiceYouTube,
+				ArtistName:   item.Snippet.ChannelTitle,
+				ArtistURL:    channelPrefix + item.Snippet.ChannelId,
+				ArtworkURL:   item.Snippet.Thumbnails.Maxres.Url,
+				ThumbnailURL: item.Snippet.Thumbnails.Standard.Url,
+				ID: pkg.SongID{
+					ID:      item.Id.VideoId,
+					Service: pkg.ServiceYouTube,
+				},
+			}, nil
+		}
+	}
+
+	return nil, ErrSongNotFound
 }
 
 // GetMetadata returns the metadata for a given YouTube video URL
-func (y *YouTube) GetMetadata(url string) (*pkg.Metadata, error) {
-	logger := y.ctx.LoggerFromContext()
-	logger.Debug("GetVideo")
+func (y *YouTube) GetMetadata(url string) (*pkg.Song, error) {
 	videoInfo, err := y.ytdl.GetVideo(url)
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
 	}
-	logger.Debug("GetVideo")
 	formats := videoInfo.Formats
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")
 	}
 
-	logger.Debug("sort.SliceStable")
 	sort.SliceStable(formats, func(i, j int) bool {
 		return formats[i].ItagNo < formats[j].ItagNo
 	})
 
-	logger.Debug("formats[0]")
 	format := formats[0]
 
-	logger.Debug("GetStreamURL")
 	videoURL, err := y.ytdl.GetStreamURL(videoInfo, &format)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to get streamURL %s", videoInfo.Title)
 	}
 
-	logger.Debug(" youtube.NewVideosService(y.youtube).")
 	ytCall := youtube.NewVideosService(y.youtube).
 		List([]string{"snippet", "contentDetails"}).
 		Id(videoInfo.ID)
@@ -115,27 +125,6 @@ func (y *YouTube) GetMetadata(url string) (*pkg.Metadata, error) {
 	return metadata, nil
 }
 
-// getQuery returns YouTube search results
-func (y *YouTube) getQuery(query string) (string, error) {
-	call := y.youtube.Search.List([]string{"id"}).
-		Q(query).
-		MaxResults(50)
-
-	response, err := call.Do()
-	if err != nil {
-		return "", errors.Wrap(err, "could not find any results for the specified query")
-	}
-
-	for _, item := range response.Items {
-		if item.Id.Kind == "youtube#video" {
-			url := videoPrefix + item.Id.VideoId
-			return url, nil
-		}
-	}
-
-	return "", ErrSongNotFound
-}
-
 func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
 	logger := y.ctx.LoggerFromContext()
 	logger.Debug("get query")
@@ -147,7 +136,7 @@ func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
 		return nil, errors.Wrap(err, "search in youtube")
 	}
 
-	test, err := y.TestURL(url)
+	test, err := testURL(url)
 	if err != nil {
 		return nil, err
 	}
@@ -159,11 +148,16 @@ func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
 		}
 		req := &pkg.SongRequest{
 			Metadata:     metadata,
-			ServiceName:  y.GetName(),
+			ServiceName:  pkg.ServiceYouTube,
 			ServiceColor: y.GetColor(),
 		}
 		return req, nil
 	}
 
 	return nil, errors.New("wrong youtube url")
+}
+
+func testURL(url string) (bool, error) {
+	test, err := regexp.MatchString("(?:https?://)?(?:www\\.)?youtu\\.?be(?:\\.com)?/?.*(?:watch|embed)?(?:.*v=|v/|/)[\\w-_]+", url)
+	return test, err
 }
