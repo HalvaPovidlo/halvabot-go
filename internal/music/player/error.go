@@ -11,11 +11,11 @@ const (
 )
 
 var (
-	ErrNotConnected       = &Error{code: NotConnected}
-	ErrSongNotFound       = &Error{code: SongNotFound}
-	ErrStorageQueryFailed = &Error{code: StorageQueryFailed}
-	ErrConnectFailed      = &Error{code: ConnectFailed}
-	ErrNotImplemented     = &Error{code: NotImplemented}
+	ErrNotConnected       = &Error{code: NotConnected, msg: "player not connected"}
+	ErrSongNotFound       = &Error{code: SongNotFound, msg: "song not found"}
+	ErrStorageQueryFailed = &Error{code: StorageQueryFailed, msg: "storage query failed"}
+	ErrConnectFailed      = &Error{code: ConnectFailed, msg: "connection failed"}
+	ErrNotImplemented     = &Error{code: NotImplemented, msg: "method not implemented"}
 )
 
 type Error struct {
