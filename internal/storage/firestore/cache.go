@@ -1,15 +1,15 @@
 package firestore
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"sync"
 	"time"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/storage"
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 type Item struct {
-	song    storage.Song
+	song    pkg.Song
 	updated time.Time
 }
 
@@ -28,7 +28,7 @@ func NewSongsCache(ctx contexts.Context, expirationTime time.Duration) *SongsCac
 	return c
 }
 
-func (c *SongsCache) Get(k CacheKey) (*storage.Song, bool) {
+func (c *SongsCache) Get(k CacheKey) (*pkg.Song, bool) {
 	c.RLock()
 	defer c.RUnlock()
 	s, ok := c.songs[string(k)]
@@ -38,7 +38,7 @@ func (c *SongsCache) Get(k CacheKey) (*storage.Song, bool) {
 	return &s.song, true
 }
 
-func (c *SongsCache) Set(k CacheKey, song *storage.Song) {
+func (c *SongsCache) Set(k CacheKey, song *pkg.Song) {
 	if song == nil {
 		return
 	}
@@ -50,7 +50,7 @@ func (c *SongsCache) Set(k CacheKey, song *storage.Song) {
 	c.Unlock()
 }
 
-func (c *SongsCache) KeyFromID(s storage.SongID) CacheKey {
+func (c *SongsCache) KeyFromID(s pkg.SongID) CacheKey {
 	return CacheKey(s.String())
 }
 

@@ -1,15 +1,17 @@
 package firestore
 
 import (
-	"cloud.google.com/go/firestore"
 	"context"
+
+	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
-	"github.com/HalvaPovidlo/discordBotGo/internal/storage"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/pkg/errors"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
+
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"google.golang.org/grpc/status"
 )
 
@@ -40,7 +42,7 @@ func NewFirestoreClient(ctx contexts.Context, creds string, debug bool) (*Client
 	return &Client{c, debug}, nil
 }
 
-func (c *Client) GetSongByID(ctx contexts.Context, id storage.SongID) (*storage.Song, error) {
+func (c *Client) GetSongByID(ctx contexts.Context, id pkg.SongID) (*pkg.Song, error) {
 	doc, err := c.Collection(songsCollection).Doc(id.String()).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -48,7 +50,7 @@ func (c *Client) GetSongByID(ctx contexts.Context, id storage.SongID) (*storage.
 		}
 		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), songsCollection)
 	}
-	var s storage.Song
+	var s pkg.Song
 	err = doc.DataTo(&s)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse doc into struct")
@@ -56,7 +58,7 @@ func (c *Client) GetSongByID(ctx contexts.Context, id storage.SongID) (*storage.
 	return &s, nil
 }
 
-func (c *Client) SetSong(ctx contexts.Context, song *storage.Song) error {
+func (c *Client) SetSong(ctx contexts.Context, song *pkg.Song) error {
 	if c.debug {
 		return nil
 	}
@@ -67,9 +69,9 @@ func (c *Client) SetSong(ctx contexts.Context, song *storage.Song) error {
 	return nil
 }
 
-func (c *Client) GetAllSongsID(ctx contexts.Context) ([]storage.SongID, error) {
+func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
 	iter := c.Collection(songsCollection).Documents(ctx)
-	res := make([]storage.SongID, 0, approximateSongsNumber)
+	res := make([]pkg.SongID, 0, approximateSongsNumber)
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -78,7 +80,7 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]storage.SongID, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "iteration failed")
 		}
-		var s storage.Song
+		var s pkg.Song
 		err = doc.DataTo(&s)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to marshal data")
@@ -90,7 +92,7 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]storage.SongID, error) {
 
 // UpsertSongIncPlaybacks We don't use it because our cash of songs is always consistent
 // As we have only one writer to the song db - this bot
-func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *storage.Song) (int, error) {
+func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (int, error) {
 	ref := c.Collection(songsCollection).Doc(new.ID.String())
 	playbacks := 0
 	err := c.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -98,12 +100,12 @@ func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *storage.Song)
 		if err != nil {
 			return err
 		}
-		var old storage.Song
+		var old pkg.Song
 		if err := doc.DataTo(&old); err != nil {
 			return errors.Wrap(err, "parsing data to Song failed")
 		}
 		playbacks = old.Playbacks + 1
-		new.MergeWithOld(&old)
+		new.MergeNoOverride(&old)
 		new.Playbacks = playbacks
 		return tx.Set(ref, new)
 	})
@@ -113,7 +115,7 @@ func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *storage.Song)
 	return playbacks, nil
 }
 
-func (c *Client) WriteBatch(ctx contexts.Context, songs []*storage.Song) error {
+func (c *Client) WriteBatch(ctx contexts.Context, songs []*pkg.Song) error {
 	size := len(songs)
 	for i := 0; i < size; i += batchSize {
 		k := i + batchSize
@@ -128,7 +130,7 @@ func (c *Client) WriteBatch(ctx contexts.Context, songs []*storage.Song) error {
 	return nil
 }
 
-func (c *Client) doBatch(ctx contexts.Context, songs []*storage.Song) error {
+func (c *Client) doBatch(ctx contexts.Context, songs []*pkg.Song) error {
 	batch := c.Batch()
 	for s := range songs {
 		batch.Set(c.Collection(songsCollection).Doc(songs[s].ID.String()), songs[s])

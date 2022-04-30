@@ -3,9 +3,10 @@ package pkg
 import (
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type ServiceName string
@@ -67,19 +68,10 @@ func (id SongID) String() string {
 	return string(id.Service) + "_" + id.ID
 }
 
-//func GetID(song *pkg.SongRequest) SongID {
-//	id := ""
-//	if song.ServiceName == pkg.ServiceYouTube {
-//		id = strings.TrimPrefix(song.Metadata.DisplayURL, "https://www.youtube.com/watch?v=")
-//		id = strings.TrimPrefix(song.Metadata.DisplayURL, "https://youtube.com/watch?v=")
-//	}
-//	return SongID{
-//		ID:      id,
-//		Service: song.ServiceName,
-//	}
-//}
-
 func (s *Song) MergeNoOverride(new *Song) {
+	if new == nil {
+		return
+	}
 	if s.Title == "" {
 		s.Title = new.Title
 	}

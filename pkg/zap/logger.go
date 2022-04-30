@@ -9,7 +9,7 @@ type Logger struct {
 	*zap.SugaredLogger
 }
 
-func NewLogger(debug bool) *Logger {
+func NewLogger(debug bool) Logger {
 	config := zap.NewDevelopmentConfig()
 	config.Level.SetLevel(zapcore.InfoLevel)
 	if debug {
@@ -17,7 +17,7 @@ func NewLogger(debug bool) *Logger {
 	}
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	zapLogger, _ := config.Build()
-	return &Logger{
+	return Logger{
 		SugaredLogger: zapLogger.Sugar(),
 	}
 }

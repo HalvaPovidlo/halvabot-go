@@ -1,11 +1,10 @@
 package search
 
 import (
-	"regexp"
 	"sort"
 
-	iso "github.com/channelmeter/iso8601duration"
 	ytdl "github.com/kkdai/youtube/v2"
+	"github.com/kkdai/youtube/v2/downloader"
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
 
@@ -16,52 +15,80 @@ import (
 const (
 	videoPrefix     = "https://youtube.com/watch?v="
 	channelPrefix   = "https://youtube.com/channel/"
-	maxSearchResult = 50
+	videoKind       = "youtube#video"
+	maxSearchResult = 10
 )
 
 var (
 	ErrSongNotFound = errors.New("song not found")
 )
 
-// TODO: work on this
-// TODO: race conditions?
-
-// YouTube exports the methods required to access the YouTube service
-type YouTube struct {
-	ctx     contexts.Context
-	ytdl    *ytdl.Client
-	youtube *youtube.Service
+type YouTubeConfig struct {
+	Download  bool   `json:"download"`
+	OutputDir string `json:"output"`
 }
 
-func NewYouTubeClient(ctx contexts.Context, ytdl *ytdl.Client, yt *youtube.Service) *YouTube {
+type YouTube struct {
+	ytdl    *ytdl.Client
+	youtube *youtube.Service
+	config  YouTubeConfig
+}
+
+func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, config YouTubeConfig) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
-		ctx:     ctx,
+		config:  config,
 	}
 }
 
-func (y *YouTube) getQuery(query string) (*pkg.Song, error) {
-	call := y.youtube.Search.List([]string{"id"}).
+func getImages(details *youtube.ThumbnailDetails) (artwork, thumbnail string) {
+	artwork = ""
+	thumbnail = ""
+	if details != nil {
+		if details.Default != nil {
+			thumbnail = details.Default.Url
+			artwork = details.Default.Url
+		}
+		if details.Standard != nil {
+			thumbnail = details.Standard.Url
+			artwork = details.Standard.Url
+		}
+		if details.Medium != nil {
+			artwork = details.Medium.Url
+		}
+		if details.High != nil {
+			artwork = details.High.Url
+		}
+		if details.Maxres != nil {
+			artwork = details.Maxres.Url
+		}
+	}
+	return
+}
+
+func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error) {
+	call := y.youtube.Search.List([]string{"id, snippet"}).
 		Q(query).
 		MaxResults(maxSearchResult)
-
+	call.Context(ctx)
 	response, err := call.Do()
-	if err != nil {
+	if err != nil || response.Items == nil {
 		// TODO: NOT FOUND?
 		return nil, errors.Wrap(err, "could not find any results for the specified query")
 	}
 
 	for _, item := range response.Items {
-		if item.Id.Kind == "youtube#video" {
+		if item.Id.Kind == videoKind {
+			art, thumb := getImages(item.Snippet.Thumbnails)
 			return &pkg.Song{
 				Title:        item.Snippet.Title,
 				URL:          videoPrefix + item.Id.VideoId,
 				Service:      pkg.ServiceYouTube,
 				ArtistName:   item.Snippet.ChannelTitle,
 				ArtistURL:    channelPrefix + item.Snippet.ChannelId,
-				ArtworkURL:   item.Snippet.Thumbnails.Maxres.Url,
-				ThumbnailURL: item.Snippet.Thumbnails.Standard.Url,
+				ArtworkURL:   art,
+				ThumbnailURL: thumb,
 				ID: pkg.SongID{
 					ID:      item.Id.VideoId,
 					Service: pkg.ServiceYouTube,
@@ -69,12 +96,15 @@ func (y *YouTube) getQuery(query string) (*pkg.Song, error) {
 			}, nil
 		}
 	}
-
 	return nil, ErrSongNotFound
 }
 
-// GetMetadata returns the metadata for a given YouTube video URL
-func (y *YouTube) GetMetadata(url string) (*pkg.Song, error) {
+func (y *YouTube) ensureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.Song, error) {
+	dl := downloader.Downloader{
+		Client:    *y.ytdl,
+		OutputDir: y.config.OutputDir,
+	}
+	url := song.URL
 	videoInfo, err := y.ytdl.GetVideo(url)
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
@@ -83,52 +113,34 @@ func (y *YouTube) GetMetadata(url string) (*pkg.Song, error) {
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")
 	}
-
 	sort.SliceStable(formats, func(i, j int) bool {
 		return formats[i].ItagNo < formats[j].ItagNo
 	})
-
 	format := formats[0]
 
-	videoURL, err := y.ytdl.GetStreamURL(videoInfo, &format)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to get streamURL %s", videoInfo.Title)
+	if y.config.Download {
+		// TODO: NOT IMPLEMENTED!!!!
+		err := dl.Download(ctx, videoInfo, &format, videoInfo.ID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		streamURL, err := y.ytdl.GetStreamURLContext(ctx, videoInfo, &format)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to get streamURL %s", videoInfo.Title)
+		}
+		song.StreamURL = streamURL
+		song.Duration = videoInfo.Duration.Seconds()
+		return song, nil
 	}
 
-	ytCall := youtube.NewVideosService(y.youtube).
-		List([]string{"snippet", "contentDetails"}).
-		Id(videoInfo.ID)
-
-	ytResponse, err := ytCall.Do()
-	if err != nil {
-		return nil, err
-	}
-
-	duration, err := iso.FromString(ytResponse.Items[0].ContentDetails.Duration)
-	if err != nil {
-		return nil, err
-	}
-
-	metadata := &pkg.Metadata{
-		Title:      videoInfo.Title,
-		DisplayURL: url,
-		StreamURL:  videoURL,
-		Duration:   duration.ToDuration().Seconds(),
-	}
-
-	videoAuthor := &pkg.MetadataArtist{
-		Name: ytResponse.Items[0].Snippet.ChannelTitle,
-		URL:  channelPrefix + ytResponse.Items[0].Snippet.ChannelId,
-	}
-	metadata.Artists = append(metadata.Artists, *videoAuthor)
-
-	return metadata, nil
+	return nil, nil
 }
 
-func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
-	logger := y.ctx.LoggerFromContext()
-	logger.Debug("get query")
-	url, err := y.getQuery(query)
+func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {
+	logger := ctx.LoggerFromContext()
+	logger.Debug("finding song")
+	song, err := y.findSong(ctx, query)
 	if err != nil {
 		if err == ErrSongNotFound {
 			return nil, ErrSongNotFound
@@ -136,28 +148,9 @@ func (y *YouTube) FindSong(query string) (*pkg.SongRequest, error) {
 		return nil, errors.Wrap(err, "search in youtube")
 	}
 
-	test, err := testURL(url)
+	song, err = y.ensureStreamInfo(ctx, song)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "ensure stream info")
 	}
-	if test {
-		logger.Debug("GetMetadata")
-		metadata, err := y.GetMetadata(url)
-		if err != nil {
-			return nil, errors.Wrap(err, "get metadata")
-		}
-		req := &pkg.SongRequest{
-			Metadata:     metadata,
-			ServiceName:  pkg.ServiceYouTube,
-			ServiceColor: y.GetColor(),
-		}
-		return req, nil
-	}
-
-	return nil, errors.New("wrong youtube url")
-}
-
-func testURL(url string) (bool, error) {
-	test, err := regexp.MatchString("(?:https?://)?(?:www\\.)?youtu\\.?be(?:\\.com)?/?.*(?:watch|embed)?(?:.*v=|v/|/)[\\w-_]+", url)
-	return test, err
+	return song, nil
 }

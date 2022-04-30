@@ -1,8 +1,6 @@
 package main
 
 import (
-	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/discord/music/api/rest"
-	"github.com/HalvaPovidlo/discordBotGo/internal/storage/firestore"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,13 +17,14 @@ import (
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/docs"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
+	dapi "github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
+	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
 	"github.com/HalvaPovidlo/discordBotGo/internal/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/storage/firestore"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	discordpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
+	dpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
@@ -48,7 +47,7 @@ func main() {
 	ctx, cancel := contexts.WithLogger(contexts.Background(), logger)
 
 	// Initialize discord session
-	session, err := discordpkg.OpenSession(cfg.Discord.Token, cfg.General.Debug, logger)
+	session, err := dpkg.OpenSession(cfg.Discord.Token, cfg.General.Debug, logger)
 	if err != nil {
 		panic(errors.Wrap(err, "discord open session failed"))
 	}
@@ -66,12 +65,14 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "youtube init failed"))
 	}
-	ytClient := search.NewYouTubeClient(ctx,
+	ytClient := search.NewYouTubeClient(
 		&ytdl.Client{
 			Debug:      cfg.General.Debug,
 			HTTPClient: http.DefaultClient,
 		},
-		ytService)
+		ytService,
+		cfg.Youtube,
+	)
 
 	// Firestore stage
 	fireSongsCache := firestore.NewSongsCache(ctx, 12*time.Hour)
@@ -87,18 +88,17 @@ func main() {
 	// Music stage
 	voiceClient := audio.NewVoiceClient(session)
 	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions, logger)
-	musicPlayer := player.NewPlayer(ctx, voiceClient, rawAudioPlayer, fireService, cfg.Discord.Player)
+	musicPlayer := player.NewMusicService(ctx, fireService, ytClient, voiceClient, rawAudioPlayer, logger)
 
 	// Discord commands
-	musicCog := music.NewCog(musicPlayer, ytClient, cfg.Discord.Prefix, logger)
-	musicCog.RegisterCommands(session, cfg.General.Debug)
+	musicCog := dapi.NewCog(ctx, musicPlayer, cfg.Discord.Prefix, logger, cfg.Discord.API)
+	musicCog.RegisterCommands(session, cfg.General.Debug, logger)
 
 	// Http routers
 	router := gin.Default()
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := router.Group("/api/v1")
-	discordRouter := discord.NewHandler(apiRouter).Router()
-	musicrest.NewHandler(musicPlayer, ytClient, discordRouter).Router()
+	musicrest.NewHandler(musicPlayer, apiRouter).Router()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":9091")

@@ -20,7 +20,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/discord/music/enqueue": {
+        "/music/enqueue": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -44,7 +44,7 @@ const docTemplate = `{
                     "200": {
                         "description": "The song that was added to the queue",
                         "schema": {
-                            "$ref": "#/definitions/pkg.SongRequest"
+                            "$ref": "#/definitions/rest.EnqueueResponse"
                         }
                     },
                     "400": {
@@ -52,11 +52,17 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/rest.Response"
                         }
+                    },
+                    "500": {
+                        "description": "Internal error. This does not necessarily mean that the song will not play. For example, if there is a database error, the song will still be added to the queue.",
+                        "schema": {
+                            "$ref": "#/definitions/rest.Response"
+                        }
                     }
                 }
             }
         },
-        "/discord/music/loopstatus": {
+        "/music/loopstatus": {
             "get": {
                 "produces": [
                     "text/plain"
@@ -72,7 +78,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/discord/music/now": {
+        "/music/now": {
             "get": {
                 "produces": [
                     "application/json"
@@ -82,13 +88,13 @@ const docTemplate = `{
                     "200": {
                         "description": "The song that is playing right now",
                         "schema": {
-                            "$ref": "#/definitions/pkg.SongRequest"
+                            "$ref": "#/definitions/pkg.Song"
                         }
                     }
                 }
             }
         },
-        "/discord/music/setloop": {
+        "/music/setloop": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -124,7 +130,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/discord/music/skip": {
+        "/music/skip": {
             "get": {
                 "produces": [
                     "application/json"
@@ -140,12 +146,12 @@ const docTemplate = `{
                 }
             }
         },
-        "/discord/music/stats": {
+        "/music/stats": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Stats of player on current song",
+                "summary": "Stats of player on the current song",
                 "responses": {
                     "200": {
                         "description": "The song that is playing right now",
@@ -156,7 +162,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/discord/music/stop": {
+        "/music/stop": {
             "get": {
                 "produces": [
                     "text/plain"
@@ -187,36 +193,39 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg.Metadata": {
+        "pkg.PlayDate": {
             "type": "object",
             "properties": {
-                "artists": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/pkg.MetadataArtist"
-                    }
+                "time.Time": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg.Song": {
+            "type": "object",
+            "properties": {
+                "artist_name": {
+                    "type": "string"
+                },
+                "artist_url": {
+                    "type": "string"
                 },
                 "artwork_url": {
                     "type": "string"
                 },
-                "display_url": {
-                    "type": "string"
+                "last_play": {
+                    "$ref": "#/definitions/pkg.PlayDate"
                 },
-                "duration": {
-                    "type": "number"
+                "playbacks": {
+                    "type": "integer"
+                },
+                "service": {
+                    "type": "string"
                 },
                 "thumbnail_url": {
                     "type": "string"
                 },
                 "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "pkg.MetadataArtist": {
-            "type": "object",
-            "properties": {
-                "name": {
                     "type": "string"
                 },
                 "url": {
@@ -224,19 +233,14 @@ const docTemplate = `{
                 }
             }
         },
-        "pkg.SongRequest": {
+        "rest.EnqueueResponse": {
             "type": "object",
             "properties": {
-                "metadata": {
-                    "$ref": "#/definitions/pkg.Metadata"
-                },
-                "service_color": {
-                    "description": "Color of service used for this queue entry",
+                "playbacks_count": {
                     "type": "integer"
                 },
-                "service_name": {
-                    "description": "Name of service used for this queue entry",
-                    "type": "string"
+                "song": {
+                    "$ref": "#/definitions/pkg.Song"
                 }
             }
         },

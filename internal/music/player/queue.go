@@ -5,18 +5,18 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 )
 
 type Queue struct {
-	entries []*pkg.SongRequest
+	entries []*pkg.Song
 
 	loopLock sync.Mutex
 	loop     bool
 }
 
-func (q *Queue) Next() *pkg.SongRequest {
+func (q *Queue) Next() *pkg.Song {
 	e := q.entries[0]
 	if q.LoopStatus() {
 		return e
@@ -25,7 +25,7 @@ func (q *Queue) Next() *pkg.SongRequest {
 	return e
 }
 
-func (q *Queue) Add(e *pkg.SongRequest) {
+func (q *Queue) Add(e *pkg.Song) {
 	q.entries = append(q.entries, e)
 }
 
@@ -49,16 +49,16 @@ func (q *Queue) LoopStatus() bool {
 	return q.loop
 }
 
-func (q *Queue) Front() *pkg.SongRequest {
+func (q *Queue) Front() *pkg.Song {
 	if len(q.entries) == 0 {
 		return nil
 	}
 	return q.entries[0]
 }
 
-func requestFromEntry(e *pkg.SongRequest, connection *discordgo.VoiceConnection) *audio.SongRequest {
+func requestFromEntry(e *pkg.Song, connection *discordgo.VoiceConnection) *audio.SongRequest {
 	return &audio.SongRequest{
 		Voice: connection,
-		URI:   e.Metadata.StreamURL,
+		URI:   e.StreamURL,
 	}
 }

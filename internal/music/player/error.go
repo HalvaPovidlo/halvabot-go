@@ -4,16 +4,18 @@ type ErrorCode int
 
 const (
 	NotConnected ErrorCode = iota + 1
+	SongNotFound
 	StorageQueryFailed
 	ConnectFailed
 	NotImplemented
 )
 
 var (
-	ErrNotConnected       = Error{code: NotConnected}
-	ErrStorageQueryFailed = Error{code: StorageQueryFailed}
-	ErrConnectFailed      = Error{code: ConnectFailed}
-	ErrNotImplemented     = Error{code: NotImplemented}
+	ErrNotConnected       = &Error{code: NotConnected}
+	ErrSongNotFound       = &Error{code: SongNotFound}
+	ErrStorageQueryFailed = &Error{code: StorageQueryFailed}
+	ErrConnectFailed      = &Error{code: ConnectFailed}
+	ErrNotImplemented     = &Error{code: NotImplemented}
 )
 
 type Error struct {

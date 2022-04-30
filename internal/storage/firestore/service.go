@@ -5,14 +5,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/storage"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/pkg/errors"
+
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 type shortCache struct {
 	sync.RWMutex
-	List []storage.SongID
+	List []pkg.SongID
 }
 
 type Service struct {
@@ -34,7 +35,7 @@ func NewFirestoreService(ctx contexts.Context, client *Client, songs *SongsCache
 	return &f, nil
 }
 
-func (s *Service) GetSong(ctx contexts.Context, id storage.SongID) (*storage.Song, error) {
+func (s *Service) GetSong(ctx contexts.Context, id pkg.SongID) (*pkg.Song, error) {
 	key := s.songs.KeyFromID(id)
 	log := ctx.LoggerFromContext()
 	log.Debugf("Get song %s from cache", id)
@@ -45,6 +46,9 @@ func (s *Service) GetSong(ctx contexts.Context, id storage.SongID) (*storage.Son
 	log.Debugf("Get song %s from db", id)
 	song, err := s.client.GetSongByID(ctx, id)
 	if err != nil {
+		if err == ErrNotFound {
+			return nil, ErrNotFound
+		}
 		return nil, errors.Wrapf(err, "get song by id %s", id)
 	}
 	log.Debugf("Set song %s to cache", id)
@@ -52,16 +56,16 @@ func (s *Service) GetSong(ctx contexts.Context, id storage.SongID) (*storage.Son
 	return song, nil
 }
 
-func (s *Service) SetSong(ctx contexts.Context, song storage.Song) error {
+func (s *Service) SetSong(ctx contexts.Context, song *pkg.Song) error {
 	s.setUpdate(true)
-	if err := s.client.SetSong(ctx, &song); err != nil {
+	if err := s.client.SetSong(ctx, song); err != nil {
 		return errors.Wrap(err, "firestore set song")
 	}
-	s.songs.Set(s.songs.KeyFromID(song.ID), &song)
+	s.songs.Set(s.songs.KeyFromID(song.ID), song)
 	return nil
 }
 
-func (s *Service) UpsertSongIncPlaybacks(ctx contexts.Context, new storage.Song) (int, error) {
+func (s *Service) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (int, error) {
 	log := ctx.LoggerFromContext()
 	log.Debug("UpsertSongIncPlaybacks new", new)
 	old, err := s.GetSong(ctx, new.ID)
@@ -70,18 +74,17 @@ func (s *Service) UpsertSongIncPlaybacks(ctx contexts.Context, new storage.Song)
 		return 0, errors.Wrap(err, "failed to get song from db")
 	}
 	playbacks := 0
-	new.MergeWithOld(old)
-	new.Playbacks += 1
+	new.MergeNoOverride(old)
+	new.Playbacks++
 	playbacks = new.Playbacks
 	if err = s.SetSong(ctx, new); err != nil {
 		return 0, errors.Wrap(err, "failed to set song into db")
-	} else {
-		return playbacks, nil
 	}
+	return playbacks, nil
 }
 
-func (s *Service) GetRandomSongs(ctx contexts.Context, n int) ([]*storage.Song, error) {
-	set := make(map[string]storage.SongID)
+func (s *Service) GetRandomSongs(ctx contexts.Context, n int) ([]*pkg.Song, error) {
+	set := make(map[string]pkg.SongID)
 	max := len(s.songsShort.List)
 
 	cooldown := n * 10
@@ -94,7 +97,7 @@ func (s *Service) GetRandomSongs(ctx contexts.Context, n int) ([]*storage.Song, 
 		s.songsShort.RUnlock()
 	}
 
-	result := make([]*storage.Song, 0, len(set))
+	result := make([]*pkg.Song, 0, len(set))
 	for _, v := range set {
 		song, err := s.GetSong(ctx, v)
 		if err != nil {

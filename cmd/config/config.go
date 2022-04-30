@@ -7,26 +7,28 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robrotheram/dca"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
+	"github.com/HalvaPovidlo/discordBotGo/internal/search"
 )
 
 const FilePath = "secret_config.json"
 
 type Config struct {
-	Discord DiscordConfig `json:"discord"`
-	Sheets  SheetsConfig  `json:"sheets"`
-	VK      VKConfig      `json:"vk"`
-	Lichess LichessConfig `json:"lichess"`
-	General GeneralConfig `json:"general"`
+	General GeneralConfig        `json:"general"`
+	Discord DiscordConfig        `json:"discord"`
+	Youtube search.YouTubeConfig `json:"youtube"`
+	// Sheets  SheetsConfig  `json:"sheets"`
+	// VK      VKConfig      `json:"vk"`
+	// Lichess LichessConfig `json:"lichess"`
 }
 
 type DiscordConfig struct {
-	Token  string        `json:"token"`
-	Bot    string        `json:"bot"`
-	ID     int64         `json:"id"`
-	Prefix string        `json:"prefix"`
-	Voice  VoiceConfig   `json:"voice"`
-	Player player.Config `json:"player"`
+	Token  string            `json:"token"`
+	Bot    string            `json:"bot"`
+	ID     int64             `json:"id"`
+	Prefix string            `json:"prefix"`
+	API    discord.APIConfig `json:"api"`
+	Voice  VoiceConfig       `json:"voice"`
 }
 
 type VoiceConfig struct {

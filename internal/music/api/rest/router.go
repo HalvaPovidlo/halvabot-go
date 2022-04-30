@@ -3,35 +3,30 @@ package rest
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 type Player interface {
-	Enqueue(s *pkg.SongRequest) (int, error)
+	Enqueue(ctx contexts.Context, query string) (*pkg.Song, int, error)
 	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool
-	NowPlaying() pkg.SongRequest
+	NowPlaying() *pkg.Song
 	Stats() audio.SessionStats
-}
-
-type YouTube interface {
-	FindSong(query string) (*pkg.SongRequest, error)
 }
 
 // Handler TODO: Auth
 type Handler struct {
-	player  Player
-	youtube YouTube
-	super   *gin.RouterGroup
+	player Player
+	super  *gin.RouterGroup
 }
 
-func NewHandler(player Player, tube YouTube, superGroup *gin.RouterGroup) *Handler {
+func NewHandler(player Player, superGroup *gin.RouterGroup) *Handler {
 	return &Handler{
-		player:  player,
-		youtube: tube,
-		super:   superGroup,
+		player: player,
+		super:  superGroup,
 	}
 }
 
