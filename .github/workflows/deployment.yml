@@ -1,0 +1,31 @@
+name: Go
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+        S_NAME: ${{ secrets.SERVER_NAME }}
+        S_PASSWORD: ${{ secrets.YANDEX_SSH }}
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.17.8
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Deploy
+      run: 
+        echo "$S_PASSWORD"  > ./sshkey
+        rsync -Pav -e "ssh -i ./sshkey" ./* "$S_NAME":/gobot/
+        
