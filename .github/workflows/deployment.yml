@@ -29,7 +29,5 @@ jobs:
 
     - name: Deploy
       run: |
-        pwd
-        ls
-        rsync -avze "ssh -o StrictHostKeyChecking=no -i sshkey" ./* "$S_NAME":/gobot/
+        rsync -avze "ssh -o StrictHostKeyChecking=no" botapp "$S_NAME":/home/halva/gobot/
         
