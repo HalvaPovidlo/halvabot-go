@@ -1,4 +1,4 @@
-name: Go
+name: deploy
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
       run: go build -v ./...
 
     - name: Deploy
-      run: 
-        echo "$S_PASSWORD"  > ./sshkey
-        rsync -Pav -e "ssh -i ./sshkey" ./* "$S_NAME":/gobot/
+      run: |
+        echo "$S_PASSWORD"  > ./sshkey \
+        rsync -Pav -e "ssh -i ./sshkey" ./* "$S_NAME":/gobot/ \
         
