@@ -13,6 +13,11 @@ jobs:
         S_PASSWORD: ${{ secrets.YANDEX_SSH }}
     steps:
     - uses: actions/checkout@v3
+    
+    - uses: shimataro/ssh-key-action@v2.3.1
+      with:
+        key: ${{ secrets.YANDEX_SSH }}
+        known_hosts: ${{ secrets.YANDEX_HOST }}
 
     - name: Set up Go
       uses: actions/setup-go@v3
@@ -25,10 +30,6 @@ jobs:
     - name: Deploy
       run: |
         pwd
-        echo "$S_PASSWORD"  > ./sshkey
-        echo sshkey
-        echo "DOING LS"
         ls
-        echo "END LS"
-        rsync -Pav -e "ssh -i sshkey" ./* "$S_NAME":/gobot/
+        rsync -avze "ssh -o StrictHostKeyChecking=no -i sshkey" ./* "$S_NAME":/gobot/
         
