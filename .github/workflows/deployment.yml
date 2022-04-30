@@ -1,10 +1,8 @@
 name: deploy
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: [push, pull_request]
+# on:
+#   push:
+#     branches: [ main ]
 
 jobs:
 
@@ -26,6 +24,8 @@ jobs:
 
     - name: Deploy
       run: |
-        echo "$S_PASSWORD"  > ./sshkey \
-        rsync -Pav -e "ssh -i ./sshkey" ./* "$S_NAME":/gobot/ \
+        echo "$S_PASSWORD"  > ./sshkey
+        echo ./sshkey
+        ls
+        rsync -Pav -e "ssh -i ./sshkey" ./* "$S_NAME":/gobot/
         
