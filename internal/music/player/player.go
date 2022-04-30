@@ -7,9 +7,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 type MediaPlayer interface {
@@ -30,12 +31,6 @@ type ErrorHandler interface {
 	HandleError(err error)
 }
 
-var (
-	ErrNotConnected   = errors.New("voice client not connected")
-	ErrConnectFailed  = errors.New("connect to voice channel failed")
-	ErrNotImplemented = errors.New("this command is not implemented")
-)
-
 type commandType int
 
 const (
@@ -55,46 +50,40 @@ type command struct {
 	Type      commandType
 	guildID   string
 	channelID string
-	entry     *pkg.SongRequest
+	entry     *pkg.Song
 	loop      bool
-}
-
-type Config struct {
 }
 
 // Player all public methods are concurrent and
 // most private methods are designed to be synchronous
 type Player struct {
-	ctx    contexts.Context
-	voice  VoiceClient
-	audio  MediaPlayer
-	config Config
+	voice VoiceClient
+	audio MediaPlayer
 
 	currentLock   sync.Mutex
-	current       pkg.SongRequest
+	current       *pkg.Song
 	isWaited      bool
 	queue         Queue
 	errs          chan error
 	commands      chan *command
 	errorHandlers chan ErrorHandler
+
+	logger zap.Logger
 }
 
-func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, config Config) *Player {
+func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, logger zap.Logger) *Player {
 	p := Player{
-		ctx:    ctx,
+		logger: logger,
 		voice:  voice,
 		audio:  audio,
-		config: config,
 	}
-	p.commands, p.errs = p.processCommands()
+	p.commands, p.errs = p.processCommands(ctx)
 	p.errorHandlers = p.processErrors(p.errs)
 	return &p
 }
 
 // Play next song and enqueue input
-func (p *Player) Play(s *pkg.SongRequest) {
-	log := p.ctx.LoggerFromContext()
-	log.Debug("sending command play")
+func (p *Player) Play(s *pkg.Song) {
 	p.commands <- &command{
 		Type:  play,
 		entry: s,
@@ -102,14 +91,14 @@ func (p *Player) Play(s *pkg.SongRequest) {
 }
 
 // Enqueue song to the player
-func (p *Player) Enqueue(s *pkg.SongRequest) {
+// returns playbacks count and error
+func (p *Player) Enqueue(s *pkg.Song) {
 	p.commands <- &command{
 		Type:  enqueue,
 		entry: s,
 	}
 }
 
-// Skip returns nil if there is nothing to play next
 func (p *Player) Skip() {
 	p.commands <- &command{
 		Type: skip,
@@ -155,13 +144,13 @@ func (p *Player) Disconnect() {
 	}
 }
 
-func (p *Player) NowPlaying() pkg.SongRequest {
+func (p *Player) NowPlaying() *pkg.Song {
 	p.currentLock.Lock()
 	defer p.currentLock.Unlock()
 	return p.current
 }
 
-func (p *Player) setNowPlaying(s pkg.SongRequest) {
+func (p *Player) setNowPlaying(s *pkg.Song) {
 	p.currentLock.Lock()
 	defer p.currentLock.Unlock()
 	p.current = s
@@ -170,7 +159,7 @@ func (p *Player) setNowPlaying(s pkg.SongRequest) {
 func (p *Player) Stats() audio.SessionStats {
 	s := p.audio.Stats()
 	if s.Duration == 0 {
-		s.Duration = p.NowPlaying().Metadata.Duration
+		s.Duration = p.NowPlaying().Duration
 	}
 	return s
 }
@@ -180,7 +169,7 @@ func (p *Player) SubscribeOnErrors(h ErrorHandler) {
 	p.errorHandlers <- h
 }
 
-func (p *Player) processCommands() (chan *command, chan error) {
+func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan error) {
 	requests := make(chan *audio.SongRequest)
 	playerErrors := p.audio.Process(requests)
 	commands := make(chan *command)
@@ -199,17 +188,17 @@ func (p *Player) processCommands() (chan *command, chan error) {
 					out <- err
 				}
 			case err := <-playerErrors:
-				p.setNowPlaying(pkg.SongRequest{})
+				p.setNowPlaying(nil)
 				if err == nil || err == audio.ErrManualStop {
 					go func() {
 						p.commands <- &command{Type: next}
 					}()
 				}
 				if err != nil {
-					p.ctx.LoggerFromContext().Error(errors.Wrap(err, "player"))
+					p.logger.Error(errors.Wrap(err, "player"))
 					out <- err
 				}
-			case <-p.ctx.Done():
+			case <-ctx.Done():
 				p.queue.Clear()
 				p.audio.Stop()
 				return
@@ -221,8 +210,7 @@ func (p *Player) processCommands() (chan *command, chan error) {
 }
 
 func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
-	log := p.ctx.LoggerFromContext()
-	log.Debugf("process command %d", c.Type)
+	p.logger.Debugf("process command %d", c.Type)
 	if c.Type != next {
 		p.isWaited = false
 	}
@@ -239,7 +227,7 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 	case skip:
 		p.audio.Stop()
 	case radio:
-		return ErrNotImplemented
+		return ErrNotImplemented.Wrap("radio func is not implemented")
 	case stop:
 		p.reset()
 	case disconnect:
@@ -253,17 +241,16 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 	return nil
 }
 
-func (p *Player) processPlay(entry *pkg.SongRequest, out chan *audio.SongRequest) error {
-	log := p.ctx.LoggerFromContext()
+func (p *Player) processPlay(entry *pkg.Song, out chan *audio.SongRequest) error {
 	if !p.voice.IsConnected() {
-		return ErrNotConnected
+		return ErrNotConnected.Wrap("voice client not connected")
 	}
-	log.Debugf("adding to queue %s", entry.Metadata.Title)
+	p.logger.Debugf("adding to queue %s", entry.Title)
 	p.queue.Add(entry)
 	if !p.audio.IsPlaying() {
 		s := p.queue.Next()
-		p.setNowPlaying(*s)
-		log.Debugf("pushing song req")
+		p.setNowPlaying(s)
+		p.logger.Debugf("pushing song req")
 		out <- requestFromEntry(s, p.voice.Connection())
 	}
 	return nil
@@ -276,7 +263,7 @@ func (p *Player) processNext(out chan *audio.SongRequest) error {
 	if !p.audio.IsPlaying() {
 		if !p.queue.IsEmpty() {
 			s := p.queue.Next()
-			p.setNowPlaying(*s)
+			p.setNowPlaying(s)
 			out <- requestFromEntry(s, p.voice.Connection())
 		} else {
 			if p.isWaited {
@@ -300,11 +287,7 @@ func (p *Player) processConnect(gID, cID string) error {
 	}
 	p.reset()
 	if err := p.voice.Connect(gID, cID); err != nil {
-		p.ctx.LoggerFromContext().Errorw("player command connect",
-			"err", err,
-			"guildID", gID,
-			"channelID", cID)
-		return ErrConnectFailed
+		return ErrConnectFailed.Wrap(errors.Wrapf(err, "connect on gid:%s cid:%s failed", gID, cID).Error())
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	ytdl "github.com/kkdai/youtube/v2"
@@ -16,14 +17,14 @@ import (
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/docs"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/audio"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music"
-	"github.com/HalvaPovidlo/discordBotGo/internal/discord/music/player"
-	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/discord/music/rest"
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
+	dapi "github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
+	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
 	"github.com/HalvaPovidlo/discordBotGo/internal/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/storage/firestore"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	discordpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
+	dpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
@@ -37,15 +38,16 @@ import (
 // @host      localhost:9091
 // @BasePath  /api/v1
 func main() {
+	// TODO: all magic vars to config
 	cfg, err := config.InitConfig()
 	if err != nil {
 		panic(errors.Wrap(err, "config read failed"))
 	}
-	logger := zap.NewLogger()
+	logger := zap.NewLogger(cfg.General.Debug)
 	ctx, cancel := contexts.WithLogger(contexts.Background(), logger)
 
 	// Initialize discord session
-	session, err := discordpkg.OpenSession(cfg.Discord.Token, logger)
+	session, err := dpkg.OpenSession(cfg.Discord.Token, cfg.General.Debug, logger)
 	if err != nil {
 		panic(errors.Wrap(err, "discord open session failed"))
 	}
@@ -58,36 +60,45 @@ func main() {
 		}
 	}()
 
-	session.Debug = true
-	session.LogLevel = 100
-
 	// YouTube services
 	ytService, err := youtube.NewService(ctx, option.WithCredentialsFile("halvabot-google.json"))
 	if err != nil {
 		panic(errors.Wrap(err, "youtube init failed"))
 	}
-	ytClient := search.NewYouTubeClient(ctx,
+	ytClient := search.NewYouTubeClient(
 		&ytdl.Client{
-			Debug:      true,
+			Debug:      cfg.General.Debug,
 			HTTPClient: http.DefaultClient,
 		},
-		ytService)
+		ytService,
+		cfg.Youtube,
+	)
+
+	// Firestore stage
+	fireSongsCache := firestore.NewSongsCache(ctx, 12*time.Hour)
+	fireStorage, err := firestore.NewFirestoreClient(ctx, "halvabot-firebase.json", cfg.General.Debug)
+	if err != nil {
+		panic(err)
+	}
+	fireService, err := firestore.NewFirestoreService(ctx, fireStorage, fireSongsCache)
+	if err != nil {
+		panic(err)
+	}
 
 	// Music stage
 	voiceClient := audio.NewVoiceClient(session)
 	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions, logger)
-	musicPlayer := player.NewPlayer(ctx, voiceClient, rawAudioPlayer, cfg.Discord.Player)
+	musicPlayer := player.NewMusicService(ctx, fireService, ytClient, voiceClient, rawAudioPlayer, logger)
 
 	// Discord commands
-	musicCog := music.NewCog(musicPlayer, ytClient, cfg.Discord.Prefix, logger)
-	musicCog.RegisterCommands(session)
+	musicCog := dapi.NewCog(ctx, musicPlayer, cfg.Discord.Prefix, logger, cfg.Discord.API)
+	musicCog.RegisterCommands(session, cfg.General.Debug, logger)
 
 	// Http routers
 	router := gin.Default()
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := router.Group("/api/v1")
-	discordRouter := discord.NewHandler(apiRouter).Router()
-	musicrest.NewHandler(musicPlayer, ytClient, discordRouter).Router()
+	musicrest.NewHandler(musicPlayer, apiRouter).Router()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":9091")

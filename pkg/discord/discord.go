@@ -6,7 +6,7 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
-func OpenSession(token string, logger *zap.Logger) (*discordgo.Session, error) {
+func OpenSession(token string, debug bool, logger zap.Logger) (*discordgo.Session, error) {
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
 		logger.Errorw("error creating Discord session",
@@ -28,6 +28,10 @@ func OpenSession(token string, logger *zap.Logger) (*discordgo.Session, error) {
 	// })
 
 	session.Identify.Intents = discordgo.IntentsAll
+	session.LogLevel = discordgo.LogInformational
+	if debug {
+		session.LogLevel = discordgo.LogDebug
+	}
 	err = session.Open()
 	if err != nil {
 		logger.Errorw("error opening connection", "err", err)

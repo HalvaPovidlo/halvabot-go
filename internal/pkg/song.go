@@ -1,26 +1,102 @@
 package pkg
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"time"
 
-type SongRequest struct {
-	Metadata     *Metadata       `json:"metadata"`
-	ServiceName  string          `json:"service_name"`  // Name of service used for this queue entry
-	ServiceColor int             `json:"service_color"` // Color of service used for this queue entry
-	Requester    *discordgo.User `json:"-"`             // TODO: decide pass requester or not
+	"github.com/bwmarrin/discordgo"
+)
+
+type ServiceName string
+
+const (
+	ServiceYouTube ServiceName = "youtube"
+)
+
+type SongID struct {
+	ID      string
+	Service ServiceName
 }
 
-type Metadata struct {
-	Artists      []MetadataArtist `json:"artists,omitempty"`
-	Title        string           `json:"title,omitempty"`
-	DisplayURL   string           `json:"display_url,omitempty"`
-	StreamURL    string           `json:"-"`
-	Duration     float64          `json:"duration,omitempty"`
-	ArtworkURL   string           `json:"artwork_url,omitempty"`
-	ThumbnailURL string           `json:"thumbnail_url,omitempty"`
+type PlayDate struct {
+	time.Time
 }
 
-// MetadataArtist stores the data about an artist
-type MetadataArtist struct {
-	Name string `json:"name,omitempty"`
-	URL  string `json:"url,omitempty"`
+type Song struct {
+	Title        string      `firestore:"title,omitempty" csv:"title" json:"title,omitempty"`
+	URL          string      `firestore:"url,omitempty" csv:"url,omitempty" json:"url,omitempty"`
+	Service      ServiceName `firestore:"service,omitempty" csv:"service,omitempty" json:"service,omitempty"`
+	ArtistName   string      `firestore:"artist_name,omitempty" csv:"artist_name,omitempty" json:"artist_name,omitempty"`
+	ArtistURL    string      `firestore:"artist_url,omitempty" csv:"artist_url,omitempty" json:"artist_url,omitempty"`
+	ArtworkURL   string      `firestore:"artwork_url,omitempty" csv:"artwork_url,omitempty" json:"artwork_url,omitempty"`
+	ThumbnailURL string      `firestore:"thumbnail_url,omitempty" csv:"thumbnail_url,omitempty" json:"thumbnail_url,omitempty"`
+	Playbacks    int         `firestore:"playbacks,omitempty" csv:"playbacks" json:"playbacks,omitempty"`
+	LastPlay     PlayDate    `firestore:"last_play,omitempty" csv:"last_play,omitempty" json:"last_play,omitempty"`
+
+	ID        SongID          `firestore:"-" csv:"-" json:"-"`
+	Requester *discordgo.User `firestore:"-" csv:"-" json:"-"`
+	StreamURL string          `firestore:"-" csv:"-" json:"-"`
+	Duration  float64         `firestore:"-" csv:"-" json:"-"`
+}
+
+type User struct {
+	Name  string
+	Songs []Song
+}
+
+func (date *PlayDate) UnmarshalCSV(csv string) error {
+	in := strings.Split(csv, "/")
+	if len(in) < 3 {
+		return errors.New("wrong time format")
+	}
+	toParse := fmt.Sprintf("%s/%s/%s", in[1], in[0], in[2])
+	t, err := time.Parse("01/02/2006", toParse)
+	if err != nil {
+		return err
+	}
+	*date = PlayDate{t}
+	return nil
+}
+
+func (date PlayDate) String() string {
+	return date.Time.String()
+}
+
+func (id SongID) String() string {
+	return string(id.Service) + "_" + id.ID
+}
+
+func (s *Song) MergeNoOverride(new *Song) {
+	if new == nil {
+		return
+	}
+	if s.Title == "" {
+		s.Title = new.Title
+	}
+	if s.URL == "" {
+		s.URL = new.URL
+	}
+	if s.Service == "" {
+		s.Service = new.Service
+	}
+	if s.ArtistName == "" {
+		s.ArtistName = new.ArtistName
+	}
+	if s.ArtistURL == "" {
+		s.ArtistURL = new.ArtistURL
+	}
+	if s.ArtworkURL == "" {
+		s.ArtworkURL = new.ArtworkURL
+	}
+	if s.ThumbnailURL == "" {
+		s.ThumbnailURL = new.ThumbnailURL
+	}
+	if s.Playbacks == 0 {
+		s.Playbacks = new.Playbacks
+	}
+	if s.LastPlay.IsZero() {
+		s.LastPlay = new.LastPlay
+	}
 }

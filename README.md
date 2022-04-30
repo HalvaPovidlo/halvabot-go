@@ -11,27 +11,17 @@ Create file `secret_config.json`
 
 ```json
 {
-  "discord": {
-    "token": "***",
-    "bot": "HalvaBot",
-    "id": 746726055259406426,
-    "prefix": "$"
+  "general":{
+    "debug":true
   },
-  "sheets": {
-    "id": "***",
-    "film": "***"
-  },
-  "vk": {
-    "login": "***",
-    "password": "***"
-  },
-  "lichess" : {
-    "token": "***"
-  },
-  "general" : {
-    "debug": true
+  "discord":{
+    "token":"***",
+    "bot":"HalvaBot",
+    "id":746726055259406426,
+    "prefix":"$"
   }
 }
+
 ```
 Replace `token` with token from Discord Developer Portal.
 

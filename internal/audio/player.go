@@ -29,7 +29,7 @@ type SongRequest struct {
 
 type Player struct {
 	Options *dca.EncodeOptions `json:"encodingOptions"`
-	logger  *zap.Logger
+	logger  zap.Logger
 	done    chan error
 
 	isPlayingLock sync.Mutex
@@ -39,7 +39,7 @@ type Player struct {
 	stats     SessionStats
 }
 
-func NewPlayer(options *dca.EncodeOptions, logger *zap.Logger) *Player {
+func NewPlayer(options *dca.EncodeOptions, logger zap.Logger) *Player {
 	return &Player{
 		Options: options,
 		logger:  logger,
