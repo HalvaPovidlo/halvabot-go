@@ -66,14 +66,13 @@ func (s *Service) Enqueue(ctx contexts.Context, query string) (*pkg.Song, int, e
 		return nil, 0, ErrSongNotFound.Wrap(err.Error())
 	}
 
-	var err2 *Error
 	song.LastPlay = pkg.PlayDate{Time: time.Now()}
 	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
-	if err != nil {
-		err2 = ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
-	}
 
 	s.logger.Debug("sending command play")
 	s.Player.Play(song)
-	return song, playbacks, err2
+	if err != nil {
+		return song, playbacks, ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
+	}
+	return song, playbacks, nil
 }
