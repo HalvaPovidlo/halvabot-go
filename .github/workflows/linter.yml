@@ -1,4 +1,4 @@
-name: runLinters
+name: linter
 on: [push, pull_request]
 
 jobs:
