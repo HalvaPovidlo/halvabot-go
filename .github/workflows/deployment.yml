@@ -20,12 +20,15 @@ jobs:
         go-version: 1.17.8
 
     - name: Build
-      run: go build -v ./...
+      run: go build -o botapp cmd/main.go
 
     - name: Deploy
       run: |
+        pwd
         echo "$S_PASSWORD"  > ./sshkey
-        echo ./sshkey
+        echo sshkey
+        echo "DOING LS"
         ls
-        rsync -Pav -e "ssh -i ./sshkey" ./* "$S_NAME":/gobot/
+        echo "END LS"
+        rsync -Pav -e "ssh -i sshkey" ./* "$S_NAME":/gobot/
         
