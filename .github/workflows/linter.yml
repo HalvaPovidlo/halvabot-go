@@ -1,5 +1,5 @@
-name: runLinters
-on: [push, pull_request]
+name: linter
+on: [push]
 
 jobs:
   golangci:
