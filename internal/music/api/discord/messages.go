@@ -89,6 +89,18 @@ func (s *Service) sendNowPlayingMessage(ds *dg.Session, m *dg.MessageCreate, son
 	s.sendComplexMessage(ds, m.ChannelID, msg, infoLevel)
 }
 
+func (s *Service) sendRandomMessage(ds *dg.Session, m *dg.MessageCreate, songs []*pkg.Song) {
+	msg := ""
+	for _, song := range songs {
+		if song.ArtistName != "" {
+			msg += fmt.Sprintf("`%s%s - %s`\n", s.prefix+play, song.ArtistName, song.Title)
+		} else {
+			msg += fmt.Sprintf("`%s%s`\n", s.prefix+play, song.Title)
+		}
+	}
+	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), infoLevel)
+}
+
 func (s *Service) sendStringMessage(ds *dg.Session, m *dg.MessageCreate, msg string, level int) {
 	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), level)
 }

@@ -85,6 +85,9 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to marshal data")
 		}
+		if s.ID.ID == "" {
+			s.ID = pkg.GetIDFromURL(s.URL)
+		}
 		res = append(res, s.ID)
 	}
 	return res, nil

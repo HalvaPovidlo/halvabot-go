@@ -23,6 +23,7 @@ const (
 	skip       = "skip"
 	loop       = "loop"
 	nowPlaying = "now"
+	random     = "random"
 	disconnect = "disconnect"
 	hello      = "hello"
 )
@@ -36,6 +37,7 @@ type Player interface {
 	Stats() audio.SessionStats
 	Disconnect() //
 	SubscribeOnErrors(h player.ErrorHandler)
+	Random(ctx contexts.Context, n int) ([]*pkg.Song, error)
 	// Radio()
 	// Connect(guildID, channelID string)
 	// Enqueue(s *pkg.SongRequest)
@@ -75,7 +77,7 @@ func NewCog(ctx contexts.Context, player Player, prefix string, logger zap.Logge
 		s.statusChannels[v] = t
 	}
 
-	s.player.SubscribeOnErrors(&s)
+	s.player.SubscribeOnErrors(s.HandleError)
 	return &s
 }
 
@@ -98,9 +100,10 @@ func (s *Service) RegisterCommands(session *discordgo.Session, debug bool, logge
 	registerSlashBasicCommand(session, debug)
 	command.NewMessageCommand(s.prefix+play, s.playMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+skip, s.skipMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(s.prefix+disconnect, s.disconnectMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+loop, s.loopMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+nowPlaying, s.nowpMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+random, s.randomMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+disconnect, s.disconnectMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+hello, s.helloMessageHandler, debug).RegisterCommand(session, logger)
 	s.updateListeningStatus(contexts.Background(), session)
 }
@@ -152,6 +155,16 @@ func (s *Service) loopMessageHandler(session *discordgo.Session, m *discordgo.Me
 func (s *Service) nowpMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
 	s.deleteMessage(session, m, infoLevel)
 	s.sendNowPlayingMessage(session, m, s.player.NowPlaying(), s.player.Stats().Pos)
+}
+
+func (s *Service) randomMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
+	s.deleteMessage(session, m, statusLevel)
+	songs, err := s.player.Random(s.ctx, 10)
+	if err != nil {
+		s.logger.Error(errors.Wrap(err, "get random songs"))
+		return
+	}
+	s.sendRandomMessage(session, m, songs)
 }
 
 func (s *Service) disconnectMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {

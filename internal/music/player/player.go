@@ -1,6 +1,7 @@
 package player
 
 import (
+	"io"
 	"sync"
 	"time"
 
@@ -27,9 +28,7 @@ type VoiceClient interface {
 	Disconnect() error
 }
 
-type ErrorHandler interface {
-	HandleError(err error)
-}
+type ErrorHandler func(err error)
 
 type commandType int
 
@@ -38,7 +37,6 @@ const (
 	next
 	skip
 	stop
-	radio
 	connect
 	disconnect
 	enqueue
@@ -122,14 +120,6 @@ func (p *Player) SetLoop(b bool) {
 	}
 }
 
-// Radio TODO: implement radio
-func (p *Player) Radio() bool {
-	p.commands <- &command{
-		Type: radio,
-	}
-	return false
-}
-
 func (p *Player) Connect(guildID, channelID string) {
 	p.commands <- &command{
 		Type:      connect,
@@ -164,7 +154,6 @@ func (p *Player) Stats() audio.SessionStats {
 	return s
 }
 
-// SubscribeOnErrors TODO: try to path functions not objects
 func (p *Player) SubscribeOnErrors(h ErrorHandler) {
 	p.errorHandlers <- h
 }
@@ -189,7 +178,7 @@ func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan erro
 				}
 			case err := <-playerErrors:
 				p.setNowPlaying(nil)
-				if err == nil || err == audio.ErrManualStop {
+				if err == nil || err == audio.ErrManualStop || err == io.EOF {
 					go func() {
 						p.commands <- &command{Type: next}
 					}()
@@ -214,7 +203,6 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 	if c.Type != next {
 		p.isWaited = false
 	}
-
 	switch c.Type {
 	case play:
 		return p.processPlay(c.entry, out)
@@ -226,8 +214,6 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 		p.queue.SetLoop(c.loop)
 	case skip:
 		p.audio.Stop()
-	case radio:
-		return ErrNotImplemented.Wrap("radio func is not implemented")
 	case stop:
 		p.reset()
 	case disconnect:
@@ -261,24 +247,27 @@ func (p *Player) processNext(out chan *audio.SongRequest) error {
 		return nil
 	}
 	if !p.audio.IsPlaying() {
-		if !p.queue.IsEmpty() {
-			s := p.queue.Next()
-			p.setNowPlaying(s)
-			out <- requestFromEntry(s, p.voice.Connection())
-		} else {
-			if p.isWaited {
-				p.isWaited = false
-				err := p.voice.Disconnect()
-				if err != nil {
-					return errors.Wrap(err, "player: disconnecting because there is nothing to play next")
-				}
-			} else {
-				p.isWaited = true
-				p.tryNextAfterTimeout(time.Minute)
-			}
-		}
+		return nil
 	}
-	return nil
+	if !p.queue.IsEmpty() {
+		s := p.queue.Next()
+		p.setNowPlaying(s)
+		out <- requestFromEntry(s, p.voice.Connection())
+		return nil
+	}
+
+	if p.isWaited {
+		p.isWaited = false
+		err := p.voice.Disconnect()
+		if err != nil {
+			return errors.Wrap(err, "player: disconnecting because there is nothing to play next")
+		}
+	} else {
+		p.isWaited = true
+		p.tryNextAfterTimeout(time.Minute)
+	}
+
+	return ErrQueueEmpty
 }
 
 func (p *Player) processConnect(gID, cID string) error {
@@ -309,7 +298,7 @@ func (p *Player) processErrors(errs <-chan error) chan ErrorHandler {
 					return
 				}
 				for _, h := range handlers {
-					h.HandleError(err)
+					h(err)
 				}
 			case h := <-newHandlers:
 				handlers = append(handlers, h)

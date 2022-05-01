@@ -3,6 +3,7 @@ package pkg
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -99,4 +100,19 @@ func (s *Song) MergeNoOverride(new *Song) {
 	if s.LastPlay.IsZero() {
 		s.LastPlay = new.LastPlay
 	}
+}
+
+func GetIDFromURL(url string) SongID {
+	var id SongID
+	if TestYoutubeURL(url) {
+		id.Service = ServiceYouTube
+		id.ID = strings.TrimPrefix(url, "https://www.youtube.com/watch?v=")
+		return id
+	}
+	return id
+}
+
+func TestYoutubeURL(url string) bool {
+	test, _ := regexp.MatchString("(?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?.*(?:watch|embed)?(?:.*v=|v\\/|\\/)(?:[\\w-_]+)", url)
+	return test
 }

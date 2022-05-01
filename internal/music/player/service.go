@@ -1,6 +1,9 @@
 package player
 
 import (
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
+	"io"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,7 +29,9 @@ type Service struct {
 	storage Firestore
 	youtube YouTube
 
-	logger zap.Logger
+	radioMutex sync.Mutex
+	isRadio    bool
+	logger     zap.Logger
 }
 
 func NewMusicService(ctx contexts.Context, storage Firestore, youtube YouTube, voice VoiceClient, audio MediaPlayer, logger zap.Logger) *Service {
@@ -75,4 +80,43 @@ func (s *Service) Enqueue(ctx contexts.Context, query string) (*pkg.Song, int, e
 		return song, playbacks, ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
 	}
 	return song, playbacks, nil
+}
+
+func (s *Service) Random(ctx contexts.Context, n int) ([]*pkg.Song, error) {
+	return s.storage.GetRandomSongs(ctx, n)
+}
+
+func (s *Service) SetRadio(b bool) {
+	s.radioMutex.Lock()
+	s.isRadio = b
+	s.radioMutex.Unlock()
+}
+
+func (s *Service) RadioStatus() bool {
+	s.radioMutex.Lock()
+	b := s.isRadio
+	s.radioMutex.Unlock()
+	return b
+}
+
+func (s *Service) handleError(err error) {
+
+	if err == ErrQueueEmpty && s.RadioStatus() {
+		songs, err := s.storage.GetRandomSongs(contexts.Context{Context: contexts.Background()}, 1)
+		if err != nil {
+			s.logger.Error(errors.Wrap(err, "radio failed"))
+			s.SetRadio(false)
+			return
+		}
+		s.Player.Play(songs[0])
+	}
+}
+
+func (s *Service) SubscribeOnErrors(h ErrorHandler) {
+	s.Player.SubscribeOnErrors(func(err error) {
+		if err == io.EOF || err == audio.ErrManualStop || err == ErrQueueEmpty {
+			return
+		}
+		h(err)
+	})
 }
