@@ -39,7 +39,6 @@ const (
 	stop
 	connect
 	disconnect
-	enqueue
 	// shuffle
 	loop
 )
@@ -84,15 +83,6 @@ func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, logge
 func (p *Player) Play(s *pkg.Song) {
 	p.commands <- &command{
 		Type:  play,
-		entry: s,
-	}
-}
-
-// Enqueue song to the player
-// returns playbacks count and error
-func (p *Player) Enqueue(s *pkg.Song) {
-	p.commands <- &command{
-		Type:  enqueue,
 		entry: s,
 	}
 }
@@ -177,7 +167,6 @@ func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan erro
 					out <- err
 				}
 			case err := <-playerErrors:
-				p.setNowPlaying(nil)
 				if err == nil || err == audio.ErrManualStop || err == io.EOF {
 					go func() {
 						p.commands <- &command{Type: next}
@@ -208,8 +197,6 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 		return p.processPlay(c.entry, out)
 	case next:
 		return p.processNext(out)
-	case enqueue:
-		p.queue.Add(c.entry)
 	case loop:
 		p.queue.SetLoop(c.loop)
 	case skip:
@@ -244,9 +231,10 @@ func (p *Player) processPlay(entry *pkg.Song, out chan *audio.SongRequest) error
 
 func (p *Player) processNext(out chan *audio.SongRequest) error {
 	if !p.voice.IsConnected() {
+		p.setNowPlaying(nil)
 		return nil
 	}
-	if !p.audio.IsPlaying() {
+	if p.audio.IsPlaying() {
 		return nil
 	}
 	if !p.queue.IsEmpty() {
@@ -255,7 +243,7 @@ func (p *Player) processNext(out chan *audio.SongRequest) error {
 		out <- requestFromEntry(s, p.voice.Connection())
 		return nil
 	}
-
+	p.setNowPlaying(nil)
 	if p.isWaited {
 		p.isWaited = false
 		err := p.voice.Disconnect()

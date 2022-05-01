@@ -24,6 +24,7 @@ const (
 	loop       = "loop"
 	nowPlaying = "now"
 	random     = "random"
+	radio      = "radio"
 	disconnect = "disconnect"
 	hello      = "hello"
 )
@@ -38,7 +39,7 @@ type Player interface {
 	Disconnect() //
 	SubscribeOnErrors(h player.ErrorHandler)
 	Random(ctx contexts.Context, n int) ([]*pkg.Song, error)
-	// Radio()
+	SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error
 	// Connect(guildID, channelID string)
 	// Enqueue(s *pkg.SongRequest)
 	// Stop()
@@ -103,6 +104,7 @@ func (s *Service) RegisterCommands(session *discordgo.Session, debug bool, logge
 	command.NewMessageCommand(s.prefix+loop, s.loopMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+nowPlaying, s.nowpMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+random, s.randomMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+radio, s.radioMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+disconnect, s.disconnectMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+hello, s.helloMessageHandler, debug).RegisterCommand(session, logger)
 	s.updateListeningStatus(contexts.Background(), session)
@@ -120,6 +122,7 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 	s.logger.Debug("finding author's voice channel ID")
 	id, err := findAuthorVoiceChannelID(ds, m)
 	if err != nil {
+		// TODO: SEND MESSAGE
 		s.logger.Error(err, "failed to find author's voice channel")
 		return
 	}
@@ -167,13 +170,27 @@ func (s *Service) randomMessageHandler(session *discordgo.Session, m *discordgo.
 	s.sendRandomMessage(session, m, songs)
 }
 
+func (s *Service) radioMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
+	s.deleteMessage(session, m, statusLevel)
+	id, err := findAuthorVoiceChannelID(session, m)
+	if err != nil {
+		s.logger.Error(err, "failed to find author's voice channel")
+		return
+	}
+	err = s.player.SetRadio(s.ctx, true, m.GuildID, id)
+	if err != nil {
+		s.sendStringMessage(session, m, err.Error(), 3)
+	}
+	s.sendStringMessage(session, m, "radio vklucheno", statusLevel)
+}
+
 func (s *Service) disconnectMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
 	s.deleteMessage(session, m, statusLevel)
 	s.player.Skip()
 }
 
 func (s *Service) HandleError(err error) {
-	s.logger.Error(err)
+	s.logger.Error(errors.Wrap(err, "discord api"))
 }
 
 func (s *Service) updateListeningStatus(ctx context.Context, session *discordgo.Session) {

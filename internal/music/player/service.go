@@ -22,6 +22,7 @@ type Firestore interface {
 
 type YouTube interface {
 	FindSong(ctx contexts.Context, query string) (*pkg.Song, error)
+	EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.Song, error)
 }
 
 type Service struct {
@@ -35,12 +36,14 @@ type Service struct {
 }
 
 func NewMusicService(ctx contexts.Context, storage Firestore, youtube YouTube, voice VoiceClient, audio MediaPlayer, logger zap.Logger) *Service {
-	return &Service{
+	s := &Service{
 		Player:  NewPlayer(ctx, voice, audio, logger),
 		storage: storage,
 		youtube: youtube,
 		logger:  logger,
 	}
+	s.Player.SubscribeOnErrors(s.handleError)
+	return s
 }
 
 func (s *Service) Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error) {
@@ -65,6 +68,10 @@ func (s *Service) Play(ctx contexts.Context, query, guildID, channelID string) (
 
 func (s *Service) Enqueue(ctx contexts.Context, query string) (*pkg.Song, int, error) {
 	logger := ctx.LoggerFromContext()
+	if !s.Player.voice.IsConnected() {
+		return nil, 0, ErrNotConnected
+	}
+
 	logger.Debug("Finding song")
 	song, err := s.youtube.FindSong(ctx, query)
 	if err != nil {
@@ -86,10 +93,49 @@ func (s *Service) Random(ctx contexts.Context, n int) ([]*pkg.Song, error) {
 	return s.storage.GetRandomSongs(ctx, n)
 }
 
-func (s *Service) SetRadio(b bool) {
+func (s *Service) SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error {
+	s.setRadio(b)
+	if b == false {
+		return nil
+	}
+	if !s.Player.voice.IsConnected() {
+		if guildID == "" || channelID == "" {
+			return ErrNotConnected
+		}
+		s.Player.Connect(guildID, channelID)
+	}
+	if s.NowPlaying() == nil {
+		return s.playRandomSong(ctx)
+	}
+	return nil
+}
+
+func (s *Service) setRadio(b bool) {
 	s.radioMutex.Lock()
 	s.isRadio = b
 	s.radioMutex.Unlock()
+}
+
+func (s *Service) playRandomSong(ctx contexts.Context) error {
+	songs, err := s.storage.GetRandomSongs(ctx, 1)
+	if err != nil {
+		return errors.Wrap(err, "get 1 random song from bd")
+	}
+	song := songs[0]
+	if song.StreamURL == "" {
+		song, err = s.youtube.EnsureStreamInfo(ctx, song)
+		if err != nil {
+			return err
+		}
+	}
+	go func() {
+		err := s.storage.SetSong(ctx, song)
+		if err != nil {
+			s.logger.Error(errors.Wrap(err, "set song on play random"))
+		}
+	}()
+	s.Player.Play(song)
+	return nil
 }
 
 func (s *Service) RadioStatus() bool {
@@ -100,15 +146,12 @@ func (s *Service) RadioStatus() bool {
 }
 
 func (s *Service) handleError(err error) {
-
 	if err == ErrQueueEmpty && s.RadioStatus() {
-		songs, err := s.storage.GetRandomSongs(contexts.Context{Context: contexts.Background()}, 1)
+		err := s.playRandomSong(contexts.Context{Context: contexts.Background()})
 		if err != nil {
 			s.logger.Error(errors.Wrap(err, "radio failed"))
-			s.SetRadio(false)
-			return
+			s.setRadio(false)
 		}
-		s.Player.Play(songs[0])
 	}
 }
 

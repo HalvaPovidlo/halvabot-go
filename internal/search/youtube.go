@@ -99,7 +99,7 @@ func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error
 	return nil, ErrSongNotFound
 }
 
-func (y *YouTube) ensureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.Song, error) {
+func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.Song, error) {
 	dl := downloader.Downloader{
 		Client:    *y.ytdl,
 		OutputDir: y.config.OutputDir,
@@ -148,7 +148,7 @@ func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error
 		return nil, errors.Wrap(err, "search in youtube")
 	}
 
-	song, err = y.ensureStreamInfo(ctx, song)
+	song, err = y.EnsureStreamInfo(ctx, song)
 	if err != nil {
 		return nil, errors.Wrap(err, "ensure stream info")
 	}
