@@ -22,8 +22,11 @@ jobs:
       with:
         go-version: 1.17.8
 
-    - name: Build
-      run: go build -o deployments/botapp cmd/main.go
+    - name: Build botapp
+      run: go build -o deployments/botapp cmd/botapp/main.go
+
+    - name: Build webhost
+      run: go build -o deployments/webhost cmd/webhost/main.go
 
     - name: Deploy
       run: |

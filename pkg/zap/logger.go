@@ -11,11 +11,13 @@ type Logger struct {
 
 func NewLogger(debug bool) Logger {
 	config := zap.NewDevelopmentConfig()
-	config.Level.SetLevel(zapcore.InfoLevel)
 	if debug {
 		config.Level.SetLevel(zapcore.DebugLevel)
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		config.Level.SetLevel(zapcore.InfoLevel)
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	}
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	zapLogger, _ := config.Build()
 	return Logger{
 		SugaredLogger: zapLogger.Sugar(),
