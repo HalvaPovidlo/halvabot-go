@@ -144,7 +144,7 @@ func (c *Client) updateSongs(ctx contexts.Context) {
 				c.updateMx.Lock()
 				if len(c.toUpdate) == 0 {
 					c.updateMx.Unlock()
-					return
+					continue
 				}
 				toSend := make([]*pkg.Song, 0, len(c.toUpdate))
 				for k, v := range c.toUpdate {
@@ -155,7 +155,7 @@ func (c *Client) updateSongs(ctx contexts.Context) {
 				ctx.LoggerFromContext().Info("UPDATING DB", toSend)
 				err := c.WriteBatch(ctx, toSend)
 				if err != nil {
-					return
+					ctx.LoggerFromContext().Error(err, "unable to update DB")
 				}
 			case <-ctx.Done():
 				return
