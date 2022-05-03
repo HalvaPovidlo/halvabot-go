@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -95,8 +96,17 @@ func main() {
 	musicCog.RegisterCommands(session, cfg.General.Debug, logger)
 
 	// Http routers
+	if !cfg.General.Debug {
+		gin.SetMode(gin.ReleaseMode)
+		gin.DisableConsoleColor()
+	}
 	router := gin.Default()
+	router.GET("/", func(c *gin.Context) {
+		location := url.URL{Path: "/web"}
+		c.Redirect(http.StatusMovedPermanently, location.RequestURI())
+	})
 	router.Static("/static", "./web/")
+	docs.SwaggerInfo.Host = "51.250.84.199:" + cfg.General.Port
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := router.Group("/api/v1")
 	musicrest.NewHandler(musicPlayer, apiRouter).Router()
