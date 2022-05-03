@@ -9,7 +9,7 @@ import (
 )
 
 type Player interface {
-	Enqueue(ctx contexts.Context, query string) (*pkg.Song, int, error)
+	Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error)
 	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool

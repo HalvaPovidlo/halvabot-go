@@ -128,9 +128,9 @@ func (s *Service) sendInternalErrorMessage(ds *dg.Session, m *dg.MessageCreate, 
 	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageInternalError), level)
 }
 
-func (s *Service) sendStringMessage(ds *dg.Session, m *dg.MessageCreate, msg string, level int) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), level)
-}
+// func (s *Service) sendStringMessage(ds *dg.Session, m *dg.MessageCreate, msg string, level int) {
+//	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), level)
+// }
 
 func (s *Service) toDelete(session *dg.Session, channelID string, level int) bool {
 	ch, _ := session.Channel(channelID)

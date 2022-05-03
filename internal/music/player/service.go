@@ -1,13 +1,13 @@
 package player
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
@@ -47,48 +47,23 @@ func NewMusicService(ctx contexts.Context, storage Firestore, youtube YouTube, v
 }
 
 func (s *Service) Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error) {
-	s.logger.Warn("FIND SONG ", time.Now())
+	if !s.Player.voice.IsConnected() && (channelID == "" || guildID == "") {
+		return nil, 0, ErrNotConnected
+	}
 	s.logger.Debug("Finding song")
 	song, err := s.youtube.FindSong(ctx, query)
 	if err != nil {
 		return nil, 0, ErrSongNotFound.Wrap(err.Error())
 	}
-	s.logger.Warn("CONNECT ", time.Now())
 	s.Connect(guildID, channelID)
-	s.logger.Warn("SEND to DB ", time.Now())
 	song.LastPlay = pkg.PlayDate{Time: time.Now()}
 	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
 	if err != nil {
 		err = ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
 	}
-	s.logger.Warn("SEND PLAY COMMAND ", time.Now())
 	s.logger.Debug("sending command play")
 	go s.Player.Play(song)
-	s.logger.Warn("ENDofSERVICE ", time.Now())
 	return song, playbacks, err
-}
-
-func (s *Service) Enqueue(ctx contexts.Context, query string) (*pkg.Song, int, error) {
-	logger := ctx.LoggerFromContext()
-	if !s.Player.voice.IsConnected() {
-		return nil, 0, ErrNotConnected
-	}
-
-	logger.Debug("Finding song")
-	song, err := s.youtube.FindSong(ctx, query)
-	if err != nil {
-		return nil, 0, ErrSongNotFound.Wrap(err.Error())
-	}
-
-	song.LastPlay = pkg.PlayDate{Time: time.Now()}
-	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
-
-	s.logger.Debug("sending command play")
-	s.Player.Play(song)
-	if err != nil {
-		return song, playbacks, ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
-	}
-	return song, playbacks, nil
 }
 
 func (s *Service) Random(ctx contexts.Context, n int) ([]*pkg.Song, error) {
@@ -97,7 +72,7 @@ func (s *Service) Random(ctx contexts.Context, n int) ([]*pkg.Song, error) {
 
 func (s *Service) SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error {
 	s.setRadio(b)
-	if b == false {
+	if !b {
 		return nil
 	}
 	if !s.Player.voice.IsConnected() {

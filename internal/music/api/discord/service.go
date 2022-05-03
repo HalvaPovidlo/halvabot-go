@@ -57,6 +57,7 @@ type Service struct {
 	prefix string
 	logger zap.Logger
 
+	// these maps are readonly so we don't lock them
 	openChannels   map[string]struct{}
 	statusChannels map[string]struct{}
 }
@@ -116,28 +117,23 @@ func (s *Service) helloMessageHandler(session *discordgo.Session, m *discordgo.M
 }
 
 func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.MessageCreate) {
-	s.logger.Warn("HANDLE MSG ", time.Now())
 	s.deleteMessage(ds, m, statusLevel)
 	query := strings.TrimPrefix(m.Content, s.prefix+play)
 	query = util.StandardizeSpaces(query)
 
-	s.logger.Warn("FINDING CHANNEL ", time.Now())
-	s.logger.Debug("finding author's voice channel ID")
 	id, err := findAuthorVoiceChannelID(ds, m)
 	if err != nil {
 		s.sendNotInVoiceWarning(ds, m)
 		s.logger.Error(err, "failed to find author's voice channel")
 		return
 	}
-	s.logger.Warn("SEND Searching msg ", time.Now())
 	go s.sendSearchingMessage(ds, m)
-	s.logger.Warn("START PLAY ", time.Now())
 	song, playbacks, err := s.player.Play(s.ctx, query, m.GuildID, id)
 	if err != nil {
 		if pe, ok := err.(*player.Error); ok {
 			switch pe {
 			case player.ErrStorageQueryFailed:
-				s.sendStringMessage(ds, m, ":warning: **Error when interacting with the database** :warning:", statusLevel)
+				s.sendInternalErrorMessage(ds, m, statusLevel)
 				s.logger.Error(errors.Wrap(err, "database interaction failed"))
 			default:
 				s.logger.Error(errors.Wrap(err, "play with service"))
@@ -145,9 +141,7 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 			}
 		}
 	}
-	s.logger.Warn("END PLAY ", time.Now())
 	go s.sendFoundMessage(ds, m, song.ArtistName, song.Title, playbacks)
-	s.logger.Warn("ALL END ", time.Now())
 }
 
 func (s *Service) skipMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
@@ -231,9 +225,14 @@ func (s *Service) updateListeningStatus(ctx context.Context, session *discordgo.
 }
 
 func (s *Service) deleteMessage(session *discordgo.Session, m *discordgo.MessageCreate, level int) {
-	if s.toDelete(session, m.ChannelID, level) {
-		go session.ChannelMessageDelete(m.ChannelID, m.Message.ID)
-	}
+	go func() {
+		if s.toDelete(session, m.ChannelID, level) {
+			err := session.ChannelMessageDelete(m.ChannelID, m.Message.ID)
+			if err != nil {
+				s.logger.Error(errors.Wrap(err, "deleting message"))
+			}
+		}
+	}()
 }
 
 func findAuthorVoiceChannelID(s *discordgo.Session, m *discordgo.MessageCreate) (string, error) {
