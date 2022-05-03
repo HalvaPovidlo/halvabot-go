@@ -39,9 +39,31 @@ const (
 	stop
 	connect
 	disconnect
-	// shuffle
+	shuffle
 	loop
 )
+
+func (c commandType) String() string {
+	switch c {
+	case play:
+		return "play"
+	case next:
+		return "next"
+	case skip:
+		return "skip"
+	case stop:
+		return "stop"
+	case connect:
+		return "connect"
+	case disconnect:
+		return "disconnect"
+	case shuffle:
+		return "shuffle"
+	case loop:
+		return "loop"
+	}
+	return ""
+}
 
 type command struct {
 	Type      commandType
@@ -173,7 +195,6 @@ func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan erro
 					}()
 				}
 				if err != nil {
-					p.logger.Error(errors.Wrap(err, "player"))
 					out <- err
 				}
 			case <-ctx.Done():
@@ -188,7 +209,7 @@ func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan erro
 }
 
 func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
-	p.logger.Debugf("process command %d", c.Type)
+	p.logger.Infof("process command %s", c.Type)
 	if c.Type != next {
 		p.isWaited = false
 	}

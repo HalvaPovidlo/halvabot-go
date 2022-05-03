@@ -12,16 +12,25 @@ Create file `secret_config.json`
 ```json
 {
   "general":{
+    "port": "***",
+    "web": "***",
     "debug":true
   },
   "discord":{
     "token":"***",
     "bot":"HalvaBot",
     "id":746726055259406426,
-    "prefix":"$"
+    "prefix":"$",
+    "api": {
+      "open": ["основной", "видосы", "плейлисты"],
+      "status": ["music", "debug"]
+    }
+  },
+  "youtube":{
+    "download":false,
+    "output":""
   }
 }
-
 ```
 Replace `token` with token from Discord Developer Portal.
 

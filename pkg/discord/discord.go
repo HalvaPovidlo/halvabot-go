@@ -6,6 +6,11 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
+const (
+	// ChannelDebugID TODO: load from session and guildID
+	ChannelDebugID = "747743319039148062"
+)
+
 func OpenSession(token string, debug bool, logger zap.Logger) (*discordgo.Session, error) {
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
