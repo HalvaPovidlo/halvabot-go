@@ -96,12 +96,13 @@ func main() {
 
 	// Http routers
 	router := gin.Default()
+	router.Static("/static", "./web/")
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := router.Group("/api/v1")
 	musicrest.NewHandler(musicPlayer, apiRouter).Router()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
-		err := router.Run(":9091")
+		err := router.Run(":" + cfg.General.Port)
 		if err != nil {
 			logger.Error(err)
 			return

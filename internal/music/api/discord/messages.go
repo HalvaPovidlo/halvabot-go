@@ -22,26 +22,27 @@ const (
 	infoLevel
 )
 
-func (s *Service) sendComplexMessage(session *dg.Session, channelID string, msg *dg.MessageSend, level int) {
+func (s *Service) sendComplexMessage(session *dg.Session, channelID string, msg *dg.MessageSend, level int) *dg.Message {
 	if s.toDelete(session, channelID, level) {
-		return
+		return nil
 	}
-	_, err := session.ChannelMessageSendComplex(channelID, msg)
+	m, err := session.ChannelMessageSendComplex(channelID, msg)
 	if err != nil {
 		s.logger.Errorw("sending message",
 			"channel", channelID,
 			"msg", msg,
 			"err", err)
 	}
+	return m
 }
 
 func (s *Service) sendSearchingMessage(ds *dg.Session, m *dg.MessageCreate) {
 	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageSearching), statusLevel)
 }
 
-func (s *Service) sendFoundMessage(ds *dg.Session, m *dg.MessageCreate, artist, title string, playbacks int) {
-	msg := fmt.Sprintf("%s `%s - %s` %s", messageFound, artist, title, intToEmoji(playbacks))
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), statusLevel)
+func (s *Service) sendFoundMessage(ds *dg.Session, m *dg.MessageCreate, artist, title string) *dg.Message {
+	msg := fmt.Sprintf("%s `%s - %s`", messageFound, artist, title)
+	return s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), statusLevel)
 }
 func (s *Service) sendLoopMessage(ds *dg.Session, m *dg.MessageCreate, enabled bool) {
 	if enabled {
