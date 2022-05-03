@@ -47,22 +47,24 @@ func NewMusicService(ctx contexts.Context, storage Firestore, youtube YouTube, v
 }
 
 func (s *Service) Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error) {
+	s.logger.Warn("FIND SONG ", time.Now())
 	s.logger.Debug("Finding song")
 	song, err := s.youtube.FindSong(ctx, query)
 	if err != nil {
 		return nil, 0, ErrSongNotFound.Wrap(err.Error())
 	}
-
+	s.logger.Warn("CONNECT ", time.Now())
 	s.Connect(guildID, channelID)
-
+	s.logger.Warn("SEND to DB ", time.Now())
 	song.LastPlay = pkg.PlayDate{Time: time.Now()}
 	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
 	if err != nil {
 		err = ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
 	}
-
+	s.logger.Warn("SEND PLAY COMMAND ", time.Now())
 	s.logger.Debug("sending command play")
-	s.Player.Play(song)
+	go s.Player.Play(song)
+	s.logger.Warn("ENDofSERVICE ", time.Now())
 	return song, playbacks, err
 }
 
