@@ -5,11 +5,9 @@ package rest
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
-
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
+	"github.com/gin-gonic/gin"
 )
 
 type songQuery struct {
@@ -32,7 +30,6 @@ type EnqueueResponse struct {
 // @param    query  body      songQuery        true  "Song name or url"
 // @success  200    {object}  EnqueueResponse  "The song that was added to the queue"
 // @failure  400    {object}  Response         "Incorrect input"
-// @failure  500    {object}  Response         "Unknown internal error occurred"
 // @failure  500    {object}  Response         "Internal error. This does not necessarily mean that the song will not play. For example, if there is a database error, the song will still be added to the queue."
 // @router   /music/enqueue [post]
 func (h *Handler) enqueueHandler(c *gin.Context) {
@@ -42,9 +39,9 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 		return
 	}
 
-	song, playbacks, err := h.player.Enqueue(contexts.Context{Context: c}, json.Song)
+	song, playbacks, err := h.player.Play(contexts.Context{Context: c}, json.Song, "", "")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Message: errors.Wrap(err, "song added to the queue").Error()})
+		c.JSON(http.StatusInternalServerError, Response{Message: err.Error()})
 	}
 	c.JSON(http.StatusOK, EnqueueResponse{Song: *song, PlaybacksCount: playbacks})
 }

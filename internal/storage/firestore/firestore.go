@@ -2,6 +2,8 @@ package firestore
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
@@ -24,7 +26,9 @@ const (
 
 type Client struct {
 	*firestore.Client
-	debug bool
+	updateMx sync.Mutex
+	toUpdate map[string]*pkg.Song
+	debug    bool
 }
 
 var ErrNotFound = errors.New("no docs found")
@@ -39,7 +43,9 @@ func NewFirestoreClient(ctx contexts.Context, creds string, debug bool) (*Client
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create firestore client")
 	}
-	return &Client{c, debug}, nil
+	client := &Client{Client: c, toUpdate: make(map[string]*pkg.Song), debug: debug}
+	client.updateSongs(ctx)
+	return client, nil
 }
 
 func (c *Client) GetSongByID(ctx contexts.Context, id pkg.SongID) (*pkg.Song, error) {
@@ -59,6 +65,16 @@ func (c *Client) GetSongByID(ctx contexts.Context, id pkg.SongID) (*pkg.Song, er
 }
 
 func (c *Client) SetSong(ctx contexts.Context, song *pkg.Song) error {
+	if c.debug {
+		return nil
+	}
+	c.updateMx.Lock()
+	c.toUpdate[song.ID.String()] = song
+	c.updateMx.Unlock()
+	return nil
+}
+
+func (c *Client) SetSongForced(ctx contexts.Context, song *pkg.Song) error {
 	if c.debug {
 		return nil
 	}
@@ -84,6 +100,9 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
 		err = doc.DataTo(&s)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to marshal data")
+		}
+		if s.ID.ID == "" {
+			s.ID = pkg.GetIDFromURL(s.URL)
 		}
 		res = append(res, s.ID)
 	}
@@ -113,6 +132,36 @@ func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (in
 		return 0, errors.Wrap(err, "transaction failed")
 	}
 	return playbacks, nil
+}
+
+func (c *Client) updateSongs(ctx contexts.Context) {
+	ticker := time.NewTicker(time.Second * 30)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				c.updateMx.Lock()
+				if len(c.toUpdate) == 0 {
+					c.updateMx.Unlock()
+					return
+				}
+				toSend := make([]*pkg.Song, 0, len(c.toUpdate))
+				for k, v := range c.toUpdate {
+					toSend = append(toSend, v)
+					delete(c.toUpdate, k)
+				}
+				c.updateMx.Unlock()
+				ctx.LoggerFromContext().Info("UPDATING DB", toSend)
+				err := c.WriteBatch(ctx, toSend)
+				if err != nil {
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 func (c *Client) WriteBatch(ctx contexts.Context, songs []*pkg.Song) error {

@@ -23,20 +23,24 @@ const (
 	skip       = "skip"
 	loop       = "loop"
 	nowPlaying = "now"
+	random     = "random"
+	radio      = "radio"
 	disconnect = "disconnect"
 	hello      = "hello"
 )
 
 type Player interface {
-	Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error) //
-	Skip()                                                                               //
+	Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error)
+	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool
 	NowPlaying() *pkg.Song
 	Stats() audio.SessionStats
 	Disconnect() //
 	SubscribeOnErrors(h player.ErrorHandler)
-	// Radio()
+	Random(ctx contexts.Context, n int) ([]*pkg.Song, error)
+	SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error
+	RadioStatus() bool
 	// Connect(guildID, channelID string)
 	// Enqueue(s *pkg.SongRequest)
 	// Stop()
@@ -53,6 +57,7 @@ type Service struct {
 	prefix string
 	logger zap.Logger
 
+	// these maps are readonly so we don't lock them
 	openChannels   map[string]struct{}
 	statusChannels map[string]struct{}
 }
@@ -75,7 +80,7 @@ func NewCog(ctx contexts.Context, player Player, prefix string, logger zap.Logge
 		s.statusChannels[v] = t
 	}
 
-	s.player.SubscribeOnErrors(&s)
+	s.player.SubscribeOnErrors(s.HandleError)
 	return &s
 }
 
@@ -98,9 +103,11 @@ func (s *Service) RegisterCommands(session *discordgo.Session, debug bool, logge
 	registerSlashBasicCommand(session, debug)
 	command.NewMessageCommand(s.prefix+play, s.playMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+skip, s.skipMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(s.prefix+disconnect, s.disconnectMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+loop, s.loopMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+nowPlaying, s.nowpMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+random, s.randomMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+radio, s.radioMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+disconnect, s.disconnectMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+hello, s.helloMessageHandler, debug).RegisterCommand(session, logger)
 	s.updateListeningStatus(contexts.Background(), session)
 }
@@ -114,19 +121,19 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 	query := strings.TrimPrefix(m.Content, s.prefix+play)
 	query = util.StandardizeSpaces(query)
 
-	s.logger.Debug("finding author's voice channel ID")
 	id, err := findAuthorVoiceChannelID(ds, m)
 	if err != nil {
+		s.sendNotInVoiceWarning(ds, m)
 		s.logger.Error(err, "failed to find author's voice channel")
 		return
 	}
-	s.sendSearchingMessage(ds, m)
+	go s.sendSearchingMessage(ds, m)
 	song, playbacks, err := s.player.Play(s.ctx, query, m.GuildID, id)
 	if err != nil {
 		if pe, ok := err.(*player.Error); ok {
 			switch pe {
 			case player.ErrStorageQueryFailed:
-				s.sendStringMessage(ds, m, ":warning: **Error when interacting with the database** :warning:", statusLevel)
+				s.sendInternalErrorMessage(ds, m, statusLevel)
 				s.logger.Error(errors.Wrap(err, "database interaction failed"))
 			default:
 				s.logger.Error(errors.Wrap(err, "play with service"))
@@ -134,7 +141,7 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 			}
 		}
 	}
-	s.sendFoundMessage(ds, m, song.ArtistName, song.Title, playbacks)
+	go s.sendFoundMessage(ds, m, song.ArtistName, song.Title, playbacks)
 }
 
 func (s *Service) skipMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
@@ -154,13 +161,45 @@ func (s *Service) nowpMessageHandler(session *discordgo.Session, m *discordgo.Me
 	s.sendNowPlayingMessage(session, m, s.player.NowPlaying(), s.player.Stats().Pos)
 }
 
+func (s *Service) randomMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
+	s.deleteMessage(session, m, statusLevel)
+	songs, err := s.player.Random(s.ctx, 10)
+	if err != nil {
+		s.logger.Error(errors.Wrap(err, "get random songs"))
+		return
+	}
+	s.sendRandomMessage(session, m, songs)
+}
+
+func (s *Service) radioMessageHandler(ds *discordgo.Session, m *discordgo.MessageCreate) {
+	s.deleteMessage(ds, m, statusLevel)
+	if s.player.RadioStatus() {
+		s.sendRadioMessage(ds, m, false)
+		_ = s.player.SetRadio(s.ctx, false, "", "")
+		return
+	}
+	id, err := findAuthorVoiceChannelID(ds, m)
+	if err != nil {
+		s.sendNotInVoiceWarning(ds, m)
+		s.logger.Error(err, "failed to find author's voice channel")
+		return
+	}
+	err = s.player.SetRadio(s.ctx, true, m.GuildID, id)
+	if err != nil {
+		s.sendInternalErrorMessage(ds, m, statusLevel)
+		s.logger.Error(errors.Wrap(err, "enable radio"))
+	} else {
+		s.sendRadioMessage(ds, m, true)
+	}
+}
+
 func (s *Service) disconnectMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
 	s.deleteMessage(session, m, statusLevel)
 	s.player.Skip()
 }
 
 func (s *Service) HandleError(err error) {
-	s.logger.Error(err)
+	s.logger.Error(errors.Wrap(err, "discord api"))
 }
 
 func (s *Service) updateListeningStatus(ctx context.Context, session *discordgo.Session) {
@@ -186,9 +225,14 @@ func (s *Service) updateListeningStatus(ctx context.Context, session *discordgo.
 }
 
 func (s *Service) deleteMessage(session *discordgo.Session, m *discordgo.MessageCreate, level int) {
-	if s.toDelete(session, m.ChannelID, level) {
-		_ = session.ChannelMessageDelete(m.ChannelID, m.Message.ID)
-	}
+	go func() {
+		if s.toDelete(session, m.ChannelID, level) {
+			err := session.ChannelMessageDelete(m.ChannelID, m.Message.ID)
+			if err != nil {
+				s.logger.Error(errors.Wrap(err, "deleting message"))
+			}
+		}
+	}()
 }
 
 func findAuthorVoiceChannelID(s *discordgo.Session, m *discordgo.MessageCreate) (string, error) {

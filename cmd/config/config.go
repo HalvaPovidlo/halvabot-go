@@ -50,7 +50,8 @@ type LichessConfig struct {
 }
 
 type GeneralConfig struct {
-	Debug bool `json:"debug"`
+	Port  string `json:"port"`
+	Debug bool   `json:"debug"`
 }
 
 func InitConfig() (*Config, error) {

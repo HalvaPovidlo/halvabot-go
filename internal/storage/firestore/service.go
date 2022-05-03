@@ -31,7 +31,8 @@ func NewFirestoreService(ctx contexts.Context, client *Client, songs *SongsCache
 		client:     client,
 		songsShort: shortCache{},
 	}
-	f.updateShortCache(ctx)
+	go f.updateShortCache(ctx)
+	f.updateShortCacheProcess(ctx)
 	return &f, nil
 }
 
@@ -86,11 +87,15 @@ func (s *Service) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (i
 func (s *Service) GetRandomSongs(ctx contexts.Context, n int) ([]*pkg.Song, error) {
 	set := make(map[string]pkg.SongID)
 	max := len(s.songsShort.List)
+	if max == 0 {
+		return nil, errors.New("no preloaded songs")
+	}
 
 	cooldown := n * 10
 	for len(set) < n && cooldown > 0 {
 		cooldown--
 		rand.Seed(time.Now().UnixNano())
+		time.Sleep(time.Nanosecond * 2)
 		i := rand.Intn(max)
 		s.songsShort.RLock()
 		set[s.songsShort.List[i].ID] = s.songsShort.List[i]
@@ -101,15 +106,16 @@ func (s *Service) GetRandomSongs(ctx contexts.Context, n int) ([]*pkg.Song, erro
 	for _, v := range set {
 		song, err := s.GetSong(ctx, v)
 		if err != nil {
-			return nil, errors.Wrap(err, "get random songs failed")
+			return nil, errors.Wrap(err, "get song failed")
 		}
 		result = append(result, song)
 	}
 	return result, nil
 }
 
-func (s *Service) updateShortCache(ctx contexts.Context) {
-	ticker := time.NewTicker(6 * time.Hour)
+func (s *Service) updateShortCacheProcess(ctx contexts.Context) {
+	// TODO: in config
+	ticker := time.NewTicker(3 * time.Hour)
 	go func() {
 		defer ticker.Stop()
 		for {
@@ -117,20 +123,26 @@ func (s *Service) updateShortCache(ctx contexts.Context) {
 			case <-ticker.C:
 				if s.needUpdate() {
 					s.setUpdate(false)
-					list, err := s.client.GetAllSongsID(ctx)
-					if err != nil {
-						s.setUpdate(true)
-						ctx.LoggerFromContext().Error(errors.Wrap(err, "getting all songs"))
-					}
-					s.songsShort.Lock()
-					s.songsShort.List = list
-					s.songsShort.Unlock()
+					s.updateShortCache(ctx)
 				}
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
+}
+
+func (s *Service) updateShortCache(ctx contexts.Context) {
+	list, err := s.client.GetAllSongsID(ctx)
+	if err != nil {
+		s.setUpdate(true)
+		ctx.LoggerFromContext().Error(errors.Wrap(err, "getting all songs"))
+	}
+	s.songsShort.Lock()
+	s.songsShort.List = list
+	size := len(list)
+	s.songsShort.Unlock()
+	ctx.LoggerFromContext().Infof("short cache updated with %d songs", size)
 }
 
 func (s *Service) setUpdate(b bool) {

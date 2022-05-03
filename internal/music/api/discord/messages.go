@@ -11,10 +11,18 @@ import (
 )
 
 const (
-	messageSearching    = ":trumpet: **Searching** :mag_right:"
-	messageFound        = "**Song found** :notes:"
-	messageLoopEnabled  = ":white_check_mark: **Loop enabled**"
-	messageLoopDisabled = ":x: **Loop disabled**"
+	monkaS = "<:monkaS:817041877718138891>"
+)
+
+const (
+	messageSearching       = ":trumpet: **Searching** :mag_right:"
+	messageFound           = "**Song found** :notes:"
+	messageLoopEnabled     = ":white_check_mark: **Loop enabled**"
+	messageLoopDisabled    = ":x: **Loop disabled**"
+	messageRadioEnabled    = ":white_check_mark: **Radio enabled**"
+	messageRadioDisabled   = ":x: **Radio disabled**"
+	messageNotVoiceChannel = ":x: **You have to be in a voice channel to use this command**"
+	messageInternalError   = ":x: **Internal error** " + monkaS
 )
 
 const (
@@ -26,13 +34,15 @@ func (s *Service) sendComplexMessage(session *dg.Session, channelID string, msg 
 	if s.toDelete(session, channelID, level) {
 		return
 	}
-	_, err := session.ChannelMessageSendComplex(channelID, msg)
-	if err != nil {
-		s.logger.Errorw("sending message",
-			"channel", channelID,
-			"msg", msg,
-			"err", err)
-	}
+	go func() {
+		_, err := session.ChannelMessageSendComplex(channelID, msg)
+		if err != nil {
+			s.logger.Errorw("sending message",
+				"channel", channelID,
+				"msg", msg,
+				"err", err)
+		}
+	}()
 }
 
 func (s *Service) sendSearchingMessage(ds *dg.Session, m *dg.MessageCreate) {
@@ -43,12 +53,25 @@ func (s *Service) sendFoundMessage(ds *dg.Session, m *dg.MessageCreate, artist, 
 	msg := fmt.Sprintf("%s `%s - %s` %s", messageFound, artist, title, intToEmoji(playbacks))
 	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), statusLevel)
 }
+
 func (s *Service) sendLoopMessage(ds *dg.Session, m *dg.MessageCreate, enabled bool) {
 	if enabled {
 		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageLoopEnabled), statusLevel)
 	} else {
 		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageLoopDisabled), statusLevel)
 	}
+}
+
+func (s *Service) sendRadioMessage(ds *dg.Session, m *dg.MessageCreate, enabled bool) {
+	if enabled {
+		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageRadioEnabled), statusLevel)
+	} else {
+		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageRadioDisabled), statusLevel)
+	}
+}
+
+func (s *Service) sendNotInVoiceWarning(ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageNotVoiceChannel), statusLevel)
 }
 
 func (s *Service) sendNowPlayingMessage(ds *dg.Session, m *dg.MessageCreate, song *pkg.Song, pos float64) {
@@ -89,9 +112,25 @@ func (s *Service) sendNowPlayingMessage(ds *dg.Session, m *dg.MessageCreate, son
 	s.sendComplexMessage(ds, m.ChannelID, msg, infoLevel)
 }
 
-func (s *Service) sendStringMessage(ds *dg.Session, m *dg.MessageCreate, msg string, level int) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), level)
+func (s *Service) sendRandomMessage(ds *dg.Session, m *dg.MessageCreate, songs []*pkg.Song) {
+	msg := ""
+	for _, song := range songs {
+		if song.ArtistName != "" {
+			msg += fmt.Sprintf("`%s%s - %s`\n", s.prefix+play, song.ArtistName, song.Title)
+		} else {
+			msg += fmt.Sprintf("`%s%s`\n", s.prefix+play, song.Title)
+		}
+	}
+	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), infoLevel)
 }
+
+func (s *Service) sendInternalErrorMessage(ds *dg.Session, m *dg.MessageCreate, level int) {
+	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageInternalError), level)
+}
+
+// func (s *Service) sendStringMessage(ds *dg.Session, m *dg.MessageCreate, msg string, level int) {
+//	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), level)
+// }
 
 func (s *Service) toDelete(session *dg.Session, channelID string, level int) bool {
 	ch, _ := session.Channel(channelID)

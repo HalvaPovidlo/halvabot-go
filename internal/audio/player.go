@@ -1,7 +1,6 @@
 package audio
 
 import (
-	"io"
 	"net/url"
 	"sync"
 	"time"
@@ -60,11 +59,7 @@ func (p *Player) Process(requests <-chan *SongRequest) <-chan error {
 			p.logger.Debugf("play %s", req.URI)
 			err := p.play(req.Voice, req.URI)
 			p.logger.Debugf("stop playing %s", err)
-			if err == io.EOF {
-				out <- nil
-			} else {
-				out <- err
-			}
+			out <- err
 		}
 	}()
 	return out
