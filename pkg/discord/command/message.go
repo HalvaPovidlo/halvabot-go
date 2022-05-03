@@ -2,9 +2,12 @@ package command
 
 import (
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/google/uuid"
 
+	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
@@ -31,15 +34,21 @@ func (m *Message) RegisterCommand(s *discordgo.Session, logger zap.Logger) {
 		if i.Author.ID == s.State.User.ID {
 			return
 		}
-		channel, _ := s.Channel(i.ChannelID)
-		if (channel.Name == "debug") != m.debug {
+		if (i.ChannelID == discord.ChannelDebugID) != m.debug {
 			return
 		}
 		if strings.HasPrefix(i.Content, m.Name) {
+			uid := uuid.New()
 			logger.Infow("message command handled",
 				"command", m.Name,
-				"query", i.Content)
+				"query", i.Content,
+				"traceID", uid)
+			start := time.Now()
 			m.handler(s, i)
+			logger.Infow("command executed",
+				"command", m.Name,
+				"traceID", uid,
+				"elapsed", time.Since(start))
 		}
 	})
 }

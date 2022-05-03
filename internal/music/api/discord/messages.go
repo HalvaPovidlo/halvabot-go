@@ -31,7 +31,7 @@ const (
 )
 
 func (s *Service) sendComplexMessage(session *dg.Session, channelID string, msg *dg.MessageSend, level int) {
-	if s.toDelete(session, channelID, level) {
+	if s.toDelete(channelID, level) {
 		return
 	}
 	go func() {
@@ -132,10 +132,12 @@ func (s *Service) sendInternalErrorMessage(ds *dg.Session, m *dg.MessageCreate, 
 //	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), level)
 // }
 
-func (s *Service) toDelete(session *dg.Session, channelID string, level int) bool {
-	ch, _ := session.Channel(channelID)
-	_, status := s.statusChannels[ch.Name]
-	_, open := s.openChannels[ch.Name]
+func (s *Service) toDelete(channelID string, level int) bool {
+	s.channelsMx.RLock()
+	name := s.allChannels[channelID]
+	_, status := s.statusChannels[name]
+	_, open := s.openChannels[name]
+	s.channelsMx.RUnlock()
 	if level <= infoLevel && !(open || status) {
 		return true
 	}
@@ -143,6 +145,22 @@ func (s *Service) toDelete(session *dg.Session, channelID string, level int) boo
 		return true
 	}
 	return false
+}
+
+func (s *Service) loadChannelsID(ds *dg.Session, guildID string) {
+	s.channelsMx.Lock()
+	defer s.channelsMx.Unlock()
+	if len(s.allChannels) != 0 {
+		return
+	}
+
+	channels, err := ds.GuildChannels(guildID)
+	if err != nil {
+		return
+	}
+	for _, v := range channels {
+		s.allChannels[v.ID] = v.Name
+	}
 }
 
 func intToEmoji(n int) string {

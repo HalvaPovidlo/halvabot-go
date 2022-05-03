@@ -6,9 +6,9 @@ require (
 	cloud.google.com/go/firestore v1.6.1
 	firebase.google.com/go v3.13.0+incompatible
 	github.com/bwmarrin/discordgo v0.25.0
-	github.com/channelmeter/iso8601duration v0.0.0-20150204201828-8da3af7a2a61
 	github.com/gin-gonic/gin v1.7.7
 	github.com/gocarina/gocsv v0.0.0-20220422102445-f48ffd81e276
+	github.com/google/uuid v1.3.0
 	github.com/kkdai/youtube/v2 v2.7.12
 	github.com/pkg/errors v0.9.1
 	github.com/robrotheram/dca v0.0.0-20220418204401-38d613e49813
@@ -31,6 +31,7 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
+	github.com/channelmeter/iso8601duration v0.0.0-20150204201828-8da3af7a2a61 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/dlclark/regexp2 v1.4.1-0.20201116162257-a2a8dda75c91 // indirect
 	github.com/dop251/goja v0.0.0-20220408131256-ffe77e20c6f1 // indirect

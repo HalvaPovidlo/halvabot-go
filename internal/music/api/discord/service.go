@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -57,9 +58,10 @@ type Service struct {
 	prefix string
 	logger zap.Logger
 
-	// these maps are readonly so we don't lock them
-	openChannels   map[string]struct{}
-	statusChannels map[string]struct{}
+	channelsMx     sync.RWMutex
+	allChannels    map[string]string   // id name
+	openChannels   map[string]struct{} // name{}
+	statusChannels map[string]struct{} // name{}
 }
 
 func NewCog(ctx contexts.Context, player Player, prefix string, logger zap.Logger, config APIConfig) *Service {
@@ -68,10 +70,12 @@ func NewCog(ctx contexts.Context, player Player, prefix string, logger zap.Logge
 		player:         player,
 		prefix:         prefix,
 		logger:         logger,
+		allChannels:    make(map[string]string),
 		openChannels:   make(map[string]struct{}),
 		statusChannels: make(map[string]struct{}),
 	}
 
+	s.channelsMx.Lock()
 	var t struct{}
 	for _, v := range config.OpenChannels {
 		s.openChannels[v] = t
@@ -79,6 +83,7 @@ func NewCog(ctx contexts.Context, player Player, prefix string, logger zap.Logge
 	for _, v := range config.StatusChannels {
 		s.statusChannels[v] = t
 	}
+	s.channelsMx.Unlock()
 
 	s.player.SubscribeOnErrors(s.HandleError)
 	return &s
@@ -127,7 +132,7 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 		s.logger.Error(err, "failed to find author's voice channel")
 		return
 	}
-	go s.sendSearchingMessage(ds, m)
+	s.sendSearchingMessage(ds, m)
 	song, playbacks, err := s.player.Play(s.ctx, query, m.GuildID, id)
 	if err != nil {
 		if pe, ok := err.(*player.Error); ok {
@@ -141,7 +146,7 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 			}
 		}
 	}
-	go s.sendFoundMessage(ds, m, song.ArtistName, song.Title, playbacks)
+	s.sendFoundMessage(ds, m, song.ArtistName, song.Title, playbacks)
 }
 
 func (s *Service) skipMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
@@ -195,7 +200,7 @@ func (s *Service) radioMessageHandler(ds *discordgo.Session, m *discordgo.Messag
 
 func (s *Service) disconnectMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
 	s.deleteMessage(session, m, statusLevel)
-	s.player.Skip()
+	s.player.Disconnect()
 }
 
 func (s *Service) HandleError(err error) {
@@ -226,7 +231,8 @@ func (s *Service) updateListeningStatus(ctx context.Context, session *discordgo.
 
 func (s *Service) deleteMessage(session *discordgo.Session, m *discordgo.MessageCreate, level int) {
 	go func() {
-		if s.toDelete(session, m.ChannelID, level) {
+		s.loadChannelsID(session, m.GuildID)
+		if s.toDelete(m.ChannelID, level) {
 			err := session.ChannelMessageDelete(m.ChannelID, m.Message.ID)
 			if err != nil {
 				s.logger.Error(errors.Wrap(err, "deleting message"))
