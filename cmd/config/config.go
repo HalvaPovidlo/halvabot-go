@@ -51,6 +51,7 @@ type LichessConfig struct {
 
 type GeneralConfig struct {
 	Port  string `json:"port"`
+	Web   string `json:"web"`
 	Debug bool   `json:"debug"`
 }
 

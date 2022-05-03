@@ -23,7 +23,7 @@ func main() {
 	router := gin.Default()
 	router.Static("/", "./web/")
 	go func() {
-		err := router.Run(":8080")
+		err := router.Run(":" + cfg.General.Web)
 		if err != nil {
 			logger.Error(err)
 			return
