@@ -61,6 +61,10 @@ func main() {
 		}
 	}()
 
+	// Cache
+	songsCache := firestore.NewSongsCache(ctx, 24*time.Hour)
+	defer songsCache.Clear()
+
 	// YouTube services
 	ytService, err := youtube.NewService(ctx, option.WithCredentialsFile("halvabot-google.json"))
 	if err != nil {
@@ -72,16 +76,16 @@ func main() {
 			HTTPClient: http.DefaultClient,
 		},
 		ytService,
+		songsCache,
 		cfg.Youtube,
 	)
 
 	// Firestore stage
-	fireSongsCache := firestore.NewSongsCache(ctx, 12*time.Hour)
 	fireStorage, err := firestore.NewFirestoreClient(ctx, "halvabot-firebase.json", cfg.General.Debug)
 	if err != nil {
 		panic(err)
 	}
-	fireService, err := firestore.NewFirestoreService(ctx, fireStorage, fireSongsCache)
+	fireService, err := firestore.NewFirestoreService(ctx, fireStorage, songsCache)
 	if err != nil {
 		panic(err)
 	}
@@ -105,7 +109,6 @@ func main() {
 		location := url.URL{Path: "/web"}
 		c.Redirect(http.StatusMovedPermanently, location.RequestURI())
 	})
-	router.Static("/static", "./web/")
 	docs.SwaggerInfo.Host = "51.250.84.199:" + cfg.General.Port
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := router.Group("/api/v1")

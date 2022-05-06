@@ -137,6 +137,9 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 	if err != nil {
 		if pe, ok := err.(*player.Error); ok {
 			switch pe {
+			case player.ErrSongNotFound:
+				s.sendNotFoundMessage(ds, m)
+				return
 			case player.ErrStorageQueryFailed:
 				s.sendInternalErrorMessage(ds, m, statusLevel)
 				s.logger.Error(errors.Wrap(err, "database interaction failed"))

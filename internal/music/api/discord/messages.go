@@ -17,6 +17,7 @@ const (
 const (
 	messageSearching       = ":trumpet: **Searching** :mag_right:"
 	messageFound           = "**Song found** :notes:"
+	messageNotFound        = ":x: **Song not found** - *Possibly an age restriction*"
 	messageLoopEnabled     = ":white_check_mark: **Loop enabled**"
 	messageLoopDisabled    = ":x: **Loop disabled**"
 	messageRadioEnabled    = ":white_check_mark: **Radio enabled**"
@@ -52,6 +53,10 @@ func (s *Service) sendSearchingMessage(ds *dg.Session, m *dg.MessageCreate) {
 func (s *Service) sendFoundMessage(ds *dg.Session, m *dg.MessageCreate, artist, title string, playbacks int) {
 	msg := fmt.Sprintf("%s `%s - %s` %s", messageFound, artist, title, intToEmoji(playbacks))
 	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), statusLevel)
+}
+
+func (s *Service) sendNotFoundMessage(ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageNotFound), statusLevel)
 }
 
 func (s *Service) sendLoopMessage(ds *dg.Session, m *dg.MessageCreate, enabled bool) {

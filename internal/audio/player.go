@@ -1,13 +1,12 @@
 package audio
 
 import (
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/khodand/dca"
 	"github.com/pkg/errors"
-	"github.com/robrotheram/dca"
 
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
@@ -52,10 +51,6 @@ func (p *Player) Process(requests <-chan *SongRequest) <-chan error {
 		defer close(out)
 		for req := range requests {
 			p.logger.Debugf("get req")
-			if _, err := url.ParseRequestURI(req.URI); err != nil {
-				out <- err
-				continue
-			}
 			p.logger.Debugf("play %s", req.URI)
 			err := p.play(req.Voice, req.URI)
 			p.logger.Debugf("stop playing %s", err)
@@ -106,10 +101,10 @@ func (p *Player) play(v *discordgo.VoiceConnection, uri string) error {
 		return errors.New("voice connection doesn't exists")
 	}
 	err := v.Speaking(true)
-	p.setPlaying(true)
 	if err != nil {
 		return errors.Wrap(err, "set speaking true")
 	}
+	p.setPlaying(true)
 
 	encodeSession, err := dca.EncodeFile(uri, p.Options)
 	if err != nil {
