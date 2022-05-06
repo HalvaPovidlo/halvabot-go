@@ -124,7 +124,6 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
 	}
 	formats := videoInfo.Formats.WithAudioChannels().Type("audio/mp4")
-	//formats := videoInfo.Formats
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")
 	}
