@@ -9,9 +9,9 @@ require (
 	github.com/gin-gonic/gin v1.7.7
 	github.com/gocarina/gocsv v0.0.0-20220422102445-f48ffd81e276
 	github.com/google/uuid v1.3.0
+	github.com/khodand/dca v0.0.0-20220506224402-9e53beb68e26
 	github.com/kkdai/youtube/v2 v2.7.12
 	github.com/pkg/errors v0.9.1
-	github.com/robrotheram/dca v0.0.0-20220418204401-38d613e49813
 	github.com/swaggo/files v0.0.0-20210815190702-a29dd2bc99b2
 	github.com/swaggo/gin-swagger v1.4.2
 	github.com/swaggo/swag v1.8.1
@@ -62,6 +62,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/robrotheram/dca v0.0.0-20220418204401-38d613e49813 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect

@@ -5,9 +5,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 		gin.DisableConsoleColor()
 	}
 	router := gin.Default()
-	router.Static("/", "./web/")
+	router.Static("/", "./www/")
 	go func() {
 		err := router.Run(":" + cfg.General.Web)
 		if err != nil {

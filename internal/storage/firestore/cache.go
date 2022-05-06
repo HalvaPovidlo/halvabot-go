@@ -1,6 +1,7 @@
 package firestore
 
 import (
+	"os"
 	"sync"
 	"time"
 
@@ -16,7 +17,7 @@ type Item struct {
 type CacheKey string
 
 type SongsCache struct {
-	sync.RWMutex
+	sync.Mutex
 	songs map[string]Item
 }
 
@@ -28,30 +29,32 @@ func NewSongsCache(ctx contexts.Context, expirationTime time.Duration) *SongsCac
 	return c
 }
 
-func (c *SongsCache) Get(k CacheKey) (*pkg.Song, bool) {
-	c.RLock()
-	defer c.RUnlock()
-	s, ok := c.songs[string(k)]
+func (c *SongsCache) Get(k string) (*pkg.Song, bool) {
+	c.Lock()
+	defer c.Unlock()
+	s, ok := c.songs[k]
 	if !ok {
 		return nil, false
 	}
+	s.updated = time.Now()
+	c.songs[k] = s
 	return &s.song, true
 }
 
-func (c *SongsCache) Set(k CacheKey, song *pkg.Song) {
+func (c *SongsCache) Set(k string, song *pkg.Song) {
 	if song == nil {
 		return
 	}
 	c.Lock()
-	c.songs[string(k)] = Item{
+	c.songs[k] = Item{
 		song:    *song,
 		updated: time.Now(),
 	}
 	c.Unlock()
 }
 
-func (c *SongsCache) KeyFromID(s pkg.SongID) CacheKey {
-	return CacheKey(s.String())
+func (c *SongsCache) KeyFromID(s pkg.SongID) string {
+	return s.String()
 }
 
 func (c *SongsCache) expireProcess(ctx contexts.Context, expirationTime time.Duration) {
@@ -67,6 +70,9 @@ func (c *SongsCache) expireProcess(ctx contexts.Context, expirationTime time.Dur
 				now := time.Now()
 				for k, v := range c.songs {
 					if v.updated.Before(now.Add(-expirationTime)) {
+						// If the song has not played before the expirationTime passed, there will be an error because
+						// we will delete it. But since the time is very long, we score we don't really care about such case.
+						_ = os.Remove(v.song.StreamURL)
 						delete(c.songs, k)
 					}
 				}
@@ -74,4 +80,13 @@ func (c *SongsCache) expireProcess(ctx contexts.Context, expirationTime time.Dur
 			}
 		}
 	}()
+}
+
+func (c *SongsCache) Clear() {
+	c.Lock()
+	for k, v := range c.songs {
+		_ = os.Remove(v.song.StreamURL)
+		delete(c.songs, k)
+	}
+	c.Unlock()
 }

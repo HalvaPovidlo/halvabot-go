@@ -1,6 +1,7 @@
 package search
 
 import (
+	"path/filepath"
 	"sort"
 
 	ytdl "github.com/kkdai/youtube/v2"
@@ -19,6 +20,11 @@ const (
 	maxSearchResult = 10
 )
 
+type SongsCahce interface {
+	Get(k string) (*pkg.Song, bool)
+	KeyFromID(s pkg.SongID) string
+}
+
 var (
 	ErrSongNotFound = errors.New("song not found")
 )
@@ -31,13 +37,15 @@ type YouTubeConfig struct {
 type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
+	cache   SongsCahce
 	config  YouTubeConfig
 }
 
-func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, config YouTubeConfig) *YouTube {
+func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCahce, config YouTubeConfig) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
+		cache:   cache,
 		config:  config,
 	}
 }
@@ -100,6 +108,12 @@ func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error
 }
 
 func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.Song, error) {
+	if s, ok := y.cache.Get(y.cache.KeyFromID(song.ID)); ok {
+		song.StreamURL = s.StreamURL
+		song.Duration = s.Duration
+		return song, nil
+	}
+
 	dl := downloader.Downloader{
 		Client:    *y.ytdl,
 		OutputDir: y.config.OutputDir,
@@ -109,32 +123,35 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
 	}
-	formats := videoInfo.Formats
+	formats := videoInfo.Formats.WithAudioChannels().Type("audio/mp4")
+	//formats := videoInfo.Formats
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")
 	}
-	sort.SliceStable(formats, func(i, j int) bool {
-		return formats[i].ItagNo < formats[j].ItagNo
-	})
-	format := formats[0]
 
 	if y.config.Download {
-		// TODO: NOT IMPLEMENTED!!!!
-		err := dl.Download(ctx, videoInfo, &format, videoInfo.ID)
+		formats.Sort()
+		format := formats[len(formats)-1]
+		fileName := videoInfo.ID + ".m4a"
+		song.StreamURL = filepath.Join(y.config.OutputDir, fileName)
+		err := dl.Download(ctx, videoInfo, &format, fileName)
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		sort.SliceStable(formats, func(i, j int) bool {
+			return formats[i].ItagNo < formats[j].ItagNo
+		})
+		format := formats[0]
 		streamURL, err := y.ytdl.GetStreamURLContext(ctx, videoInfo, &format)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to get streamURL %s", videoInfo.Title)
 		}
 		song.StreamURL = streamURL
-		song.Duration = videoInfo.Duration.Seconds()
-		return song, nil
 	}
+	song.Duration = videoInfo.Duration.Seconds()
+	return song, nil
 
-	return nil, nil
 }
 
 func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {
