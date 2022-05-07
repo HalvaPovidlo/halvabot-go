@@ -31,7 +31,7 @@ const (
 )
 
 type Player interface {
-	Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error)
+	Play(ctx contexts.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error)
 	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool
@@ -133,7 +133,7 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 		return
 	}
 	s.sendSearchingMessage(ds, m)
-	song, playbacks, err := s.player.Play(s.ctx, query, m.GuildID, id)
+	song, playbacks, err := s.player.Play(s.ctx, query, m.Author.ID, m.GuildID, id)
 	if err != nil {
 		if pe, ok := err.(*player.Error); ok {
 			switch pe {

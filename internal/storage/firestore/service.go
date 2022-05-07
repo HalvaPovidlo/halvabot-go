@@ -84,6 +84,23 @@ func (s *Service) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (i
 	return playbacks, nil
 }
 
+func (s *Service) IncrementUserRequests(ctx contexts.Context, song *pkg.Song, userID string) {
+	userSong, err := s.client.GetUserSong(ctx, song.ID, userID)
+	if err != nil {
+		if err == ErrNotFound {
+			song.Playbacks = 1
+		} else {
+			return
+		}
+	} else {
+		song.Playbacks = userSong.Playbacks + 1
+	}
+	err = s.client.SetUserSong(ctx, song, userID)
+	if err != nil {
+		return
+	}
+}
+
 func (s *Service) GetRandomSongs(ctx contexts.Context, n int) ([]*pkg.Song, error) {
 	set := make(map[string]pkg.SongID)
 	max := len(s.songsShort.List)
