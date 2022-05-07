@@ -154,8 +154,6 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 }
 
 func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {
-	logger := ctx.LoggerFromContext()
-	logger.Debug("finding song")
 	song, err := y.findSong(ctx, query)
 	if err != nil {
 		if err == ErrSongNotFound {

@@ -39,7 +39,7 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 		return
 	}
 
-	song, playbacks, err := h.player.Play(contexts.Context{Context: c}, json.Song, "", "")
+	song, playbacks, err := h.player.Play(contexts.Context{Context: c}, json.Song, "", "", "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{Message: err.Error()})
 	}

@@ -15,8 +15,7 @@ import (
 
 type Firestore interface {
 	UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (int, error)
-	GetSong(ctx contexts.Context, id pkg.SongID) (*pkg.Song, error)
-	SetSong(ctx contexts.Context, song *pkg.Song) error
+	IncrementUserRequests(ctx contexts.Context, song *pkg.Song, userID string)
 	GetRandomSongs(ctx contexts.Context, n int) ([]*pkg.Song, error)
 }
 
@@ -46,22 +45,29 @@ func NewMusicService(ctx contexts.Context, storage Firestore, youtube YouTube, v
 	return s
 }
 
-func (s *Service) Play(ctx contexts.Context, query, guildID, channelID string) (*pkg.Song, int, error) {
+func (s *Service) Play(ctx contexts.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
 	if !s.Player.voice.IsConnected() && (channelID == "" || guildID == "") {
 		return nil, 0, ErrNotConnected
 	}
+
 	s.logger.Debug("Finding song")
 	song, err := s.youtube.FindSong(ctx, query)
 	if err != nil {
 		return nil, 0, ErrSongNotFound.Wrap(err.Error())
 	}
+
 	s.Connect(guildID, channelID)
+
 	song.LastPlay = pkg.PlayDate{Time: time.Now()}
 	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
 	if err != nil {
 		err = ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
 	}
-	s.logger.Debug("sending command play")
+
+	if userID != "" {
+		s.storage.IncrementUserRequests(ctx, song, userID)
+	}
+
 	go s.Player.Play(song)
 	return song, playbacks, err
 }
@@ -105,12 +111,6 @@ func (s *Service) playRandomSong(ctx contexts.Context) error {
 			return err
 		}
 	}
-	go func() {
-		err := s.storage.SetSong(ctx, song)
-		if err != nil {
-			s.logger.Error(errors.Wrap(err, "set song on play random"))
-		}
-	}()
 	s.Player.Play(song)
 	return nil
 }

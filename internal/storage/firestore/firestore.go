@@ -19,6 +19,7 @@ import (
 
 const (
 	songsCollection = "songs"
+	usersCollection = "users"
 	// Maximum batch size by firestore docs
 	batchSize              = 500
 	approximateSongsNumber = 1000
@@ -26,9 +27,10 @@ const (
 
 type Client struct {
 	*firestore.Client
-	updateMx sync.Mutex
-	toUpdate map[string]*pkg.Song
-	debug    bool
+	updateMx  sync.Mutex
+	songs     map[string]*pkg.Song
+	userSongs map[string]map[string]*pkg.Song
+	debug     bool
 }
 
 var ErrNotFound = errors.New("no docs found")
@@ -43,8 +45,14 @@ func NewFirestoreClient(ctx contexts.Context, creds string, debug bool) (*Client
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create firestore client")
 	}
-	client := &Client{Client: c, toUpdate: make(map[string]*pkg.Song), debug: debug}
+	client := &Client{
+		Client:    c,
+		songs:     make(map[string]*pkg.Song),
+		userSongs: make(map[string]map[string]*pkg.Song),
+		debug:     debug,
+	}
 	client.updateSongs(ctx)
+	client.updateUserSongs(ctx)
 	return client, nil
 }
 
@@ -69,7 +77,7 @@ func (c *Client) SetSong(ctx contexts.Context, song *pkg.Song) error {
 		return nil
 	}
 	c.updateMx.Lock()
-	c.toUpdate[song.ID.String()] = song
+	c.songs[song.ID.String()] = song
 	c.updateMx.Unlock()
 	return nil
 }
@@ -82,6 +90,35 @@ func (c *Client) SetSongForced(ctx contexts.Context, song *pkg.Song) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to set %s from %s", song.ID.String(), songsCollection)
 	}
+	return nil
+}
+
+func (c *Client) GetUserSong(ctx contexts.Context, id pkg.SongID, user string) (*pkg.Song, error) {
+	doc, err := c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(id.String()).Get(ctx)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, ErrNotFound
+		}
+		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), usersCollection)
+	}
+	var s pkg.Song
+	err = doc.DataTo(&s)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse doc into struct")
+	}
+	return &s, nil
+}
+
+func (c *Client) SetUserSong(ctx contexts.Context, song *pkg.Song, user string) error {
+	if c.debug {
+		return nil
+	}
+	c.updateMx.Lock()
+	if _, ok := c.userSongs[user]; !ok {
+		c.userSongs[user] = make(map[string]*pkg.Song)
+	}
+	c.userSongs[user][song.ID.String()] = song
+	c.updateMx.Unlock()
 	return nil
 }
 
@@ -142,21 +179,43 @@ func (c *Client) updateSongs(ctx contexts.Context) {
 			select {
 			case <-ticker.C:
 				c.updateMx.Lock()
-				if len(c.toUpdate) == 0 {
+				if len(c.songs) == 0 {
 					c.updateMx.Unlock()
 					continue
 				}
-				toSend := make([]*pkg.Song, 0, len(c.toUpdate))
-				for k, v := range c.toUpdate {
+				toSend := make([]*pkg.Song, 0, len(c.songs))
+				for k, v := range c.songs {
 					toSend = append(toSend, v)
-					delete(c.toUpdate, k)
+					delete(c.songs, k)
 				}
 				c.updateMx.Unlock()
-				ctx.LoggerFromContext().Info("UPDATING DB", toSend)
+				ctx.LoggerFromContext().Info("updating db", toSend)
 				err := c.WriteBatch(ctx, toSend)
 				if err != nil {
-					ctx.LoggerFromContext().Error(err, "unable to update DB")
+					ctx.LoggerFromContext().Error(err, "unable to update db")
 				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (c *Client) updateUserSongs(ctx contexts.Context) {
+	ticker := time.NewTicker(time.Minute)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				c.updateMx.Lock()
+				for user, songs := range c.userSongs {
+					for k, v := range songs {
+						go c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(v.ID.String()).Set(ctx, v)
+						delete(c.songs, k)
+					}
+				}
+				c.updateMx.Unlock()
 			case <-ctx.Done():
 				return
 			}
