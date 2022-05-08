@@ -20,7 +20,7 @@ const (
 	maxSearchResult = 10
 )
 
-type SongsCahce interface {
+type SongsCache interface {
 	Get(k string) (*pkg.Song, bool)
 	KeyFromID(s pkg.SongID) string
 }
@@ -37,11 +37,11 @@ type YouTubeConfig struct {
 type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
-	cache   SongsCahce
+	cache   SongsCache
 	config  YouTubeConfig
 }
 
-func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCahce, config YouTubeConfig) *YouTube {
+func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCache, config YouTubeConfig) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
@@ -150,7 +150,6 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 	}
 	song.Duration = videoInfo.Duration.Seconds()
 	return song, nil
-
 }
 
 func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {

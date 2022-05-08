@@ -123,6 +123,9 @@ func (c *Client) SetUserSong(ctx contexts.Context, song *pkg.Song, user string) 
 }
 
 func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
+	if c.debug {
+		return nil, nil
+	}
 	iter := c.Collection(songsCollection).Documents(ctx)
 	res := make([]pkg.SongID, 0, approximateSongsNumber)
 	for {
