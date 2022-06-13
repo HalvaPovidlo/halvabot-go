@@ -258,8 +258,7 @@ func (p *Player) processNext(out chan *audio.SongRequest) error {
 	if p.audio.IsPlaying() {
 		return nil
 	}
-	if !p.queue.IsEmpty() {
-		s := p.queue.Next()
+	if s := p.queue.Next(); s != nil {
 		p.setNowPlaying(s)
 		out <- requestFromEntry(s, p.voice.Connection())
 		return nil

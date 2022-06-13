@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-        S_NAME: ${{ secrets.SERVER_NAME }}
+        S_NAME: ${{ secrets.YANDEX_SERVER_NAME }}
         S_PASSWORD: ${{ secrets.YANDEX_SSH }}
     steps:
     - uses: actions/checkout@v3
@@ -24,6 +24,9 @@ jobs:
 
     - name: Build botapp
       run: go build -o deployments/botapp cmd/botapp/main.go
+
+    - name: Build mock
+      run: go build -o deployments/botmock cmd/botmock/main.go
 
     - name: Build webhost
       run: go build -o deployments/webhost cmd/webhost/main.go

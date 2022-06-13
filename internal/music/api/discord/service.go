@@ -139,12 +139,13 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 			switch pe {
 			case player.ErrSongNotFound:
 				s.sendNotFoundMessage(ds, m)
+				s.logger.Error(errors.Wrap(err, "song not found"))
 				return
 			case player.ErrStorageQueryFailed:
 				s.sendInternalErrorMessage(ds, m, statusLevel)
 				s.logger.Error(errors.Wrap(err, "database interaction failed"))
 			default:
-				s.logger.Error(errors.Wrap(err, "play with service"))
+				s.logger.Error(errors.Wrap(err, "discordAPI play"))
 				return
 			}
 		}
@@ -174,6 +175,7 @@ func (s *Service) randomMessageHandler(session *discordgo.Session, m *discordgo.
 	songs, err := s.player.Random(s.ctx, 10)
 	if err != nil {
 		s.logger.Error(errors.Wrap(err, "get random songs"))
+		s.sendInternalErrorMessage(session, m, infoLevel)
 		return
 	}
 	s.sendRandomMessage(session, m, songs)

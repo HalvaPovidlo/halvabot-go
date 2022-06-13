@@ -108,7 +108,8 @@ func (s *Service) playRandomSong(ctx contexts.Context) error {
 	if song.StreamURL == "" {
 		song, err = s.youtube.EnsureStreamInfo(ctx, song)
 		if err != nil {
-			return err
+			s.logger.Error(errors.Wrap(err, "ensure stream info for radio"))
+			return s.playRandomSong(ctx)
 		}
 	}
 	s.Player.Play(song)
@@ -139,4 +140,14 @@ func (s *Service) SubscribeOnErrors(h ErrorHandler) {
 		}
 		h(err)
 	})
+}
+
+func (s *Service) Stop() {
+	s.setRadio(false)
+	s.Player.Stop()
+}
+
+func (s *Service) Disconnect() {
+	s.setRadio(false)
+	s.Player.Disconnect()
 }

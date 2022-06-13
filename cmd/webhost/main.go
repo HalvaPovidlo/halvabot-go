@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,10 +23,20 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 		gin.DisableConsoleColor()
 	}
+
+	serverIPHandler := func(c *gin.Context) {
+		c.String(http.StatusOK, cfg.Host.IP+":"+cfg.Host.Bot)
+	}
+
 	router := gin.Default()
-	router.Static("/", "./www/")
+	router.Static("/web", "./www/")
+	router.GET("/", func(c *gin.Context) {
+		location := url.URL{Path: "/web"}
+		c.Redirect(http.StatusMovedPermanently, location.RequestURI())
+	})
+	router.GET("/server", serverIPHandler)
 	go func() {
-		err := router.Run(":" + cfg.General.Web)
+		err := router.Run(":" + cfg.Host.Web)
 		if err != nil {
 			logger.Error(err)
 			return

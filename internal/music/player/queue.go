@@ -11,18 +11,22 @@ import (
 
 type Queue struct {
 	entries []*pkg.Song
+	current *pkg.Song
 
 	loopLock sync.Mutex
 	loop     bool
 }
 
 func (q *Queue) Next() *pkg.Song {
-	e := q.entries[0]
 	if q.LoopStatus() {
-		return e
+		return q.current
 	}
+	if len(q.entries) == 0 {
+		return nil
+	}
+	q.current = q.entries[0]
 	q.entries = q.entries[1:]
-	return e
+	return q.current
 }
 
 func (q *Queue) Add(e *pkg.Song) {
@@ -31,6 +35,7 @@ func (q *Queue) Add(e *pkg.Song) {
 
 func (q *Queue) Clear() {
 	q.entries = nil
+	q.SetLoop(false)
 }
 
 func (q *Queue) IsEmpty() bool {

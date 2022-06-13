@@ -17,10 +17,12 @@ const (
 	videoPrefix     = "https://youtube.com/watch?v="
 	channelPrefix   = "https://youtube.com/channel/"
 	videoKind       = "youtube#video"
+	videoFormat     = ".m4a"
+	videoType       = "audio/mp4"
 	maxSearchResult = 10
 )
 
-type SongsCahce interface {
+type SongsCache interface {
 	Get(k string) (*pkg.Song, bool)
 	KeyFromID(s pkg.SongID) string
 }
@@ -37,11 +39,11 @@ type YouTubeConfig struct {
 type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
-	cache   SongsCahce
+	cache   SongsCache
 	config  YouTubeConfig
 }
 
-func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCahce, config YouTubeConfig) *YouTube {
+func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCache, config YouTubeConfig) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
@@ -123,7 +125,7 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
 	}
-	formats := videoInfo.Formats.WithAudioChannels().Type("audio/mp4")
+	formats := videoInfo.Formats.WithAudioChannels().Type(videoType)
 	if len(formats) == 0 {
 		return nil, errors.New("unable to get list of formats")
 	}
@@ -131,7 +133,7 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 	if y.config.Download {
 		formats.Sort()
 		format := formats[len(formats)-1]
-		fileName := videoInfo.ID + ".m4a"
+		fileName := videoInfo.ID + videoFormat
 		song.StreamURL = filepath.Join(y.config.OutputDir, fileName)
 		err := dl.Download(ctx, videoInfo, &format, fileName)
 		if err != nil {
@@ -150,7 +152,6 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 	}
 	song.Duration = videoInfo.Duration.Seconds()
 	return song, nil
-
 }
 
 func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {

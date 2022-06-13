@@ -19,4 +19,5 @@ secret_config.json
 halvabot-*.json
 
 vendor/
+www/
 *.m4a
