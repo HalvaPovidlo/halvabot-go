@@ -105,10 +105,6 @@ func main() {
 		gin.DisableConsoleColor()
 	}
 	router := gin.Default()
-	// router.GET("/", func(c *gin.Context) {
-	//	location := url.URL{Path: "/web"}
-	//	c.Redirect(http.StatusMovedPermanently, location.RequestURI())
-	// })
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := v1.NewAPI(router.Group("/api/v1")).Router()
