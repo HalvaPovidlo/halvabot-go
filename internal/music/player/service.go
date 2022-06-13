@@ -56,7 +56,9 @@ func (s *Service) Play(ctx contexts.Context, query, userID, guildID, channelID s
 		return nil, 0, ErrSongNotFound.Wrap(err.Error())
 	}
 
-	s.Connect(guildID, channelID)
+	if channelID != "" || guildID != "" {
+		s.Connect(guildID, channelID)
+	}
 
 	song.LastPlay = pkg.PlayDate{Time: time.Now()}
 	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
