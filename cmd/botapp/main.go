@@ -17,6 +17,7 @@ import (
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/docs"
+	v1 "github.com/HalvaPovidlo/discordBotGo/internal/api/v1"
 	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	dapi "github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
 	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
@@ -110,7 +111,7 @@ func main() {
 	// })
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
 	docs.SwaggerInfo.BasePath = "/api/v1"
-	apiRouter := router.Group("/api/v1")
+	apiRouter := v1.NewAPI(router.Group("/api/v1")).Router()
 	musicrest.NewHandler(musicPlayer, apiRouter).Router()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
