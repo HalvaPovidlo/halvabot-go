@@ -13,7 +13,6 @@ func NewAPI(superGroup *gin.RouterGroup) *API {
 }
 
 func (h *API) Router() *gin.RouterGroup {
-	//api := h.super.Group("/api/v1")
 	h.super.Use(CORSMiddleware())
 	return h.super
 }

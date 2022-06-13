@@ -1,11 +1,12 @@
 package player
 
 import (
+	"sync"
+	"time"
+
 	"github.com/HalvaPovidlo/discordBotGo/internal/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	"sync"
-	"time"
 )
 
 type MockPlayer struct {
