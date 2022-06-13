@@ -24,7 +24,7 @@ func main() {
 	router := gin.Default()
 	router.Static("/", "./www/")
 	go func() {
-		err := router.Run(":" + cfg.General.Web)
+		err := router.Run(":" + cfg.Host.Web)
 		if err != nil {
 			logger.Error(err)
 			return

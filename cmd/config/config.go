@@ -15,6 +15,7 @@ const FilePath = "secret_config.json"
 
 type Config struct {
 	General GeneralConfig        `json:"general"`
+	Host    HostConfig           `json:"host"`
 	Discord DiscordConfig        `json:"discord"`
 	Youtube search.YouTubeConfig `json:"youtube"`
 	// Sheets  SheetsConfig  `json:"sheets"`
@@ -50,9 +51,14 @@ type LichessConfig struct {
 }
 
 type GeneralConfig struct {
-	Port  string `json:"port"`
-	Web   string `json:"web"`
-	Debug bool   `json:"debug"`
+	Debug bool `json:"debug"`
+}
+
+type HostConfig struct {
+	IP   string `json:"ip"`
+	Bot  string `json:"bot"`
+	Mock string `json:"mock"`
+	Web  string `json:"web"`
 }
 
 func InitConfig() (*Config, error) {

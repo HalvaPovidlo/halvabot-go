@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -105,17 +104,17 @@ func main() {
 		gin.DisableConsoleColor()
 	}
 	router := gin.Default()
-	router.GET("/", func(c *gin.Context) {
-		location := url.URL{Path: "/web"}
-		c.Redirect(http.StatusMovedPermanently, location.RequestURI())
-	})
-	docs.SwaggerInfo.Host = "51.250.84.199:" + cfg.General.Port
+	//router.GET("/", func(c *gin.Context) {
+	//	location := url.URL{Path: "/web"}
+	//	c.Redirect(http.StatusMovedPermanently, location.RequestURI())
+	//})
+	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := router.Group("/api/v1")
 	musicrest.NewHandler(musicPlayer, apiRouter).Router()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
-		err := router.Run(":" + cfg.General.Port)
+		err := router.Run(":" + cfg.Host.Bot)
 		if err != nil {
 			logger.Error(err)
 			return
