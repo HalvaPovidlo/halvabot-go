@@ -1,18 +1,20 @@
 package botmock
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/docs"
 	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
-	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 // @title           HalvaBot for Discord
