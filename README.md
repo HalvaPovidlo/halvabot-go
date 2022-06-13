@@ -10,11 +10,16 @@ And join our HPDevelopment team.
 Create file `secret_config.json`
 
 ```json
+
 {
   "general":{
-    "port": "***",
-    "web": "***",
     "debug":true
+  },
+  "host":{
+    "ip": "***",
+    "bot": "***",
+    "mock": "***",
+    "web": "***"
   },
   "discord":{
     "token":"***",
