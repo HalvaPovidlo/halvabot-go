@@ -27,6 +27,9 @@ func main() {
 	serverIPHandler := func(c *gin.Context) {
 		c.String(http.StatusOK, cfg.Host.IP+":"+cfg.Host.Bot)
 	}
+	mockIPHandler := func(c *gin.Context) {
+		c.String(http.StatusOK, cfg.Host.IP+":"+cfg.Host.Mock)
+	}
 
 	router := gin.Default()
 	router.Static("/web", "./www/")
@@ -35,6 +38,7 @@ func main() {
 		c.Redirect(http.StatusMovedPermanently, location.RequestURI())
 	})
 	router.GET("/server", serverIPHandler)
+	router.GET("/mock", mockIPHandler)
 	go func() {
 		err := router.Run(":" + cfg.Host.Web)
 		if err != nil {
