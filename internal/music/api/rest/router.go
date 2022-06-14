@@ -13,6 +13,8 @@ type Player interface {
 	Skip()
 	SetLoop(b bool)
 	LoopStatus() bool
+	SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error
+	RadioStatus() bool
 	NowPlaying() *pkg.Song
 	Stats() audio.SessionStats
 }
@@ -37,6 +39,8 @@ func (h *Handler) Router() *gin.RouterGroup {
 	music.GET("/stop", h.stopHandler)
 	music.GET("/loopstatus", h.loopStatusHandler)
 	music.POST("/setloop", h.setLoopHandler)
+	music.GET("/radiostatus", h.radioStatusHandler)
+	music.POST("/setradio", h.setRadioHandler)
 	music.GET("/stats", h.statsHandler)
 	music.GET("/now", h.nowPlayingHandler)
 	return music
