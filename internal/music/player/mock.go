@@ -10,13 +10,14 @@ import (
 )
 
 type MockPlayer struct {
-	loopMx     sync.Mutex
-	loopStatus bool
+	statusMx    sync.Mutex
+	loopStatus  bool
+	radioStatus bool
 }
 
 func (m *MockPlayer) Play(ctx contexts.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
 	song := &pkg.Song{
-		Title:        "Mock song",
+		Title:        query,
 		URL:          "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 		Service:      "youtube",
 		ArtistName:   "Rick Astley",
@@ -41,14 +42,14 @@ func (m *MockPlayer) Skip() {
 }
 
 func (m *MockPlayer) SetLoop(b bool) {
-	m.loopMx.Lock()
+	m.statusMx.Lock()
 	m.loopStatus = b
-	m.loopMx.Unlock()
+	m.statusMx.Unlock()
 }
 func (m *MockPlayer) LoopStatus() bool {
-	m.loopMx.Lock()
+	m.statusMx.Lock()
 	b := m.loopStatus
-	m.loopMx.Unlock()
+	m.statusMx.Unlock()
 	return b
 }
 
@@ -78,4 +79,18 @@ func (m *MockPlayer) Stats() audio.SessionStats {
 		Pos:      111,
 		Duration: 212,
 	}
+}
+
+func (m *MockPlayer) SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error {
+	m.statusMx.Lock()
+	m.radioStatus = b
+	m.statusMx.Unlock()
+	return nil
+}
+
+func (m *MockPlayer) RadioStatus() bool {
+	m.statusMx.Lock()
+	b := m.radioStatus
+	m.statusMx.Unlock()
+	return b
 }
