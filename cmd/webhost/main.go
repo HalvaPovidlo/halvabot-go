@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
@@ -33,7 +32,7 @@ func main() {
 	}
 
 	router := gin.Default()
-	router.Use(static.Serve("/web", static.LocalFile("./www/", true)))
+	router.Static("/web", "./www/")
 	router.GET("/", func(c *gin.Context) {
 		location := url.URL{Path: "/web"}
 		c.Redirect(http.StatusMovedPermanently, location.RequestURI())

@@ -6,7 +6,6 @@ require (
 	cloud.google.com/go/firestore v1.6.1
 	firebase.google.com/go v3.13.0+incompatible
 	github.com/bwmarrin/discordgo v0.25.0
-	github.com/gin-gonic/contrib v0.0.0-20201101042839-6a891bf89f19
 	github.com/gin-gonic/gin v1.8.1
 	github.com/gocarina/gocsv v0.0.0-20220422102445-f48ffd81e276
 	github.com/google/uuid v1.3.0
