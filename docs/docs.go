@@ -94,6 +94,22 @@ const docTemplate = `{
                 }
             }
         },
+        "/music/radiostatus": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Is radio mode enabled",
+                "responses": {
+                    "200": {
+                        "description": "Returns true or false as string",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/music/setloop": {
             "post": {
                 "consumes": [
@@ -105,12 +121,48 @@ const docTemplate = `{
                 "summary": "Set loop mode",
                 "parameters": [
                     {
-                        "description": "Song name or url",
+                        "description": "Send true to enable and false to disable",
                         "name": "query",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.loopQuery"
+                            "$ref": "#/definitions/rest.enableQuery"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Incorrect input",
+                        "schema": {
+                            "$ref": "#/definitions/rest.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/music/setradio": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Set radio mode",
+                "parameters": [
+                    {
+                        "description": "Send true to enable and false to disable",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rest.enableQuery"
                         }
                     }
                 ],
@@ -252,7 +304,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.loopQuery": {
+        "rest.enableQuery": {
             "type": "object",
             "required": [
                 "enable"

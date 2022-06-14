@@ -14,7 +14,7 @@ type songQuery struct {
 	Song string `json:"song" binding:"required"`
 }
 
-type loopQuery struct {
+type enableQuery struct {
 	Enable bool `json:"enable" binding:"required"`
 }
 
@@ -85,12 +85,12 @@ func (h *Handler) loopStatusHandler(c *gin.Context) {
 // @summary  Set loop mode
 // @accept   json
 // @produce  json
-// @param    query  body      loopQuery  true  "Song name or url"
+// @param    query  body      enableQuery  true  "Send true to enable and false to disable"
 // @success  200    string    string
 // @failure  400    {object}  Response  "Incorrect input"
 // @router   /music/setloop [post]
 func (h *Handler) setLoopHandler(c *gin.Context) {
-	var json loopQuery
+	var json enableQuery
 	if err := c.ShouldBindJSON(&json); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -116,4 +116,40 @@ func (h *Handler) statsHandler(c *gin.Context) {
 func (h *Handler) nowPlayingHandler(c *gin.Context) {
 	entry := h.player.NowPlaying()
 	c.JSON(http.StatusOK, entry)
+}
+
+// radiostatus godoc
+// @summary  Is radio mode enabled
+// @produce  plain
+// @success  200  string  string  "Returns true or false as string"
+// @router   /music/radiostatus [get]
+func (h *Handler) radioStatusHandler(c *gin.Context) {
+	resp := ""
+	if h.player.RadioStatus() {
+		resp = "true"
+	} else {
+		resp = "false"
+	}
+	c.String(http.StatusOK, resp)
+}
+
+// setLoop godoc
+// @summary  Set radio mode
+// @accept   json
+// @produce  json
+// @param    query  body      enableQuery  true  "Send true to enable and false to disable"
+// @success  200    string    string
+// @failure  400    {object}  Response  "Incorrect input"
+// @router   /music/setradio [post]
+func (h *Handler) setRadioHandler(c *gin.Context) {
+	var json enableQuery
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.player.SetRadio(contexts.Context{Context: c}, json.Enable, "", ""); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.String(http.StatusOK, "")
 }
