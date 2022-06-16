@@ -86,6 +86,7 @@ func (c *Client) SetSongForced(ctx contexts.Context, song *pkg.Song) error {
 	if c.debug {
 		return nil
 	}
+	ctx.LoggerFromContext().Infof("DB: SetSongForced %s", song.ID)
 	_, err := c.Collection(songsCollection).Doc(song.ID.String()).Set(ctx, song)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set %s from %s", song.ID.String(), songsCollection)
@@ -94,6 +95,7 @@ func (c *Client) SetSongForced(ctx contexts.Context, song *pkg.Song) error {
 }
 
 func (c *Client) GetUserSong(ctx contexts.Context, id pkg.SongID, user string) (*pkg.Song, error) {
+	ctx.LoggerFromContext().Infof("DB: GetUserSong id:%s user:%s", id, user)
 	doc, err := c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(id.String()).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -126,6 +128,7 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
 	if c.debug {
 		return nil, nil
 	}
+	ctx.LoggerFromContext().Info("DB: GetAllSongsID")
 	iter := c.Collection(songsCollection).Documents(ctx)
 	res := make([]pkg.SongID, 0, approximateSongsNumber)
 	for {
@@ -152,6 +155,7 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
 // UpsertSongIncPlaybacks We don't use it because our cash of songs is always consistent
 // As we have only one writer to the song db - this bot
 func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (int, error) {
+	ctx.LoggerFromContext().Infof("DB: UpsertSongIncPlaybacks %s", new.ID)
 	ref := c.Collection(songsCollection).Doc(new.ID.String())
 	playbacks := 0
 	err := c.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -192,10 +196,10 @@ func (c *Client) updateSongs(ctx contexts.Context) {
 					delete(c.songs, k)
 				}
 				c.updateMx.Unlock()
-				ctx.LoggerFromContext().Info("updating db", toSend)
+				ctx.LoggerFromContext().Infof("DB: updating songs %d", len(toSend))
 				err := c.WriteBatch(ctx, toSend)
 				if err != nil {
-					ctx.LoggerFromContext().Error(err, "unable to update db")
+					ctx.LoggerFromContext().Error(err, "DB: unable to update songs")
 				}
 			case <-ctx.Done():
 				return
@@ -212,13 +216,27 @@ func (c *Client) updateUserSongs(ctx contexts.Context) {
 			select {
 			case <-ticker.C:
 				c.updateMx.Lock()
+				toSend := make(map[string][]*pkg.Song)
 				for user, songs := range c.userSongs {
+					toSend[user] = make([]*pkg.Song, 0, len(songs))
 					for k, v := range songs {
-						go c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(v.ID.String()).Set(ctx, v)
+						toSend[user] = append(toSend[user], v)
 						delete(c.songs, k)
 					}
+					delete(c.userSongs, user)
 				}
 				c.updateMx.Unlock()
+				go func() {
+					for user, songs := range toSend {
+						ctx.LoggerFromContext().Infof("DB: updateUserSongs user:%s songs:%d", user, len(songs))
+						for i := range songs {
+							_, err := c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(songs[i].ID.String()).Set(ctx, songs[i])
+							if err != nil {
+								ctx.LoggerFromContext().Error("DB: while updating User:", user, len(songs), "Song:", songs[i], "Error", err)
+							}
+						}
+					}
+				}()
 			case <-ctx.Done():
 				return
 			}

@@ -106,13 +106,15 @@ func GetIDFromURL(url string) SongID {
 	var id SongID
 	if TestYoutubeURL(url) {
 		id.Service = ServiceYouTube
-		id.ID = strings.TrimPrefix(url, "https://www.youtube.com/watch?v=")
+		url = strings.TrimPrefix(url, `https://www.youtube.com/watch?v=`)
+		url = strings.TrimPrefix(url, `https://youtube.com/watch?v=`)
+		id.ID = url
 		return id
 	}
 	return id
 }
 
 func TestYoutubeURL(url string) bool {
-	test, _ := regexp.MatchString("(?:https?:\\/\\/)?(?:www\\.)?youtu\\.?be(?:\\.com)?\\/?.*(?:watch|embed)?(?:.*v=|v\\/|\\/)(?:[\\w-_]+)", url)
+	test, _ := regexp.MatchString("^((?:https?:)?\\/\\/)?((?:www|m)\\.)?((?:youtube(-nocookie)?\\.com|youtu.be))(\\/(?:[\\w\\-]+\\?v=|embed\\/|v\\/)?)([\\w\\-]+)(\\S+)?$", url)
 	return test
 }
