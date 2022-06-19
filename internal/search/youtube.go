@@ -84,7 +84,7 @@ func getYTDLImages(ts ytdl.Thumbnails) (artwork, thumbnail string) {
 		return
 	}
 	thumbnails := []ytdl.Thumbnail(ts)
-	var maxHeight uint = 0
+	var maxHeight uint
 	maxIter := 0
 	for i := range thumbnails {
 		t := &thumbnails[i]
