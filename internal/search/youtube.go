@@ -77,6 +77,27 @@ func getImages(details *youtube.ThumbnailDetails) (artwork, thumbnail string) {
 	return
 }
 
+func getYTDLImages(ts ytdl.Thumbnails) (artwork, thumbnail string) {
+	artwork = ""
+	thumbnail = ""
+	if len(ts) == 0 {
+		return
+	}
+	thumbnails := []ytdl.Thumbnail(ts)
+	var maxHeight uint = 0
+	maxIter := 0
+	for i := range thumbnails {
+		t := &thumbnails[i]
+		if t.Height > maxHeight {
+			maxHeight = t.Height
+			maxIter = i
+		}
+	}
+	artwork = thumbnails[maxIter].URL
+	thumbnail = artwork
+	return
+}
+
 func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error) {
 	call := y.youtube.Search.List([]string{"id, snippet"}).
 		Q(query).
@@ -150,6 +171,7 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		}
 		song.StreamURL = streamURL
 	}
+	song.ArtworkURL, song.ThumbnailURL = getYTDLImages(videoInfo.Thumbnails)
 	song.Duration = videoInfo.Duration.Seconds()
 	return song, nil
 }

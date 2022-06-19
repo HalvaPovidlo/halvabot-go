@@ -106,6 +106,7 @@ func GetIDFromURL(url string) SongID {
 	var id SongID
 	if TestYoutubeURL(url) {
 		id.Service = ServiceYouTube
+		// TODO: trim all urls https://stackoverflow.com/questions/19377262/regex-for-youtube-url
 		url = strings.TrimPrefix(url, `https://www.youtube.com/watch?v=`)
 		url = strings.TrimPrefix(url, `https://youtube.com/watch?v=`)
 		id.ID = url
