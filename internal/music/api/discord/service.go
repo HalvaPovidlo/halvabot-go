@@ -36,7 +36,7 @@ type Player interface {
 	SetLoop(b bool)
 	LoopStatus() bool
 	NowPlaying() *pkg.Song
-	Stats() audio.SessionStats
+	SongStatus() audio.SessionStats
 	Disconnect() //
 	SubscribeOnErrors(h player.ErrorHandler)
 	Random(ctx contexts.Context, n int) ([]*pkg.Song, error)
@@ -167,7 +167,7 @@ func (s *Service) loopMessageHandler(session *discordgo.Session, m *discordgo.Me
 
 func (s *Service) nowpMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {
 	s.deleteMessage(session, m, infoLevel)
-	s.sendNowPlayingMessage(session, m, s.player.NowPlaying(), s.player.Stats().Pos)
+	s.sendNowPlayingMessage(session, m, s.player.NowPlaying(), s.player.SongStatus().Pos)
 }
 
 func (s *Service) randomMessageHandler(session *discordgo.Session, m *discordgo.MessageCreate) {

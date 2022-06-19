@@ -158,7 +158,7 @@ func (p *Player) setNowPlaying(s *pkg.Song) {
 	p.current = s
 }
 
-func (p *Player) Stats() audio.SessionStats {
+func (p *Player) SongStatus() audio.SessionStats {
 	s := p.audio.Stats()
 	if s.Duration == 0 {
 		s.Duration = p.NowPlaying().Duration

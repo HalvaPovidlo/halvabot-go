@@ -47,6 +47,12 @@ type User struct {
 	Songs []Song
 }
 
+type PlayerStatus struct {
+	Loop  bool  `json:"loop"`
+	Radio bool  `json:"radio"`
+	Now   *Song `json:"now,omitempty"`
+}
+
 func (date *PlayDate) UnmarshalCSV(csv string) error {
 	in := strings.Split(csv, "/")
 	if len(in) < 3 {

@@ -153,3 +153,11 @@ func (s *Service) Disconnect() {
 	s.setRadio(false)
 	s.Player.Disconnect()
 }
+
+func (s *Service) Status() pkg.PlayerStatus {
+	return pkg.PlayerStatus{
+		Loop:  s.LoopStatus(),
+		Radio: s.RadioStatus(),
+		Now:   s.NowPlaying(),
+	}
+}

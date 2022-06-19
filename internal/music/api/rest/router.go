@@ -16,7 +16,8 @@ type Player interface {
 	SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error
 	RadioStatus() bool
 	NowPlaying() *pkg.Song
-	Stats() audio.SessionStats
+	SongStatus() audio.SessionStats
+	Status() pkg.PlayerStatus
 }
 
 // Handler TODO: Auth
@@ -41,7 +42,8 @@ func (h *Handler) Router() *gin.RouterGroup {
 	music.POST("/setloop", h.setLoopHandler)
 	music.GET("/radiostatus", h.radioStatusHandler)
 	music.POST("/setradio", h.setRadioHandler)
-	music.GET("/stats", h.statsHandler)
+	music.GET("/songstatus", h.songStatusHandler)
+	music.GET("/status", h.statusHandler)
 	music.GET("/now", h.nowPlayingHandler)
 	return music
 }

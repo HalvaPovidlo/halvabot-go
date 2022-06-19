@@ -74,7 +74,7 @@ func (m *MockPlayer) NowPlaying() *pkg.Song {
 	}
 }
 
-func (m *MockPlayer) Stats() audio.SessionStats {
+func (m *MockPlayer) SongStatus() audio.SessionStats {
 	return audio.SessionStats{
 		Pos:      111,
 		Duration: 212,
@@ -93,4 +93,12 @@ func (m *MockPlayer) RadioStatus() bool {
 	b := m.radioStatus
 	m.statusMx.Unlock()
 	return b
+}
+
+func (m *MockPlayer) Status() pkg.PlayerStatus {
+	return pkg.PlayerStatus{
+		Loop:  m.LoopStatus(),
+		Radio: m.RadioStatus(),
+		Now:   m.NowPlaying(),
+	}
 }

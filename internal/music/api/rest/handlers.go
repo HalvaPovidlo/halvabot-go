@@ -113,7 +113,7 @@ func (h *Handler) songStatusHandler(c *gin.Context) {
 // @produce  json
 // @success  200  {object}  pkg.PlayerStatus  "Status of the player"
 // @router   /music/status [get]
-func (h *Handler) statusHandler(c *gin.Context) {
+func (h *Handler) statusH:andler(c *gin.Context) {
 	status := h.player.Status()
 	c.JSON(http.StatusOK, status)
 }
