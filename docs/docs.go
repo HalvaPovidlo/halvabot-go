@@ -198,17 +198,33 @@ const docTemplate = `{
                 }
             }
         },
-        "/music/stats": {
+        "/music/songstatus": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Stats of player on the current song",
+                "summary": "SongStatus of player on the current song",
                 "responses": {
                     "200": {
                         "description": "The song that is playing right now",
                         "schema": {
                             "$ref": "#/definitions/audio.SessionStats"
+                        }
+                    }
+                }
+            }
+        },
+        "/music/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Status of the player",
+                "responses": {
+                    "200": {
+                        "description": "Status of the player",
+                        "schema": {
+                            "$ref": "#/definitions/pkg.PlayerStatus"
                         }
                     }
                 }
@@ -250,6 +266,20 @@ const docTemplate = `{
             "properties": {
                 "time.Time": {
                     "type": "string"
+                }
+            }
+        },
+        "pkg.PlayerStatus": {
+            "type": "object",
+            "properties": {
+                "loop": {
+                    "type": "boolean"
+                },
+                "now": {
+                    "$ref": "#/definitions/pkg.Song"
+                },
+                "radio": {
+                    "type": "boolean"
                 }
             }
         },

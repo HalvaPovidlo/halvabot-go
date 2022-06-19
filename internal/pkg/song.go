@@ -47,6 +47,12 @@ type User struct {
 	Songs []Song
 }
 
+type PlayerStatus struct {
+	Loop  bool  `json:"loop"`
+	Radio bool  `json:"radio"`
+	Now   *Song `json:"now,omitempty"`
+}
+
 func (date *PlayDate) UnmarshalCSV(csv string) error {
 	in := strings.Split(csv, "/")
 	if len(in) < 3 {
@@ -106,6 +112,7 @@ func GetIDFromURL(url string) SongID {
 	var id SongID
 	if TestYoutubeURL(url) {
 		id.Service = ServiceYouTube
+		// TODO: trim all urls https://stackoverflow.com/questions/19377262/regex-for-youtube-url
 		url = strings.TrimPrefix(url, `https://www.youtube.com/watch?v=`)
 		url = strings.TrimPrefix(url, `https://youtube.com/watch?v=`)
 		id.ID = url
