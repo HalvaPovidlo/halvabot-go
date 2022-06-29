@@ -13,6 +13,13 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
+const (
+	homePage  = "/bot"
+	serverURL = "/server"
+	mockURL   = "/mock"
+	rootPath  = "./www/"
+)
+
 func main() {
 	cfg, err := config.InitConfig()
 	if err != nil {
@@ -33,13 +40,13 @@ func main() {
 
 	router := gin.Default()
 	router.Use(CORSMiddleware())
-	router.Static("/web", "./www/")
+	router.Static(homePage, rootPath)
 	router.GET("/", func(c *gin.Context) {
-		location := url.URL{Path: "/web"}
+		location := url.URL{Path: homePage}
 		c.Redirect(http.StatusMovedPermanently, location.RequestURI())
 	})
-	router.GET("/server", serverIPHandler)
-	router.GET("/mock", mockIPHandler)
+	router.GET(serverURL, serverIPHandler)
+	router.GET(mockURL, mockIPHandler)
 	go func() {
 		err := router.Run(":" + cfg.Host.Web)
 		if err != nil {
