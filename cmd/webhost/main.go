@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,10 +12,10 @@ import (
 )
 
 const (
-	homePage  = "/bot"
-	serverURL = "/server"
-	mockURL   = "/mock"
-	rootPath  = "./www/"
+	homePage = "/"
+	// serverURL = "/server"
+	// mockURL   = "/mock"
+	rootPath = "./www/"
 )
 
 func main() {
@@ -31,22 +29,22 @@ func main() {
 		gin.DisableConsoleColor()
 	}
 
-	serverIPHandler := func(c *gin.Context) {
-		c.String(http.StatusOK, cfg.Host.IP+":"+cfg.Host.Bot)
-	}
-	mockIPHandler := func(c *gin.Context) {
-		c.String(http.StatusOK, cfg.Host.IP+":"+cfg.Host.Mock)
-	}
+	// serverIPHandler := func(c *gin.Context) {
+	//	c.String(http.StatusOK, cfg.Host.IP+":"+cfg.Host.Bot)
+	// }
+	// mockIPHandler := func(c *gin.Context) {
+	//	c.String(http.StatusOK, cfg.Host.IP+":"+cfg.Host.Mock)
+	// }
 
 	router := gin.Default()
 	router.Use(CORSMiddleware())
 	router.Static(homePage, rootPath)
-	router.GET("/", func(c *gin.Context) {
-		location := url.URL{Path: homePage}
-		c.Redirect(http.StatusMovedPermanently, location.RequestURI())
-	})
-	router.GET(serverURL, serverIPHandler)
-	router.GET(mockURL, mockIPHandler)
+	// router.GET("/", func(c *gin.Context) {
+	//	location := url.URL{Path: homePage}
+	//	c.Redirect(http.StatusMovedPermanently, location.RequestURI())
+	// })
+	// router.GET(serverURL, serverIPHandler)
+	// router.GET(mockURL, mockIPHandler)
 	go func() {
 		err := router.Run(":" + cfg.Host.Web)
 		if err != nil {
