@@ -208,7 +208,7 @@ const docTemplate = `{
                     "200": {
                         "description": "The song that is playing right now",
                         "schema": {
-                            "$ref": "#/definitions/audio.SessionStats"
+                            "$ref": "#/definitions/pkg.SessionStats"
                         }
                     }
                 }
@@ -248,19 +248,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "audio.SessionStats": {
-            "type": "object",
-            "properties": {
-                "duration": {
-                    "description": "seconds",
-                    "type": "number"
-                },
-                "position": {
-                    "description": "seconds",
-                    "type": "number"
-                }
-            }
-        },
         "pkg.PlayDate": {
             "type": "object",
             "properties": {
@@ -280,6 +267,22 @@ const docTemplate = `{
                 },
                 "radio": {
                     "type": "boolean"
+                },
+                "song": {
+                    "$ref": "#/definitions/pkg.SessionStats"
+                }
+            }
+        },
+        "pkg.SessionStats": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "description": "seconds",
+                    "type": "number"
+                },
+                "position": {
+                    "description": "seconds",
+                    "type": "number"
                 }
             }
         },

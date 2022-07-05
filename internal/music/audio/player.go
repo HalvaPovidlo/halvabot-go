@@ -8,17 +8,13 @@ import (
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
+	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 var (
 	ErrManualStop = errors.New("stop")
 )
-
-type SessionStats struct {
-	Pos      float64 `json:"position"` // seconds
-	Duration float64 `json:"duration"` // seconds
-}
 
 type SongRequest struct {
 	Voice *discordgo.VoiceConnection
@@ -34,7 +30,7 @@ type Player struct {
 	isPlaying     bool
 
 	statsLock sync.Mutex
-	stats     SessionStats
+	stats     pkg.SessionStats
 }
 
 func NewPlayer(options *dca.EncodeOptions, logger zap.Logger) *Player {
@@ -66,7 +62,7 @@ func (p *Player) Stop() {
 	}
 }
 
-func (p *Player) Stats() SessionStats {
+func (p *Player) Stats() pkg.SessionStats {
 	p.statsLock.Lock()
 	defer p.statsLock.Unlock()
 	return p.stats

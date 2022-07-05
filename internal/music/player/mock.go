@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
@@ -74,8 +73,8 @@ func (m *MockPlayer) NowPlaying() *pkg.Song {
 	}
 }
 
-func (m *MockPlayer) SongStatus() audio.SessionStats {
-	return audio.SessionStats{
+func (m *MockPlayer) SongStatus() pkg.SessionStats {
+	return pkg.SessionStats{
 		Pos:      111,
 		Duration: 212,
 	}
@@ -99,6 +98,7 @@ func (m *MockPlayer) Status() pkg.PlayerStatus {
 	return pkg.PlayerStatus{
 		Loop:  m.LoopStatus(),
 		Radio: m.RadioStatus(),
+		Song:  m.SongStatus(),
 		Now:   m.NowPlaying(),
 	}
 }

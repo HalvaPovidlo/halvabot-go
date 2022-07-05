@@ -47,10 +47,16 @@ type User struct {
 	Songs []Song
 }
 
+type SessionStats struct {
+	Pos      float64 `json:"position"` // seconds
+	Duration float64 `json:"duration"` // seconds
+}
+
 type PlayerStatus struct {
-	Loop  bool  `json:"loop"`
-	Radio bool  `json:"radio"`
-	Now   *Song `json:"now,omitempty"`
+	Loop  bool         `json:"loop"`
+	Radio bool         `json:"radio"`
+	Song  SessionStats `json:"song"`
+	Now   *Song        `json:"now,omitempty"`
 }
 
 func (date *PlayDate) UnmarshalCSV(csv string) error {

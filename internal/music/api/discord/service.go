@@ -10,7 +10,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
@@ -36,7 +35,7 @@ type Player interface {
 	SetLoop(b bool)
 	LoopStatus() bool
 	NowPlaying() *pkg.Song
-	SongStatus() audio.SessionStats
+	SongStatus() pkg.SessionStats
 	Disconnect() //
 	SubscribeOnErrors(h player.ErrorHandler)
 	Random(ctx contexts.Context, n int) ([]*pkg.Song, error)
