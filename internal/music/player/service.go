@@ -161,6 +161,7 @@ func (s *Service) Status() pkg.PlayerStatus {
 	return pkg.PlayerStatus{
 		Loop:  s.LoopStatus(),
 		Radio: s.RadioStatus(),
+		Song:  s.SongStatus(),
 		Now:   s.NowPlaying(),
 	}
 }

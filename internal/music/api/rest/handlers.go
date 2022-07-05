@@ -101,7 +101,7 @@ func (h *Handler) setLoopHandler(c *gin.Context) {
 // SongStatus godoc
 // @summary  SongStatus of player on the current song
 // @produce  json
-// @success  200  {object}  audio.SessionStats  "The song that is playing right now"
+// @success  200  {object}  pkg.SessionStats  "The song that is playing right now"
 // @router   /music/songstatus [get]
 func (h *Handler) songStatusHandler(c *gin.Context) {
 	entry := h.player.SongStatus()
@@ -115,6 +115,9 @@ func (h *Handler) songStatusHandler(c *gin.Context) {
 // @router   /music/status [get]
 func (h *Handler) statusHandler(c *gin.Context) {
 	status := h.player.Status()
+	if status.Now == nil {
+		status.Now = &pkg.Song{}
+	}
 	c.JSON(http.StatusOK, status)
 }
 

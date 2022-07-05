@@ -16,7 +16,7 @@ import (
 
 type MediaPlayer interface {
 	Process(requests <-chan *audio.SongRequest) <-chan error
-	Stats() audio.SessionStats
+	Stats() pkg.SessionStats
 	IsPlaying() bool
 	Stop()
 }
@@ -158,12 +158,12 @@ func (p *Player) setNowPlaying(s *pkg.Song) {
 	p.current = s
 }
 
-func (p *Player) SongStatus() audio.SessionStats {
+func (p *Player) SongStatus() pkg.SessionStats {
 	s := p.audio.Stats()
 	if s.Duration == 0 {
 		now := p.NowPlaying()
 		if now == nil {
-			return audio.SessionStats{}
+			return pkg.SessionStats{}
 		}
 		s.Duration = now.Duration
 	}

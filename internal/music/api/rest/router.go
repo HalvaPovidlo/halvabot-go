@@ -3,7 +3,6 @@ package rest
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
@@ -16,7 +15,7 @@ type Player interface {
 	SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error
 	RadioStatus() bool
 	NowPlaying() *pkg.Song
-	SongStatus() audio.SessionStats
+	SongStatus() pkg.SessionStats
 	Status() pkg.PlayerStatus
 }
 
