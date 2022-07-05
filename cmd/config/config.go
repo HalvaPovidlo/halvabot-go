@@ -2,13 +2,13 @@ package config
 
 import (
 	"encoding/json"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/search"
 	"io/ioutil"
 
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
-	"github.com/HalvaPovidlo/discordBotGo/internal/search"
 )
 
 const FilePath = "secret_config.json"
