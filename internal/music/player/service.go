@@ -132,7 +132,10 @@ func (s *Service) handleError(err error) {
 			s.logger.Error(errors.Wrap(err, "radio failed"))
 			s.setRadio(false)
 		}
+		return
 	}
+	s.setRadio(false)
+	s.logger.Error(err, "error from player")
 }
 
 func (s *Service) SubscribeOnErrors(h ErrorHandler) {
