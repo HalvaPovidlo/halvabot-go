@@ -171,9 +171,27 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		}
 		song.StreamURL = streamURL
 	}
-	song.ArtworkURL, song.ThumbnailURL = getYTDLImages(videoInfo.Thumbnails)
-	song.Duration = videoInfo.Duration.Seconds()
+
+	additionalSongInfo := songFromInfo(videoInfo)
+	song.MergeNoOverride(additionalSongInfo)
 	return song, nil
+}
+
+func songFromInfo(v *ytdl.Video) *pkg.Song {
+	art, thumb := getYTDLImages(v.Thumbnails)
+	return &pkg.Song{
+		Title:        v.Title,
+		URL:          videoPrefix + v.ID,
+		Service:      pkg.ServiceYouTube,
+		ArtistName:   v.Author,
+		ArtworkURL:   art,
+		ThumbnailURL: thumb,
+		ID: pkg.SongID{
+			ID:      v.ID,
+			Service: pkg.ServiceYouTube,
+		},
+		Duration: v.Duration.Seconds(),
+	}
 }
 
 func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {
