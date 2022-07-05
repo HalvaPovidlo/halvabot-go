@@ -18,6 +18,8 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/docs"
 	v1 "github.com/HalvaPovidlo/discordBotGo/internal/api/v1"
+	capi "github.com/HalvaPovidlo/discordBotGo/internal/chess/api/discord"
+	"github.com/HalvaPovidlo/discordBotGo/internal/chess/lichess"
 	dapi "github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
 	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
@@ -95,9 +97,14 @@ func main() {
 	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions, logger)
 	musicPlayer := player.NewMusicService(ctx, fireService, ytClient, voiceClient, rawAudioPlayer, logger)
 
+	// Chess
+	lichessClient := lichess.NewClient()
+
 	// Discord commands
 	musicCog := dapi.NewCog(ctx, musicPlayer, cfg.Discord.Prefix, logger, cfg.Discord.API)
 	musicCog.RegisterCommands(session, cfg.General.Debug, logger)
+	chessCog := capi.NewCog(ctx, cfg.Discord.Prefix, lichessClient, logger)
+	chessCog.RegisterCommands(session, cfg.General.Debug, logger)
 
 	// Http routers
 	if !cfg.General.Debug {

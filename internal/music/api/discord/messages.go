@@ -8,10 +8,7 @@ import (
 	dg "github.com/bwmarrin/discordgo"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-)
-
-const (
-	monkaS = "<:monkaS:817041877718138891>"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 )
 
 const (
@@ -23,7 +20,6 @@ const (
 	messageRadioEnabled    = ":white_check_mark: **Radio enabled**"
 	messageRadioDisabled   = ":x: **Radio disabled**"
 	messageNotVoiceChannel = ":x: **You have to be in a voice channel to use this command**"
-	messageInternalError   = ":x: **Internal error** " + monkaS
 )
 
 const (
@@ -130,7 +126,7 @@ func (s *Service) sendRandomMessage(ds *dg.Session, m *dg.MessageCreate, songs [
 }
 
 func (s *Service) sendInternalErrorMessage(ds *dg.Session, m *dg.MessageCreate, level int) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageInternalError), level)
+	s.sendComplexMessage(ds, m.ChannelID, strmsg(discord.MessageInternalError), level)
 }
 
 // func (s *Service) sendStringMessage(ds *dg.Session, m *dg.MessageCreate, msg string, level int) {
