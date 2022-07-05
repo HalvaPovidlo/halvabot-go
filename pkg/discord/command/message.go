@@ -11,6 +11,8 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
+const maxMessageLength = 50
+
 type MessageHandler func(s *discordgo.Session, m *discordgo.MessageCreate)
 
 type Message struct {
@@ -36,6 +38,9 @@ func (m *Message) RegisterCommand(s *discordgo.Session, logger zap.Logger) {
 		}
 		if (i.ChannelID == discord.ChannelDebugID) != m.debug {
 			return
+		}
+		if len(i.Content) <= maxMessageLength {
+			i.Content = strings.ToLower(i.Content)
 		}
 		if strings.HasPrefix(i.Content, m.Name) {
 			uid := uuid.New()
