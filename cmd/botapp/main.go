@@ -111,7 +111,7 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 		gin.DisableConsoleColor()
 	}
-	router := gin.Default()
+	router := gin.New()
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := v1.NewAPI(router.Group("/api/v1")).Router()

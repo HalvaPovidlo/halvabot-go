@@ -125,6 +125,10 @@ func (h *Handler) statusHandler(c *gin.Context) {
 // @router   /music/now [get]
 func (h *Handler) nowPlayingHandler(c *gin.Context) {
 	entry := h.player.NowPlaying()
+	if entry == nil {
+		c.JSON(http.StatusOK, &pkg.Song{})
+		return
+	}
 	c.JSON(http.StatusOK, entry)
 }
 
