@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
-	"github.com/HalvaPovidlo/discordBotGo/internal/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/search"
 )
 
 const FilePath = "secret_config.json"
