@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/search"
-	firestore2 "github.com/HalvaPovidlo/discordBotGo/internal/music/storage/firestore"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,6 +22,8 @@ import (
 	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/storage/firestore"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	dpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
@@ -62,7 +62,7 @@ func main() {
 	}()
 
 	// Cache
-	songsCache := firestore2.NewSongsCache(ctx, 24*time.Hour)
+	songsCache := firestore.NewSongsCache(ctx, 24*time.Hour)
 	defer songsCache.Clear()
 
 	// YouTube services
@@ -81,11 +81,11 @@ func main() {
 	)
 
 	// Firestore stage
-	fireStorage, err := firestore2.NewFirestoreClient(ctx, "halvabot-firebase.json", cfg.General.Debug)
+	fireStorage, err := firestore.NewFirestoreClient(ctx, "halvabot-firebase.json", cfg.General.Debug)
 	if err != nil {
 		panic(err)
 	}
-	fireService, err := firestore2.NewFirestoreService(ctx, fireStorage, songsCache)
+	fireService, err := firestore.NewFirestoreService(ctx, fireStorage, songsCache)
 	if err != nil {
 		panic(err)
 	}
