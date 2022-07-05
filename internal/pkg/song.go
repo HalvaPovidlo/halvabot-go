@@ -106,6 +106,12 @@ func (s *Song) MergeNoOverride(new *Song) {
 	if s.LastPlay.IsZero() {
 		s.LastPlay = new.LastPlay
 	}
+	if s.Duration == 0 {
+		s.Duration = new.Duration
+	}
+	if s.StreamURL == "" {
+		s.StreamURL = new.StreamURL
+	}
 }
 
 func GetIDFromURL(url string) SongID {
