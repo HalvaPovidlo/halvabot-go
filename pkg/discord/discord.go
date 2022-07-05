@@ -9,6 +9,9 @@ import (
 const (
 	// ChannelDebugID TODO: load from session and guildID
 	ChannelDebugID = "747743319039148062"
+
+	MonkaS               = "<:monkaS:817041877718138891>"
+	MessageInternalError = ":x: **Internal error** " + MonkaS
 )
 
 func OpenSession(token string, debug bool, logger zap.Logger) (*discordgo.Session, error) {
