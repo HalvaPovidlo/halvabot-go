@@ -11,11 +11,11 @@ import (
 )
 
 type songQuery struct {
-	Song string `json:"song" binding:"required"`
+	Song string `json:"song" binding:"exists"`
 }
 
 type enableQuery struct {
-	Enable bool `json:"enable" binding:"required"`
+	Enable bool `json:"enable" binding:"exists"`
 }
 
 type EnqueueResponse struct {
