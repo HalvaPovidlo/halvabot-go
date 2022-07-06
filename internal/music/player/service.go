@@ -135,7 +135,9 @@ func (s *Service) handleError(err error) {
 		return
 	}
 	s.setRadio(false)
-	s.logger.Error(err, "error from player")
+	if err != ErrQueueEmpty {
+		s.logger.Error("error from player ", err)
+	}
 }
 
 func (s *Service) SubscribeOnErrors(h ErrorHandler) {
