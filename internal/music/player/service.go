@@ -53,7 +53,7 @@ func (s *Service) Play(ctx contexts.Context, query, userID, guildID, channelID s
 	s.logger.Debug("Finding song")
 	song, err := s.youtube.FindSong(ctx, query)
 	if err != nil {
-		return nil, 0, ErrSongNotFound.Wrap(err.Error())
+		return nil, 0, errors.Wrap(err, "find and load song from youtube")
 	}
 
 	if channelID != "" || guildID != "" {
@@ -63,7 +63,7 @@ func (s *Service) Play(ctx contexts.Context, query, userID, guildID, channelID s
 	song.LastPlay = pkg.PlayDate{Time: time.Now()}
 	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
 	if err != nil {
-		err = ErrStorageQueryFailed.Wrap(errors.Wrap(err, "upsert song with increment").Error())
+		err = errors.Wrap(err, "upsert song with increment")
 	}
 
 	if userID != "" {
@@ -126,23 +126,25 @@ func (s *Service) RadioStatus() bool {
 }
 
 func (s *Service) handleError(err error) {
-	if err == ErrQueueEmpty && s.RadioStatus() {
-		err := s.playRandomSong(contexts.Context{Context: contexts.Background()})
-		if err != nil {
-			s.logger.Error(errors.Wrap(err, "radio failed"))
-			s.setRadio(false)
+	if errors.Is(err, ErrQueueEmpty) {
+		if s.RadioStatus() {
+			err := s.playRandomSong(contexts.Context{Context: contexts.Background()})
+			if err != nil {
+				s.logger.Error(errors.Wrap(err, "radio failed"))
+				s.setRadio(false)
+			}
 		}
 		return
 	}
-	s.setRadio(false)
-	if err != ErrQueueEmpty {
-		s.logger.Error("error from player ", err)
+	if !errors.Is(err, audio.ErrManualStop) && !errors.Is(err, io.EOF) {
+		s.setRadio(false)
+		s.logger.Error("error from player", err)
 	}
 }
 
 func (s *Service) SubscribeOnErrors(h ErrorHandler) {
 	s.Player.SubscribeOnErrors(func(err error) {
-		if err == io.EOF || err == audio.ErrManualStop || err == ErrQueueEmpty {
+		if errors.Is(err, io.EOF) || errors.Is(err, audio.ErrManualStop) || errors.Is(err, ErrQueueEmpty) {
 			return
 		}
 		h(err)

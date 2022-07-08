@@ -14,7 +14,8 @@ import (
 const (
 	messageSearching       = ":trumpet: **Searching** :mag_right:"
 	messageFound           = "**Song found** :notes:"
-	messageNotFound        = ":x: **Song not found** - *Possibly an age restriction*"
+	messageNotFound        = ":x: **Song not found**"
+	messageAgeRestriction  = ":underage: **Song is blocked**"
 	messageLoopEnabled     = ":white_check_mark: **Loop enabled**"
 	messageLoopDisabled    = ":x: **Loop disabled**"
 	messageRadioEnabled    = ":white_check_mark: **Radio enabled**"
@@ -53,6 +54,10 @@ func (s *Service) sendFoundMessage(ds *dg.Session, m *dg.MessageCreate, artist, 
 
 func (s *Service) sendNotFoundMessage(ds *dg.Session, m *dg.MessageCreate) {
 	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageNotFound), statusLevel)
+}
+
+func (s *Service) sendAgeRestrictionMessage(ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageAgeRestriction), statusLevel)
 }
 
 func (s *Service) sendLoopMessage(ds *dg.Session, m *dg.MessageCreate, enabled bool) {

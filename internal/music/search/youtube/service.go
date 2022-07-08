@@ -1,4 +1,4 @@
-package search
+package youtube
 
 import (
 	"path/filepath"
@@ -31,7 +31,7 @@ var (
 	ErrSongNotFound = errors.New("song not found")
 )
 
-type YouTubeConfig struct {
+type Config struct {
 	Download  bool   `json:"download"`
 	OutputDir string `json:"output"`
 }
@@ -40,10 +40,10 @@ type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
 	cache   SongsCache
-	config  YouTubeConfig
+	config  Config
 }
 
-func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCache, config YouTubeConfig) *YouTube {
+func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCache, config Config) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
@@ -52,9 +52,9 @@ func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCache, 
 	}
 }
 
-func getImages(details *youtube.ThumbnailDetails) (artwork, thumbnail string) {
-	artwork = ""
-	thumbnail = ""
+func getImages(details *youtube.ThumbnailDetails) (string, string) {
+	artwork := ""
+	thumbnail := ""
 	if details != nil {
 		if details.Default != nil {
 			thumbnail = details.Default.Url
@@ -74,14 +74,12 @@ func getImages(details *youtube.ThumbnailDetails) (artwork, thumbnail string) {
 			artwork = details.Maxres.Url
 		}
 	}
-	return
+	return artwork, thumbnail
 }
 
-func getYTDLImages(ts ytdl.Thumbnails) (artwork, thumbnail string) {
-	artwork = ""
-	thumbnail = ""
+func getYTDLImages(ts ytdl.Thumbnails) (string, string) {
 	if len(ts) == 0 {
-		return
+		return "", ""
 	}
 	thumbnails := []ytdl.Thumbnail(ts)
 	var maxHeight uint
@@ -93,9 +91,7 @@ func getYTDLImages(ts ytdl.Thumbnails) (artwork, thumbnail string) {
 			maxIter = i
 		}
 	}
-	artwork = thumbnails[maxIter].URL
-	thumbnail = artwork
-	return
+	return thumbnails[maxIter].URL, thumbnails[maxIter].URL
 }
 
 func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error) {
@@ -106,7 +102,7 @@ func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error
 	response, err := call.Do()
 	if err != nil || response.Items == nil {
 		// TODO: NOT FOUND?
-		return nil, errors.Wrap(err, "could not find any results for the specified query")
+		return nil, ErrSongNotFound
 	}
 
 	for _, item := range response.Items {
@@ -137,10 +133,6 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		return song, nil
 	}
 
-	dl := downloader.Downloader{
-		Client:    *y.ytdl,
-		OutputDir: y.config.OutputDir,
-	}
 	url := song.URL
 	videoInfo, err := y.ytdl.GetVideo(url)
 	if err != nil {
@@ -156,6 +148,12 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		format := formats[len(formats)-1]
 		fileName := videoInfo.ID + videoFormat
 		song.StreamURL = filepath.Join(y.config.OutputDir, fileName)
+		dl := Downloader{
+			logger: ctx.LoggerFromContext(),
+			Downloader: downloader.Downloader{
+				Client:    *y.ytdl,
+				OutputDir: y.config.OutputDir},
+		}
 		err := dl.Download(ctx, videoInfo, &format, fileName)
 		if err != nil {
 			return nil, err
@@ -197,10 +195,7 @@ func songFromInfo(v *ytdl.Video) *pkg.Song {
 func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {
 	song, err := y.findSong(ctx, query)
 	if err != nil {
-		if err == ErrSongNotFound {
-			return nil, ErrSongNotFound
-		}
-		return nil, errors.Wrap(err, "search in youtube")
+		return nil, err
 	}
 
 	song, err = y.EnsureStreamInfo(ctx, song)

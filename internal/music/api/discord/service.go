@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord/command"
@@ -21,6 +22,7 @@ import (
 const (
 	play       = "play "
 	skip       = "skip"
+	skipFS     = "fs"
 	loop       = "loop"
 	nowPlaying = "now"
 	random     = "random"
@@ -107,6 +109,7 @@ func (s *Service) RegisterCommands(session *discordgo.Session, debug bool, logge
 	registerSlashBasicCommand(session, debug)
 	command.NewMessageCommand(s.prefix+play, s.playMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+skip, s.skipMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+skipFS, s.skipMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+loop, s.loopMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+nowPlaying, s.nowpMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+random, s.randomMessageHandler, debug).RegisterCommand(session, logger)
@@ -134,20 +137,17 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 	s.sendSearchingMessage(ds, m)
 	song, playbacks, err := s.player.Play(s.ctx, query, m.Author.ID, m.GuildID, id)
 	if err != nil {
-		if pe, ok := err.(*player.Error); ok {
-			switch pe {
-			case player.ErrSongNotFound:
-				s.sendNotFoundMessage(ds, m)
-				s.logger.Error(errors.Wrap(err, "song not found"))
-				return
-			case player.ErrStorageQueryFailed:
-				s.sendInternalErrorMessage(ds, m, statusLevel)
-				s.logger.Error(errors.Wrap(err, "database interaction failed"))
-			default:
-				s.logger.Error(errors.Wrap(err, "discordAPI play"))
-				return
-			}
+		if errors.Is(err, youtube.ErrSongNotFound) {
+			s.sendNotFoundMessage(ds, m)
+			return
 		}
+		if strings.Contains(err.Error(), "can't bypass age restriction") {
+			s.sendAgeRestrictionMessage(ds, m)
+			return
+		}
+		s.logger.Error(errors.Wrapf(err, "player play song=%s", query))
+		s.sendInternalErrorMessage(ds, m, statusLevel)
+		return
 	}
 	s.sendFoundMessage(ds, m, song.ArtistName, song.Title, playbacks)
 }

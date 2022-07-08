@@ -8,16 +8,16 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/api/discord"
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/search"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/search/youtube"
 )
 
 const FilePath = "secret_config.json"
 
 type Config struct {
-	General GeneralConfig        `json:"general"`
-	Host    HostConfig           `json:"host"`
-	Discord DiscordConfig        `json:"discord"`
-	Youtube search.YouTubeConfig `json:"youtube"`
+	General GeneralConfig  `json:"general"`
+	Host    HostConfig     `json:"host"`
+	Discord DiscordConfig  `json:"discord"`
+	Youtube youtube.Config `json:"youtube"`
 	// Sheets  SheetsConfig  `json:"sheets"`
 	// VK      VKConfig      `json:"vk"`
 	// Lichess LichessConfig `json:"lichess"`
