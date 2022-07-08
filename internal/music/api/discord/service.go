@@ -3,7 +3,6 @@ package discord
 import (
 	"context"
 	"fmt"
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/search/youtube"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord/command"

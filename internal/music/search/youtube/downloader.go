@@ -8,7 +8,7 @@ import (
 
 	"github.com/kkdai/youtube/v2"
 	"github.com/kkdai/youtube/v2/downloader"
-	
+
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
@@ -68,7 +68,7 @@ type progress struct {
 
 func (dl *progress) Write(p []byte) (n int, err error) {
 	n = len(p)
-	dl.totalWrittenBytes = dl.totalWrittenBytes + float64(n)
+	dl.totalWrittenBytes += float64(n)
 	currentPercent := (dl.totalWrittenBytes / dl.contentLength) * 100
 	if (dl.downloadLevel <= currentPercent) && (dl.downloadLevel < 100) {
 		dl.downloadLevel++
