@@ -22,6 +22,7 @@ import (
 const (
 	play       = "play "
 	skip       = "skip"
+	skipFS     = "fs"
 	loop       = "loop"
 	nowPlaying = "now"
 	random     = "random"
@@ -108,6 +109,7 @@ func (s *Service) RegisterCommands(session *discordgo.Session, debug bool, logge
 	registerSlashBasicCommand(session, debug)
 	command.NewMessageCommand(s.prefix+play, s.playMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+skip, s.skipMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(s.prefix+skipFS, s.skipMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+loop, s.loopMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+nowPlaying, s.nowpMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(s.prefix+random, s.randomMessageHandler, debug).RegisterCommand(session, logger)
