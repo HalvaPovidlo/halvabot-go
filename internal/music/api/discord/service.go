@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"fmt"
+	"github.com/HalvaPovidlo/discordBotGo/internal/music/search/youtube"
 	"strings"
 	"sync"
 	"time"
@@ -134,20 +135,17 @@ func (s *Service) playMessageHandler(ds *discordgo.Session, m *discordgo.Message
 	s.sendSearchingMessage(ds, m)
 	song, playbacks, err := s.player.Play(s.ctx, query, m.Author.ID, m.GuildID, id)
 	if err != nil {
-		if pe, ok := err.(*player.Error); ok {
-			switch pe {
-			case player.ErrSongNotFound:
-				s.sendNotFoundMessage(ds, m)
-				s.logger.Error(errors.Wrap(err, "song not found"))
-				return
-			case player.ErrStorageQueryFailed:
-				s.sendInternalErrorMessage(ds, m, statusLevel)
-				s.logger.Error(errors.Wrap(err, "database interaction failed"))
-			default:
-				s.logger.Error(errors.Wrap(err, "discordAPI play"))
-				return
-			}
+		if errors.Is(err, youtube.ErrSongNotFound) {
+			s.sendNotFoundMessage(ds, m)
+			return
 		}
+		if strings.Contains(err.Error(), "can't bypass age restriction") {
+			s.sendAgeRestrictionMessage(ds, m)
+			return
+		}
+		s.logger.Error(errors.Wrapf(err, "player play song=%s", query))
+		s.sendInternalErrorMessage(ds, m, statusLevel)
+		return
 	}
 	s.sendFoundMessage(ds, m, song.ArtistName, song.Title, playbacks)
 }

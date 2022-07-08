@@ -14,10 +14,10 @@ import (
 const FilePath = "secret_config.json"
 
 type Config struct {
-	General GeneralConfig         `json:"general"`
-	Host    HostConfig            `json:"host"`
-	Discord DiscordConfig         `json:"discord"`
-	Youtube youtube.YouTubeConfig `json:"youtube"`
+	General GeneralConfig  `json:"general"`
+	Host    HostConfig     `json:"host"`
+	Discord DiscordConfig  `json:"discord"`
+	Youtube youtube.Config `json:"youtube"`
 	// Sheets  SheetsConfig  `json:"sheets"`
 	// VK      VKConfig      `json:"vk"`
 	// Lichess LichessConfig `json:"lichess"`

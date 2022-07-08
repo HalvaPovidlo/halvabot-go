@@ -14,6 +14,9 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
+var ErrNotConnected = errors.New("player not connected")
+var ErrQueueEmpty = errors.New("queue is empty")
+
 type MediaPlayer interface {
 	Process(requests <-chan *audio.SongRequest) <-chan error
 	Stats() pkg.SessionStats
@@ -241,7 +244,7 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 
 func (p *Player) processPlay(entry *pkg.Song, out chan *audio.SongRequest) error {
 	if !p.voice.IsConnected() {
-		return ErrNotConnected.Wrap("voice client not connected")
+		return ErrNotConnected
 	}
 	p.logger.Debugf("adding to queue %s", entry.Title)
 	p.queue.Add(entry)
@@ -288,7 +291,7 @@ func (p *Player) processConnect(gID, cID string) error {
 	}
 	p.reset()
 	if err := p.voice.Connect(gID, cID); err != nil {
-		return ErrConnectFailed.Wrap(errors.Wrapf(err, "connect on gid:%s cid:%s failed", gID, cID).Error())
+		return errors.Wrapf(err, "connect on gid:%s cid:%s", gID, cID)
 	}
 	return nil
 }
