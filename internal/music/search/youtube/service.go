@@ -1,4 +1,4 @@
-package search
+package youtube
 
 import (
 	"path/filepath"
@@ -137,10 +137,6 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		return song, nil
 	}
 
-	dl := downloader.Downloader{
-		Client:    *y.ytdl,
-		OutputDir: y.config.OutputDir,
-	}
 	url := song.URL
 	videoInfo, err := y.ytdl.GetVideo(url)
 	if err != nil {
@@ -156,6 +152,12 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		format := formats[len(formats)-1]
 		fileName := videoInfo.ID + videoFormat
 		song.StreamURL = filepath.Join(y.config.OutputDir, fileName)
+		dl := Downloader{
+			logger: ctx.LoggerFromContext(),
+			Downloader: downloader.Downloader{
+				Client:    *y.ytdl,
+				OutputDir: y.config.OutputDir},
+		}
 		err := dl.Download(ctx, videoInfo, &format, fileName)
 		if err != nil {
 			return nil, err

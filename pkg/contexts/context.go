@@ -12,6 +12,7 @@ const (
 	loggerKey key = "loggerKey"
 )
 
+// Context TODO write normal context logger
 type Context struct {
 	context.Context
 }

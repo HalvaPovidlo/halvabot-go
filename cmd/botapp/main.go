@@ -24,7 +24,7 @@ import (
 	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/search"
+	ytsearch "github.com/HalvaPovidlo/discordBotGo/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/storage/firestore"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	dpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
@@ -72,7 +72,7 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "youtube init failed"))
 	}
-	ytClient := search.NewYouTubeClient(
+	ytClient := ytsearch.NewYouTubeClient(
 		&ytdl.Client{
 			Debug:      cfg.General.Debug,
 			HTTPClient: http.DefaultClient,

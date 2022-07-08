@@ -36,9 +36,7 @@ func (m *MockPlayer) Play(ctx contexts.Context, query, userID, guildID, channelI
 	return song, 11, nil
 }
 
-func (m *MockPlayer) Skip() {
-
-}
+func (m *MockPlayer) Skip() {}
 
 func (m *MockPlayer) SetLoop(b bool) {
 	m.statusMx.Lock()
