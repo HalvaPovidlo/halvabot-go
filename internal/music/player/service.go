@@ -126,7 +126,7 @@ func (s *Service) RadioStatus() bool {
 }
 
 func (s *Service) handleError(err error) {
-	if errors.Is(err, ErrQueueEmpty) || errors.Is(err, audio.ErrManualStop) || errors.Is(err, io.EOF) {
+	if errors.Is(err, ErrQueueEmpty) {
 		if s.RadioStatus() {
 			err := s.playRandomSong(contexts.Context{Context: contexts.Background()})
 			if err != nil {
@@ -136,8 +136,10 @@ func (s *Service) handleError(err error) {
 		}
 		return
 	}
-	s.setRadio(false)
-	s.logger.Error("error from player ", err)
+	if !errors.Is(err, audio.ErrManualStop) && !errors.Is(err, io.EOF) {
+		s.setRadio(false)
+		s.logger.Error("error from player", err)
+	}
 }
 
 func (s *Service) SubscribeOnErrors(h ErrorHandler) {
