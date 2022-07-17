@@ -13,6 +13,7 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
 )
 
 var ErrNotConnected = errors.New("player not connected")
@@ -224,6 +225,9 @@ func (p *Player) processCommands(ctx context.Context) (chan *command, chan error
 }
 
 func (p *Player) processCommand(c *command, requests chan *audio.SongRequest) error {
+	if c.logger == nil {
+		c.logger = log.NewLogger(false)
+	}
 	c.logger.Info("process command", zap.String("type", c.Type.String()))
 	if c.Type != next {
 		p.isWaited = false

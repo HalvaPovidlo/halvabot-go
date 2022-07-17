@@ -16,6 +16,7 @@ type Item struct {
 
 type CacheKey string
 
+// SongsCache TODO: there is no need in this cache because firestore.client has it's own that can be reused
 type SongsCache struct {
 	sync.Mutex
 	songs map[string]Item
@@ -70,9 +71,6 @@ func (c *SongsCache) expireProcess(ctx context.Context, expirationTime time.Dura
 				now := time.Now()
 				for k, v := range c.songs {
 					if v.updated.Before(now.Add(-expirationTime)) {
-						// If the song has not played before the expirationTime passed, there will be an error because
-						// we will delete it. But since the time is very long, we score we don't really care about such case.
-						_ = os.Remove(v.song.StreamURL)
 						delete(c.songs, k)
 					}
 				}

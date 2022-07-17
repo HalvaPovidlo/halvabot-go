@@ -19,7 +19,7 @@ type shortCache struct {
 }
 
 type Service struct {
-	songs  *SongsCache
+	cache  *SongsCache
 	client *Client
 
 	songsShort   shortCache
@@ -29,7 +29,7 @@ type Service struct {
 
 func NewFirestoreService(ctx context.Context, client *Client, songs *SongsCache) (*Service, error) {
 	f := Service{
-		songs:      songs,
+		cache:      songs,
 		client:     client,
 		songsShort: shortCache{},
 	}
@@ -39,10 +39,10 @@ func NewFirestoreService(ctx context.Context, client *Client, songs *SongsCache)
 }
 
 func (s *Service) GetSong(ctx context.Context, id pkg.SongID) (*pkg.Song, error) {
-	key := s.songs.KeyFromID(id)
+	key := s.cache.KeyFromID(id)
 	logger := contexts.GetLogger(ctx)
 	logger.Debug("get song from cache", zap.String("id", id.String()))
-	if s, ok := s.songs.Get(key); ok {
+	if s, ok := s.cache.Get(key); ok {
 		return s, nil
 	}
 
@@ -56,7 +56,7 @@ func (s *Service) GetSong(ctx context.Context, id pkg.SongID) (*pkg.Song, error)
 		return nil, errors.Wrapf(err, "get song by id %s", id)
 	}
 	logger.Debug("set song to cache", zap.String("id", id.String()))
-	s.songs.Set(key, song)
+	s.cache.Set(key, song)
 	return song, nil
 }
 
@@ -65,7 +65,7 @@ func (s *Service) SetSong(ctx context.Context, song *pkg.Song) error {
 	if err := s.client.SetSong(ctx, song); err != nil {
 		return errors.Wrap(err, "firestore set song")
 	}
-	s.songs.Set(s.songs.KeyFromID(song.ID), song)
+	s.cache.Set(s.cache.KeyFromID(song.ID), song)
 	return nil
 }
 

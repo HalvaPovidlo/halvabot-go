@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	ytdl "github.com/kkdai/youtube/v2"
-	"github.com/kkdai/youtube/v2/downloader"
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
 
@@ -34,13 +33,15 @@ type Config struct {
 type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
+	loader  *Downloader
 	config  Config
 }
 
-func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, config Config) *YouTube {
+func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, loader *Downloader, config Config) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
+		loader:  loader,
 		config:  config,
 	}
 }
@@ -133,12 +134,7 @@ func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.So
 		format := formats[len(formats)-1]
 		fileName := videoInfo.ID + videoFormat
 		song.StreamURL = filepath.Join(y.config.OutputDir, fileName)
-		dl := Downloader{
-			Downloader: downloader.Downloader{
-				Client:    *y.ytdl,
-				OutputDir: y.config.OutputDir},
-		}
-		err := dl.Download(ctx, videoInfo, &format, fileName)
+		err := y.loader.Download(ctx, videoInfo, &format, fileName)
 		if err != nil {
 			return nil, err
 		}

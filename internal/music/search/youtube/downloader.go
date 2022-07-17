@@ -6,39 +6,67 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/kkdai/youtube/v2"
 	"github.com/kkdai/youtube/v2/downloader"
-
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"go.uber.org/zap"
 )
 
-type SongsFilesCache interface {
+type filesCache interface {
 	Add(path string)
 	Remove(path string)
 }
 
 type Downloader struct {
+	loaded filesCache
 	downloader.Downloader
 }
 
+func NewDownloader(client youtube.Client, outputDir string, cache filesCache) *Downloader {
+	return &Downloader{
+		loaded: cache,
+		Downloader: downloader.Downloader{
+			Client:    client,
+			OutputDir: outputDir,
+		},
+	}
+}
+
 func (dl *Downloader) Download(ctx context.Context, v *youtube.Video, format *youtube.Format, outputFile string) error {
-	destFile, err := dl.getOutputFile(outputFile)
+	destinationFile, err := dl.getOutputFile(outputFile)
 	if err != nil {
 		return err
 	}
+	logger := contexts.GetLogger(ctx)
+	dl.loaded.Add(destinationFile)
 
-	out, err := os.Create(destFile)
-	if err != nil {
+	var out *os.File
+	_, err = os.Stat(destinationFile)
+	switch err {
+	case nil:
+		logger.Info("file is already downloaded", zap.String("name", destinationFile))
+		return nil
+	case os.ErrNotExist:
+		out, err = os.Create(destinationFile)
+		if err != nil {
+			dl.loaded.Remove(destinationFile)
+			return err
+		}
+	default:
+		dl.loaded.Remove(destinationFile)
 		return err
 	}
 	defer out.Close()
 
-	contexts.GetLogger(ctx).Info("downloading video",
+	logger.Info("downloading video",
 		zap.String("title", v.Title),
 		zap.String("codec", format.MimeType),
-		zap.String("filename", destFile))
-	return dl.videoDLWorker(ctx, out, v, format)
+		zap.String("filename", destinationFile))
+	if err := dl.videoDLWorker(ctx, out, v, format); err != nil {
+		dl.loaded.Remove(destinationFile)
+		return err
+	}
+	return nil
 }
 
 func (dl *Downloader) getOutputFile(outputFile string) (string, error) {

@@ -20,8 +20,13 @@ type SongRequest struct {
 	URI   string
 }
 
+type filesCache interface {
+	Remove(path string)
+}
+
 type Player struct {
 	Options *dca.EncodeOptions `json:"encodingOptions"`
+	files   filesCache
 	done    chan error
 
 	isPlayingLock sync.Mutex
@@ -31,9 +36,10 @@ type Player struct {
 	stats     pkg.SessionStats
 }
 
-func NewPlayer(options *dca.EncodeOptions) *Player {
+func NewPlayer(files filesCache, options *dca.EncodeOptions) *Player {
 	return &Player{
 		Options: options,
+		files:   files,
 		done:    make(chan error),
 	}
 }
@@ -44,6 +50,7 @@ func (p *Player) Process(requests <-chan *SongRequest) <-chan error {
 		defer close(out)
 		for req := range requests {
 			err := p.play(req.Voice, req.URI)
+			p.files.Remove(req.URI) // this is might be bad if stream option is enabled
 			out <- err
 		}
 	}()
