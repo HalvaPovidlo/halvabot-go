@@ -12,11 +12,13 @@
 *.out
 
 # IDE
+.DS_Store
 .idea
 
 # Secrets
 secret_config.json
 halvabot-*.json
+yandex_cloud*
 
 vendor/
 www/
