@@ -1,12 +1,12 @@
 package firestore
 
 import (
+	"context"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 type Item struct {
@@ -21,7 +21,7 @@ type SongsCache struct {
 	songs map[string]Item
 }
 
-func NewSongsCache(ctx contexts.Context, expirationTime time.Duration) *SongsCache {
+func NewSongsCache(ctx context.Context, expirationTime time.Duration) *SongsCache {
 	c := &SongsCache{
 		songs: make(map[string]Item),
 	}
@@ -57,7 +57,7 @@ func (c *SongsCache) KeyFromID(s pkg.SongID) string {
 	return s.String()
 }
 
-func (c *SongsCache) expireProcess(ctx contexts.Context, expirationTime time.Duration) {
+func (c *SongsCache) expireProcess(ctx context.Context, expirationTime time.Duration) {
 	ticker := time.NewTicker(expirationTime)
 	go func() {
 		defer ticker.Stop()

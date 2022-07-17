@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
@@ -28,7 +31,7 @@ import (
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/storage/firestore"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	dpkg "github.com/HalvaPovidlo/discordBotGo/pkg/discord"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
 )
 
 // @title           HalvaBot for Discord
@@ -46,8 +49,9 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "config read failed"))
 	}
-	logger := zap.NewLogger(cfg.General.Debug)
-	ctx, cancel := contexts.WithLogger(contexts.Background(), logger)
+	logger := log.NewLogger(cfg.General.Debug)
+	ctx := contexts.WithLogger(context.Background(), logger)
+	ctx, cancel := context.WithCancel(ctx)
 
 	// Initialize discord session
 	session, err := dpkg.OpenSession(cfg.Discord.Token, cfg.General.Debug, logger)
@@ -57,9 +61,9 @@ func main() {
 	defer func() {
 		err = session.Close()
 		if err != nil {
-			logger.Error(errors.Wrap(err, "close session"))
+			logger.Error("close session", zap.Error(err))
 		} else {
-			logger.Infow("Bot session closed")
+			logger.Info("Bot session closed")
 		}
 	}()
 
@@ -78,7 +82,6 @@ func main() {
 			HTTPClient: http.DefaultClient,
 		},
 		ytService,
-		songsCache,
 		cfg.Youtube,
 	)
 
@@ -94,16 +97,16 @@ func main() {
 
 	// Music stage
 	voiceClient := audio.NewVoiceClient(session)
-	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions, logger)
-	musicPlayer := player.NewMusicService(ctx, fireService, ytClient, voiceClient, rawAudioPlayer, logger)
+	rawAudioPlayer := audio.NewPlayer(&cfg.Discord.Voice.EncodeOptions)
+	musicPlayer := player.NewMusicService(ctx, fireService, ytClient, voiceClient, rawAudioPlayer)
 
 	// Chess
 	lichessClient := lichess.NewClient()
 
 	// Discord commands
-	musicCog := dapi.NewCog(ctx, musicPlayer, cfg.Discord.Prefix, logger, cfg.Discord.API)
-	musicCog.RegisterCommands(session, cfg.General.Debug, logger)
-	chessCog := capi.NewCog(ctx, cfg.Discord.Prefix, lichessClient, logger)
+	musicCog := dapi.NewCog(musicPlayer, cfg.Discord.Prefix, cfg.Discord.API)
+	musicCog.RegisterCommands(ctx, session, cfg.General.Debug, logger)
+	chessCog := capi.NewCog(cfg.Discord.Prefix, lichessClient)
 	chessCog.RegisterCommands(session, cfg.General.Debug, logger)
 
 	// Http routers
@@ -115,22 +118,27 @@ func main() {
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	apiRouter := v1.NewAPI(router.Group("/api/v1")).Router()
-	musicrest.NewHandler(musicPlayer, apiRouter).Router()
+	musicrest.NewHandler(musicPlayer, apiRouter, logger).Router()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":" + cfg.Host.Bot)
 		if err != nil {
-			logger.Error(err)
+			logger.Error("run router", zap.Error(err))
 			return
 		}
 	}()
 
-	// TODO: Graceful shutdown
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 	cancel()
+	if err := os.RemoveAll("/" + cfg.Youtube.OutputDir + "/"); err != nil {
+		logger.Error(err.Error())
+	}
+	if err := os.MkdirAll("/"+cfg.Youtube.OutputDir+"/", fs.ModeDir); err != nil {
+		logger.Error(err.Error())
+	}
 
-	logger.Infow("Graceful shutdown")
+	logger.Info("Graceful shutdown")
 	_ = logger.Sync()
 }

@@ -8,6 +8,7 @@ import (
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
@@ -35,7 +36,7 @@ type Client struct {
 
 var ErrNotFound = errors.New("no docs found")
 
-func NewFirestoreClient(ctx contexts.Context, creds string, debug bool) (*Client, error) {
+func NewFirestoreClient(ctx context.Context, creds string, debug bool) (*Client, error) {
 	sa := option.WithCredentialsFile(creds)
 	app, err := firebase.NewApp(ctx, nil, sa)
 	if err != nil {
@@ -56,7 +57,7 @@ func NewFirestoreClient(ctx contexts.Context, creds string, debug bool) (*Client
 	return client, nil
 }
 
-func (c *Client) GetSongByID(ctx contexts.Context, id pkg.SongID) (*pkg.Song, error) {
+func (c *Client) GetSongByID(ctx context.Context, id pkg.SongID) (*pkg.Song, error) {
 	doc, err := c.Collection(songsCollection).Doc(id.String()).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -72,7 +73,7 @@ func (c *Client) GetSongByID(ctx contexts.Context, id pkg.SongID) (*pkg.Song, er
 	return &s, nil
 }
 
-func (c *Client) SetSong(ctx contexts.Context, song *pkg.Song) error {
+func (c *Client) SetSong(ctx context.Context, song *pkg.Song) error {
 	if c.debug {
 		return nil
 	}
@@ -82,11 +83,11 @@ func (c *Client) SetSong(ctx contexts.Context, song *pkg.Song) error {
 	return nil
 }
 
-func (c *Client) SetSongForced(ctx contexts.Context, song *pkg.Song) error {
+func (c *Client) SetSongForced(ctx context.Context, song *pkg.Song) error {
 	if c.debug {
 		return nil
 	}
-	ctx.LoggerFromContext().Infof("DB: SetSongForced %s", song.ID)
+	contexts.GetLogger(ctx).Info("set song forced", zap.String("id", song.ID.String()))
 	_, err := c.Collection(songsCollection).Doc(song.ID.String()).Set(ctx, song)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set %s from %s", song.ID.String(), songsCollection)
@@ -94,8 +95,8 @@ func (c *Client) SetSongForced(ctx contexts.Context, song *pkg.Song) error {
 	return nil
 }
 
-func (c *Client) GetUserSong(ctx contexts.Context, id pkg.SongID, user string) (*pkg.Song, error) {
-	ctx.LoggerFromContext().Infof("DB: GetUserSong id:%s user:%s", id, user)
+func (c *Client) GetUserSong(ctx context.Context, id pkg.SongID, user string) (*pkg.Song, error) {
+	contexts.GetLogger(ctx).Info("get user song", zap.String("id", id.String()), zap.String("user", user))
 	doc, err := c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(id.String()).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -111,7 +112,7 @@ func (c *Client) GetUserSong(ctx contexts.Context, id pkg.SongID, user string) (
 	return &s, nil
 }
 
-func (c *Client) SetUserSong(ctx contexts.Context, song *pkg.Song, user string) error {
+func (c *Client) SetUserSong(ctx context.Context, song *pkg.Song, user string) error {
 	if c.debug {
 		return nil
 	}
@@ -124,11 +125,11 @@ func (c *Client) SetUserSong(ctx contexts.Context, song *pkg.Song, user string) 
 	return nil
 }
 
-func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
+func (c *Client) GetAllSongsID(ctx context.Context) ([]pkg.SongID, error) {
 	if c.debug {
 		return nil, nil
 	}
-	ctx.LoggerFromContext().Info("DB: GetAllSongsID")
+	contexts.GetLogger(ctx).Info("get all songs")
 	iter := c.Collection(songsCollection).Documents(ctx)
 	res := make([]pkg.SongID, 0, approximateSongsNumber)
 	for {
@@ -154,8 +155,8 @@ func (c *Client) GetAllSongsID(ctx contexts.Context) ([]pkg.SongID, error) {
 
 // UpsertSongIncPlaybacks We don't use it because our cash of songs is always consistent
 // As we have only one writer to the song db - this bot
-func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (int, error) {
-	ctx.LoggerFromContext().Infof("DB: UpsertSongIncPlaybacks %s", new.ID)
+func (c *Client) UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (int, error) {
+	contexts.GetLogger(ctx).Info("upsert song and increment playbacks", zap.String("id", new.ID.String()))
 	ref := c.Collection(songsCollection).Doc(new.ID.String())
 	playbacks := 0
 	err := c.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -178,7 +179,7 @@ func (c *Client) UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (in
 	return playbacks, nil
 }
 
-func (c *Client) updateSongs(ctx contexts.Context) {
+func (c *Client) updateSongs(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 30)
 	go func() {
 		defer ticker.Stop()
@@ -196,10 +197,10 @@ func (c *Client) updateSongs(ctx contexts.Context) {
 					delete(c.songs, k)
 				}
 				c.updateMx.Unlock()
-				ctx.LoggerFromContext().Infof("DB: updating songs %d", len(toSend))
+				contexts.GetLogger(ctx).Info("updating songs", zap.Int("number", len(toSend)))
 				err := c.WriteBatch(ctx, toSend)
 				if err != nil {
-					ctx.LoggerFromContext().Error(err, "DB: unable to update songs")
+					contexts.GetLogger(ctx).Error("unable to update songs", zap.Error(err))
 				}
 			case <-ctx.Done():
 				return
@@ -208,7 +209,7 @@ func (c *Client) updateSongs(ctx contexts.Context) {
 	}()
 }
 
-func (c *Client) updateUserSongs(ctx contexts.Context) {
+func (c *Client) updateUserSongs(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	go func() {
 		defer ticker.Stop()
@@ -228,11 +229,16 @@ func (c *Client) updateUserSongs(ctx contexts.Context) {
 				c.updateMx.Unlock()
 				go func() {
 					for user, songs := range toSend {
-						ctx.LoggerFromContext().Infof("DB: updateUserSongs user:%s songs:%d", user, len(songs))
+						contexts.GetLogger(ctx).Info("update user songs",
+							zap.String("user", user),
+							zap.Int("songs", len(songs)))
 						for i := range songs {
 							_, err := c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(songs[i].ID.String()).Set(ctx, songs[i])
 							if err != nil {
-								ctx.LoggerFromContext().Error("DB: while updating User:", user, len(songs), "Song:", songs[i], "Error", err)
+								contexts.GetLogger(ctx).Error("update user song",
+									zap.String("user", user),
+									zap.String("song", songs[i].ID.String()),
+									zap.Error(err))
 							}
 						}
 					}
@@ -244,7 +250,7 @@ func (c *Client) updateUserSongs(ctx contexts.Context) {
 	}()
 }
 
-func (c *Client) WriteBatch(ctx contexts.Context, songs []*pkg.Song) error {
+func (c *Client) WriteBatch(ctx context.Context, songs []*pkg.Song) error {
 	size := len(songs)
 	for i := 0; i < size; i += batchSize {
 		k := i + batchSize
@@ -259,7 +265,7 @@ func (c *Client) WriteBatch(ctx contexts.Context, songs []*pkg.Song) error {
 	return nil
 }
 
-func (c *Client) doBatch(ctx contexts.Context, songs []*pkg.Song) error {
+func (c *Client) doBatch(ctx context.Context, songs []*pkg.Song) error {
 	batch := c.Batch()
 	for s := range songs {
 		batch.Set(c.Collection(songsCollection).Doc(songs[s].ID.String()), songs[s])

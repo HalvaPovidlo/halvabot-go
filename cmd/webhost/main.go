@@ -6,9 +6,10 @@ import (
 	"syscall"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
 )
 
 const (
@@ -23,7 +24,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	logger := zap.NewLogger(cfg.General.Debug)
+	logger := log.NewLogger(cfg.General.Debug)
 	if !cfg.General.Debug {
 		gin.SetMode(gin.ReleaseMode)
 		gin.DisableConsoleColor()
@@ -48,7 +49,7 @@ func main() {
 	go func() {
 		err := router.Run(":" + cfg.Host.Web)
 		if err != nil {
-			logger.Error(err)
+			logger.Error("run router", zap.Error(err))
 			return
 		}
 	}()
@@ -57,7 +58,7 @@ func main() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	logger.Infow("Graceful shutdown")
+	logger.Info("Graceful shutdown")
 	_ = logger.Sync()
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 var (
@@ -23,7 +22,6 @@ type SongRequest struct {
 
 type Player struct {
 	Options *dca.EncodeOptions `json:"encodingOptions"`
-	logger  zap.Logger
 	done    chan error
 
 	isPlayingLock sync.Mutex
@@ -33,10 +31,9 @@ type Player struct {
 	stats     pkg.SessionStats
 }
 
-func NewPlayer(options *dca.EncodeOptions, logger zap.Logger) *Player {
+func NewPlayer(options *dca.EncodeOptions) *Player {
 	return &Player{
 		Options: options,
-		logger:  logger,
 		done:    make(chan error),
 	}
 }
@@ -46,10 +43,7 @@ func (p *Player) Process(requests <-chan *SongRequest) <-chan error {
 	go func() {
 		defer close(out)
 		for req := range requests {
-			p.logger.Debugf("get req")
-			p.logger.Debugf("play %s", req.URI)
 			err := p.play(req.Voice, req.URI)
-			p.logger.Debugf("stop playing %s", err)
 			out <- err
 		}
 	}()

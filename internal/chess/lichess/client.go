@@ -1,6 +1,7 @@
 package lichess
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -22,10 +23,10 @@ func NewClient() *Client {
 	return &Client{}
 }
 
-func (c *Client) StartOpenGame() (*OpenGameResponse, error) {
+func (c *Client) StartOpenGame(ctx context.Context) (*OpenGameResponse, error) {
 	reqBody := url.Values{}
 	reqBody.Set("name", "Halva vs. Povidlo Brawl")
-	req, err := http.NewRequest(http.MethodPost, lichessOpenGameURL, strings.NewReader(reqBody.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, lichessOpenGameURL, strings.NewReader(reqBody.Encode()))
 	if err != nil {
 		return nil, errors.Wrap(err, "create new post req to lichess")
 	}

@@ -1,15 +1,11 @@
-package zap
+package log
 
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-type Logger struct {
-	*zap.SugaredLogger
-}
-
-func NewLogger(debug bool) Logger {
+func NewLogger(debug bool) *zap.Logger {
 	config := zap.NewDevelopmentConfig()
 	if debug {
 		config.Level.SetLevel(zapcore.DebugLevel)
@@ -19,7 +15,5 @@ func NewLogger(debug bool) Logger {
 		config.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	}
 	zapLogger, _ := config.Build()
-	return Logger{
-		SugaredLogger: zapLogger.Sugar(),
-	}
+	return zapLogger
 }

@@ -1,18 +1,20 @@
 package rest
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 type Player interface {
-	Play(ctx contexts.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error)
-	Skip()
-	SetLoop(b bool)
+	Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error)
+	Skip(ctx context.Context)
+	SetLoop(ctx context.Context, b bool)
 	LoopStatus() bool
-	SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error
+	SetRadio(ctx context.Context, b bool, guildID, channelID string) error
 	RadioStatus() bool
 	NowPlaying() *pkg.Song
 	SongStatus() pkg.SessionStats
@@ -23,9 +25,10 @@ type Player interface {
 type Handler struct {
 	player Player
 	super  *gin.RouterGroup
+	logger *zap.Logger
 }
 
-func NewHandler(player Player, superGroup *gin.RouterGroup) *Handler {
+func NewHandler(player Player, superGroup *gin.RouterGroup, logger *zap.Logger) *Handler {
 	return &Handler{
 		player: player,
 		super:  superGroup,

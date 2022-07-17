@@ -9,13 +9,14 @@ import (
 	"github.com/pkg/errors"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
 	"github.com/HalvaPovidlo/discordBotGo/docs"
 	v1 "github.com/HalvaPovidlo/discordBotGo/internal/api/v1"
 	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
 )
 
 // @title           HalvaBot mock for testing
@@ -32,7 +33,7 @@ func main() {
 	if err != nil {
 		panic(errors.Wrap(err, "config read failed"))
 	}
-	logger := zap.NewLogger(cfg.General.Debug)
+	logger := log.NewLogger(cfg.General.Debug)
 
 	mock := &player.MockPlayer{}
 
@@ -46,12 +47,12 @@ func main() {
 	docs.SwaggerInfo.BasePath = "/api/v1"
 
 	apiRouter := v1.NewAPI(router.Group("/api/v1")).Router()
-	musicrest.NewHandler(mock, apiRouter).Router()
+	musicrest.NewHandler(mock, apiRouter, logger).Router()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":" + cfg.Host.Mock)
 		if err != nil {
-			logger.Error(err)
+			logger.Error("run router", zap.Error(err))
 			return
 		}
 	}()
@@ -60,6 +61,6 @@ func main() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	logger.Infow("Graceful shutdown")
+	logger.Info("Graceful shutdown")
 	_ = logger.Sync()
 }

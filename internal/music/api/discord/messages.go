@@ -1,13 +1,16 @@
 package discord
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
 
 	dg "github.com/bwmarrin/discordgo"
+	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
 )
 
@@ -28,59 +31,59 @@ const (
 	infoLevel
 )
 
-func (s *Service) sendComplexMessage(session *dg.Session, channelID string, msg *dg.MessageSend, level int) {
+func (s *Service) sendComplexMessage(ctx context.Context, session *dg.Session, channelID string, msg *dg.MessageSend, level int) {
 	if s.toDelete(channelID, level) {
 		return
 	}
 	go func() {
 		_, err := session.ChannelMessageSendComplex(channelID, msg)
 		if err != nil {
-			s.logger.Errorw("sending message",
-				"channel", channelID,
-				"msg", msg,
-				"err", err)
+			contexts.GetLogger(ctx).Error("sending message",
+				zap.String("channel", channelID),
+				zap.String("msg", msg.Content),
+				zap.Error(err))
 		}
 	}()
 }
 
-func (s *Service) sendSearchingMessage(ds *dg.Session, m *dg.MessageCreate) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageSearching), statusLevel)
+func (s *Service) sendSearchingMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageSearching), statusLevel)
 }
 
-func (s *Service) sendFoundMessage(ds *dg.Session, m *dg.MessageCreate, artist, title string, playbacks int) {
+func (s *Service) sendFoundMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, artist, title string, playbacks int) {
 	msg := fmt.Sprintf("%s `%s - %s` %s", messageFound, artist, title, intToEmoji(playbacks))
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), statusLevel)
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(msg), statusLevel)
 }
 
-func (s *Service) sendNotFoundMessage(ds *dg.Session, m *dg.MessageCreate) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageNotFound), statusLevel)
+func (s *Service) sendNotFoundMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageNotFound), statusLevel)
 }
 
-func (s *Service) sendAgeRestrictionMessage(ds *dg.Session, m *dg.MessageCreate) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageAgeRestriction), statusLevel)
+func (s *Service) sendAgeRestrictionMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageAgeRestriction), statusLevel)
 }
 
-func (s *Service) sendLoopMessage(ds *dg.Session, m *dg.MessageCreate, enabled bool) {
+func (s *Service) sendLoopMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, enabled bool) {
 	if enabled {
-		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageLoopEnabled), statusLevel)
+		s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageLoopEnabled), statusLevel)
 	} else {
-		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageLoopDisabled), statusLevel)
+		s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageLoopDisabled), statusLevel)
 	}
 }
 
-func (s *Service) sendRadioMessage(ds *dg.Session, m *dg.MessageCreate, enabled bool) {
+func (s *Service) sendRadioMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, enabled bool) {
 	if enabled {
-		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageRadioEnabled), statusLevel)
+		s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageRadioEnabled), statusLevel)
 	} else {
-		s.sendComplexMessage(ds, m.ChannelID, strmsg(messageRadioDisabled), statusLevel)
+		s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageRadioDisabled), statusLevel)
 	}
 }
 
-func (s *Service) sendNotInVoiceWarning(ds *dg.Session, m *dg.MessageCreate) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(messageNotVoiceChannel), statusLevel)
+func (s *Service) sendNotInVoiceWarning(ctx context.Context, ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageNotVoiceChannel), statusLevel)
 }
 
-func (s *Service) sendNowPlayingMessage(ds *dg.Session, m *dg.MessageCreate, song *pkg.Song, pos float64) {
+func (s *Service) sendNowPlayingMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, song *pkg.Song, pos float64) {
 	msg := &dg.MessageSend{
 		Embeds: []*dg.MessageEmbed{
 			{
@@ -115,10 +118,10 @@ func (s *Service) sendNowPlayingMessage(ds *dg.Session, m *dg.MessageCreate, son
 			},
 		},
 	}
-	s.sendComplexMessage(ds, m.ChannelID, msg, infoLevel)
+	s.sendComplexMessage(ctx, ds, m.ChannelID, msg, infoLevel)
 }
 
-func (s *Service) sendRandomMessage(ds *dg.Session, m *dg.MessageCreate, songs []*pkg.Song) {
+func (s *Service) sendRandomMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, songs []*pkg.Song) {
 	msg := ""
 	for _, song := range songs {
 		if song.ArtistName != "" {
@@ -127,11 +130,11 @@ func (s *Service) sendRandomMessage(ds *dg.Session, m *dg.MessageCreate, songs [
 			msg += fmt.Sprintf("`%s%s`\n", s.prefix+play, song.Title)
 		}
 	}
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(msg), infoLevel)
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(msg), infoLevel)
 }
 
-func (s *Service) sendInternalErrorMessage(ds *dg.Session, m *dg.MessageCreate, level int) {
-	s.sendComplexMessage(ds, m.ChannelID, strmsg(discord.MessageInternalError), level)
+func (s *Service) sendInternalErrorMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, level int) {
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(discord.MessageInternalError), level)
 }
 
 // func (s *Service) sendStringMessage(ds *dg.Session, m *dg.MessageCreate, msg string, level int) {

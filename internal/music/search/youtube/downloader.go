@@ -9,16 +9,20 @@ import (
 	"github.com/kkdai/youtube/v2"
 	"github.com/kkdai/youtube/v2/downloader"
 
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
+	"go.uber.org/zap"
 )
 
+type SongsFilesCache interface {
+	Add(path string)
+	Remove(path string)
+}
+
 type Downloader struct {
-	logger zap.Logger
 	downloader.Downloader
 }
 
 func (dl *Downloader) Download(ctx context.Context, v *youtube.Video, format *youtube.Format, outputFile string) error {
-	dl.logger.Infof("Video '%s'- Codec '%s'", v.Title, format.MimeType)
 	destFile, err := dl.getOutputFile(outputFile)
 	if err != nil {
 		return err
@@ -30,7 +34,10 @@ func (dl *Downloader) Download(ctx context.Context, v *youtube.Video, format *yo
 	}
 	defer out.Close()
 
-	dl.logger.Infof("Download to file=%s", destFile)
+	contexts.GetLogger(ctx).Info("downloading video",
+		zap.String("title", v.Title),
+		zap.String("codec", format.MimeType),
+		zap.String("filename", destFile))
 	return dl.videoDLWorker(ctx, out, v, format)
 }
 

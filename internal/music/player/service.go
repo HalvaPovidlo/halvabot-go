@@ -1,27 +1,28 @@
 package player
 
 import (
+	"context"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 type Firestore interface {
-	UpsertSongIncPlaybacks(ctx contexts.Context, new *pkg.Song) (int, error)
-	IncrementUserRequests(ctx contexts.Context, song *pkg.Song, userID string)
-	GetRandomSongs(ctx contexts.Context, n int) ([]*pkg.Song, error)
+	UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (int, error)
+	IncrementUserRequests(ctx context.Context, song *pkg.Song, userID string)
+	GetRandomSongs(ctx context.Context, n int) ([]*pkg.Song, error)
 }
 
 type YouTube interface {
-	FindSong(ctx contexts.Context, query string) (*pkg.Song, error)
-	EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.Song, error)
+	FindSong(ctx context.Context, query string) (*pkg.Song, error)
+	EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.Song, error)
 }
 
 type Service struct {
@@ -31,33 +32,31 @@ type Service struct {
 
 	radioMutex sync.Mutex
 	isRadio    bool
-	logger     zap.Logger
 }
 
-func NewMusicService(ctx contexts.Context, storage Firestore, youtube YouTube, voice VoiceClient, audio MediaPlayer, logger zap.Logger) *Service {
+func NewMusicService(ctx context.Context, storage Firestore, youtube YouTube, voice VoiceClient, audio MediaPlayer) *Service {
 	s := &Service{
-		Player:  NewPlayer(ctx, voice, audio, logger),
+		Player:  NewPlayer(ctx, voice, audio),
 		storage: storage,
 		youtube: youtube,
-		logger:  logger,
 	}
 	s.Player.SubscribeOnErrors(s.handleError)
 	return s
 }
 
-func (s *Service) Play(ctx contexts.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
+func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
 	if !s.Player.voice.IsConnected() && (channelID == "" || guildID == "") {
 		return nil, 0, ErrNotConnected
 	}
 
-	s.logger.Debug("Finding song")
+	contexts.GetLogger(ctx).Info("finding song")
 	song, err := s.youtube.FindSong(ctx, query)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "find and load song from youtube")
 	}
 
 	if channelID != "" || guildID != "" {
-		s.Connect(guildID, channelID)
+		s.Connect(ctx, guildID, channelID)
 	}
 
 	song.LastPlay = pkg.PlayDate{Time: time.Now()}
@@ -70,15 +69,15 @@ func (s *Service) Play(ctx contexts.Context, query, userID, guildID, channelID s
 		s.storage.IncrementUserRequests(ctx, song, userID)
 	}
 
-	go s.Player.Play(song)
+	go s.Player.Play(ctx, song)
 	return song, playbacks, err
 }
 
-func (s *Service) Random(ctx contexts.Context, n int) ([]*pkg.Song, error) {
+func (s *Service) Random(ctx context.Context, n int) ([]*pkg.Song, error) {
 	return s.storage.GetRandomSongs(ctx, n)
 }
 
-func (s *Service) SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error {
+func (s *Service) SetRadio(ctx context.Context, b bool, guildID, channelID string) error {
 	s.setRadio(b)
 	if !b {
 		return nil
@@ -87,7 +86,7 @@ func (s *Service) SetRadio(ctx contexts.Context, b bool, guildID, channelID stri
 		if guildID == "" || channelID == "" {
 			return ErrNotConnected
 		}
-		s.Player.Connect(guildID, channelID)
+		s.Player.Connect(ctx, guildID, channelID)
 	}
 	if s.NowPlaying() == nil {
 		return s.playRandomSong(ctx)
@@ -101,7 +100,7 @@ func (s *Service) setRadio(b bool) {
 	s.radioMutex.Unlock()
 }
 
-func (s *Service) playRandomSong(ctx contexts.Context) error {
+func (s *Service) playRandomSong(ctx context.Context) error {
 	songs, err := s.storage.GetRandomSongs(ctx, 1)
 	if err != nil {
 		return errors.Wrap(err, "get 1 random song from bd")
@@ -110,11 +109,11 @@ func (s *Service) playRandomSong(ctx contexts.Context) error {
 	if song.StreamURL == "" {
 		song, err = s.youtube.EnsureStreamInfo(ctx, song)
 		if err != nil {
-			s.logger.Error(errors.Wrap(err, "ensure stream info for radio"))
+			contexts.GetLogger(ctx).Error("ensure stream info for radio", zap.Error(err))
 			return s.playRandomSong(ctx)
 		}
 	}
-	s.Player.Play(song)
+	s.Player.Play(ctx, song)
 	return nil
 }
 
@@ -128,9 +127,8 @@ func (s *Service) RadioStatus() bool {
 func (s *Service) handleError(err error) {
 	if errors.Is(err, ErrQueueEmpty) {
 		if s.RadioStatus() {
-			err := s.playRandomSong(contexts.Context{Context: contexts.Background()})
+			err := s.playRandomSong(context.Background())
 			if err != nil {
-				s.logger.Error(errors.Wrap(err, "radio failed"))
 				s.setRadio(false)
 			}
 		}
@@ -138,7 +136,6 @@ func (s *Service) handleError(err error) {
 	}
 	if !errors.Is(err, audio.ErrManualStop) && !errors.Is(err, io.EOF) {
 		s.setRadio(false)
-		s.logger.Error("error from player", err)
 	}
 }
 
@@ -151,14 +148,14 @@ func (s *Service) SubscribeOnErrors(h ErrorHandler) {
 	})
 }
 
-func (s *Service) Stop() {
+func (s *Service) Stop(ctx context.Context) {
 	s.setRadio(false)
-	s.Player.Stop()
+	s.Player.Stop(ctx)
 }
 
-func (s *Service) Disconnect() {
+func (s *Service) Disconnect(ctx context.Context) {
 	s.setRadio(false)
-	s.Player.Disconnect()
+	s.Player.Disconnect(ctx)
 }
 
 func (s *Service) Status() pkg.PlayerStatus {

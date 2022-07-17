@@ -1,9 +1,9 @@
 package discord
 
 import (
-	"github.com/bwmarrin/discordgo"
+	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
+	"github.com/bwmarrin/discordgo"
 )
 
 const (
@@ -14,17 +14,16 @@ const (
 	MessageInternalError = ":x: **Internal error** " + MonkaS
 )
 
-func OpenSession(token string, debug bool, logger zap.Logger) (*discordgo.Session, error) {
+func OpenSession(token string, debug bool, logger *zap.Logger) (*discordgo.Session, error) {
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
-		logger.Errorw("error creating Discord session",
-			"err", err)
+		logger.Error("error creating Discord session", zap.Error(err))
 		return nil, err
 	}
-	logger.Infow("Bot initialized")
+	logger.Info("bot initialized")
 
 	// session.AddHandler(func(s *discordgo.Session, r *discordgo.GuildCreate) {
-	//	logger.Infof("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+	//	logger.Infof("logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	//	guilds := s.State.Guilds
 	//	for _, guild := range guilds {
 	//		fmt.Println(guild.ID, len(guild.VoiceStates), guild.Name)
@@ -42,10 +41,10 @@ func OpenSession(token string, debug bool, logger zap.Logger) (*discordgo.Sessio
 	}
 	err = session.Open()
 	if err != nil {
-		logger.Errorw("error opening connection", "err", err)
+		logger.Error("error opening connection", zap.Error(err))
 		return nil, err
 	}
 
-	logger.Infow("Bot session opened", "SessionID", session.State.SessionID)
+	logger.Info("bot session opened", zap.String("SessionID", session.State.SessionID))
 	return session, nil
 }

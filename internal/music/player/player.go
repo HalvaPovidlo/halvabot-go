@@ -1,17 +1,18 @@
 package player
 
 import (
+	"context"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/music/audio"
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
 )
 
 var ErrNotConnected = errors.New("player not connected")
@@ -74,6 +75,7 @@ type command struct {
 	channelID string
 	entry     *pkg.Song
 	loop      bool
+	logger    *zap.Logger
 }
 
 // Player all public methods are concurrent and
@@ -89,15 +91,12 @@ type Player struct {
 	errs          chan error
 	commands      chan *command
 	errorHandlers chan ErrorHandler
-
-	logger zap.Logger
 }
 
-func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, logger zap.Logger) *Player {
+func NewPlayer(ctx context.Context, voice VoiceClient, audio MediaPlayer) *Player {
 	p := Player{
-		logger: logger,
-		voice:  voice,
-		audio:  audio,
+		voice: voice,
+		audio: audio,
 	}
 	p.commands, p.errs = p.processCommands(ctx)
 	p.errorHandlers = p.processErrors(p.errs)
@@ -105,22 +104,25 @@ func NewPlayer(ctx contexts.Context, voice VoiceClient, audio MediaPlayer, logge
 }
 
 // Play next song and enqueue input
-func (p *Player) Play(s *pkg.Song) {
+func (p *Player) Play(ctx context.Context, s *pkg.Song) {
 	p.commands <- &command{
-		Type:  play,
-		entry: s,
+		Type:   play,
+		entry:  s,
+		logger: contexts.GetLogger(ctx),
 	}
 }
 
-func (p *Player) Skip() {
+func (p *Player) Skip(ctx context.Context) {
 	p.commands <- &command{
-		Type: skip,
+		Type:   skip,
+		logger: contexts.GetLogger(ctx),
 	}
 }
 
-func (p *Player) Stop() {
+func (p *Player) Stop(ctx context.Context) {
 	p.commands <- &command{
-		Type: stop,
+		Type:   stop,
+		logger: contexts.GetLogger(ctx),
 	}
 }
 
@@ -128,24 +130,27 @@ func (p *Player) LoopStatus() bool {
 	return p.queue.LoopStatus()
 }
 
-func (p *Player) SetLoop(b bool) {
+func (p *Player) SetLoop(ctx context.Context, b bool) {
 	p.commands <- &command{
-		Type: loop,
-		loop: b,
+		Type:   loop,
+		loop:   b,
+		logger: contexts.GetLogger(ctx),
 	}
 }
 
-func (p *Player) Connect(guildID, channelID string) {
+func (p *Player) Connect(ctx context.Context, guildID, channelID string) {
 	p.commands <- &command{
 		Type:      connect,
 		guildID:   guildID,
 		channelID: channelID,
+		logger:    contexts.GetLogger(ctx),
 	}
 }
 
-func (p *Player) Disconnect() {
+func (p *Player) Disconnect(ctx context.Context) {
 	p.commands <- &command{
-		Type: disconnect,
+		Type:   disconnect,
+		logger: contexts.GetLogger(ctx),
 	}
 }
 
@@ -177,7 +182,7 @@ func (p *Player) SubscribeOnErrors(h ErrorHandler) {
 	p.errorHandlers <- h
 }
 
-func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan error) {
+func (p *Player) processCommands(ctx context.Context) (chan *command, chan error) {
 	requests := make(chan *audio.SongRequest)
 	playerErrors := p.audio.Process(requests)
 	commands := make(chan *command)
@@ -202,6 +207,9 @@ func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan erro
 					}()
 				}
 				if err != nil {
+					if logError(err) {
+						contexts.GetLogger(ctx).Error("audio player", zap.Error(err))
+					}
 					out <- err
 				}
 			case <-ctx.Done():
@@ -215,16 +223,16 @@ func (p *Player) processCommands(ctx contexts.Context) (chan *command, chan erro
 	return commands, out
 }
 
-func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
-	p.logger.Infof("process command %s", c.Type)
+func (p *Player) processCommand(c *command, requests chan *audio.SongRequest) error {
+	c.logger.Info("process command", zap.String("type", c.Type.String()))
 	if c.Type != next {
 		p.isWaited = false
 	}
 	switch c.Type {
 	case play:
-		return p.processPlay(c.entry, out)
+		return p.processPlay(c.entry, requests, c.logger)
 	case next:
-		return p.processNext(out)
+		return p.processNext(requests)
 	case loop:
 		p.queue.SetLoop(c.loop)
 	case skip:
@@ -242,17 +250,17 @@ func (p *Player) processCommand(c *command, out chan *audio.SongRequest) error {
 	return nil
 }
 
-func (p *Player) processPlay(entry *pkg.Song, out chan *audio.SongRequest) error {
+func (p *Player) processPlay(entry *pkg.Song, requests chan *audio.SongRequest, logger *zap.Logger) error {
 	if !p.voice.IsConnected() {
 		return ErrNotConnected
 	}
-	p.logger.Debugf("adding to queue %s", entry.Title)
+	logger.Debug("adding to queue", zap.String("title", entry.Title))
 	p.queue.Add(entry)
 	if !p.audio.IsPlaying() {
 		s := p.queue.Next()
 		p.setNowPlaying(s)
-		p.logger.Debugf("pushing song req")
-		out <- requestFromEntry(s, p.voice.Connection())
+		logger.Debug("pushing song req")
+		requests <- requestFromEntry(s, p.voice.Connection())
 	}
 	return nil
 }
@@ -330,4 +338,8 @@ func (p *Player) tryNextAfterTimeout(d time.Duration) {
 			Type: next,
 		}
 	}()
+}
+
+func logError(err error) bool {
+	return !errors.Is(err, io.EOF) && !errors.Is(err, audio.ErrManualStop) && !errors.Is(err, ErrQueueEmpty)
 }

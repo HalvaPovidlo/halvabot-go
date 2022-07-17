@@ -1,19 +1,20 @@
 package command
 
 import (
+	"context"
 	"strings"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
-	"github.com/google/uuid"
+	"go.uber.org/zap"
 
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/zap"
+	"github.com/bwmarrin/discordgo"
 )
 
 const maxMessageLength = 50
 
-type MessageHandler func(s *discordgo.Session, m *discordgo.MessageCreate)
+type MessageHandler func(ctx context.Context, s *discordgo.Session, m *discordgo.MessageCreate)
 
 type Message struct {
 	handler MessageHandler
@@ -31,7 +32,7 @@ func NewMessageCommand(name string, handler MessageHandler, debug bool) *Message
 }
 
 // RegisterCommand checks is every message starts with Message.Name and is it self-message than runs Message.handler
-func (m *Message) RegisterCommand(s *discordgo.Session, logger zap.Logger) {
+func (m *Message) RegisterCommand(s *discordgo.Session, logger *zap.Logger) {
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.MessageCreate) {
 		if i.Author.ID == s.State.User.ID {
 			return
@@ -43,17 +44,16 @@ func (m *Message) RegisterCommand(s *discordgo.Session, logger zap.Logger) {
 			i.Content = strings.ToLower(i.Content)
 		}
 		if strings.HasPrefix(i.Content, m.Name) {
-			uid := uuid.New()
-			logger.Infow("message command handled",
-				"command", m.Name,
-				"query", i.Content,
-				"traceID", uid)
+			ctx := contexts.WithValues(context.Background(), logger, "")
+			log := contexts.GetLogger(ctx)
+			log.Info("message command handled",
+				zap.String("command", m.Name),
+				zap.String("query", i.Content))
 			start := time.Now()
-			m.handler(s, i)
-			logger.Infow("command executed",
-				"command", m.Name,
-				"traceID", uid,
-				"elapsed", time.Since(start))
+			m.handler(ctx, s, i)
+			log.Info("command executed",
+				zap.String("command", m.Name),
+				zap.Duration("elapsed", time.Since(start)))
 		}
 	})
 }

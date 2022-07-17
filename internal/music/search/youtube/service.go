@@ -1,6 +1,7 @@
 package youtube
 
 import (
+	"context"
 	"path/filepath"
 	"sort"
 
@@ -10,7 +11,6 @@ import (
 	"google.golang.org/api/youtube/v3"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 const (
@@ -21,11 +21,6 @@ const (
 	videoType       = "audio/mp4"
 	maxSearchResult = 10
 )
-
-type SongsCache interface {
-	Get(k string) (*pkg.Song, bool)
-	KeyFromID(s pkg.SongID) string
-}
 
 var (
 	ErrSongNotFound = errors.New("song not found")
@@ -39,15 +34,13 @@ type Config struct {
 type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
-	cache   SongsCache
 	config  Config
 }
 
-func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, cache SongsCache, config Config) *YouTube {
+func NewYouTubeClient(ytdl *ytdl.Client, yt *youtube.Service, config Config) *YouTube {
 	return &YouTube{
 		ytdl:    ytdl,
 		youtube: yt,
-		cache:   cache,
 		config:  config,
 	}
 }
@@ -94,14 +87,13 @@ func getYTDLImages(ts ytdl.Thumbnails) (string, string) {
 	return thumbnails[maxIter].URL, thumbnails[maxIter].URL
 }
 
-func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error) {
+func (y *YouTube) findSong(ctx context.Context, query string) (*pkg.Song, error) {
 	call := y.youtube.Search.List([]string{"id, snippet"}).
 		Q(query).
 		MaxResults(maxSearchResult)
 	call.Context(ctx)
 	response, err := call.Do()
 	if err != nil || response.Items == nil {
-		// TODO: NOT FOUND?
 		return nil, ErrSongNotFound
 	}
 
@@ -126,17 +118,10 @@ func (y *YouTube) findSong(ctx contexts.Context, query string) (*pkg.Song, error
 	return nil, ErrSongNotFound
 }
 
-func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.Song, error) {
-	if s, ok := y.cache.Get(y.cache.KeyFromID(song.ID)); ok {
-		song.StreamURL = s.StreamURL
-		song.Duration = s.Duration
-		return song, nil
-	}
-
-	url := song.URL
-	videoInfo, err := y.ytdl.GetVideo(url)
+func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.Song, error) {
+	videoInfo, err := y.ytdl.GetVideo(song.URL)
 	if err != nil {
-		return nil, errors.Wrapf(err, "loag video metadata by url %s", url)
+		return nil, errors.Wrapf(err, "loag video metadata by url %s", song.URL)
 	}
 	formats := videoInfo.Formats.WithAudioChannels().Type(videoType)
 	if len(formats) == 0 {
@@ -149,7 +134,6 @@ func (y *YouTube) EnsureStreamInfo(ctx contexts.Context, song *pkg.Song) (*pkg.S
 		fileName := videoInfo.ID + videoFormat
 		song.StreamURL = filepath.Join(y.config.OutputDir, fileName)
 		dl := Downloader{
-			logger: ctx.LoggerFromContext(),
 			Downloader: downloader.Downloader{
 				Client:    *y.ytdl,
 				OutputDir: y.config.OutputDir},
@@ -192,7 +176,7 @@ func songFromInfo(v *ytdl.Video) *pkg.Song {
 	}
 }
 
-func (y *YouTube) FindSong(ctx contexts.Context, query string) (*pkg.Song, error) {
+func (y *YouTube) FindSong(ctx context.Context, query string) (*pkg.Song, error) {
 	song, err := y.findSong(ctx, query)
 	if err != nil {
 		return nil, err

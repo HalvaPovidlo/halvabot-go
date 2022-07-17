@@ -1,11 +1,11 @@
 package player
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 type MockPlayer struct {
@@ -14,7 +14,7 @@ type MockPlayer struct {
 	radioStatus bool
 }
 
-func (m *MockPlayer) Play(ctx contexts.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
+func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
 	song := &pkg.Song{
 		Title:        query,
 		URL:          "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -36,9 +36,9 @@ func (m *MockPlayer) Play(ctx contexts.Context, query, userID, guildID, channelI
 	return song, 11, nil
 }
 
-func (m *MockPlayer) Skip() {}
+func (m *MockPlayer) Skip(ctx context.Context) {}
 
-func (m *MockPlayer) SetLoop(b bool) {
+func (m *MockPlayer) SetLoop(ctx context.Context, b bool) {
 	m.statusMx.Lock()
 	m.loopStatus = b
 	m.statusMx.Unlock()
@@ -78,7 +78,7 @@ func (m *MockPlayer) SongStatus() pkg.SessionStats {
 	}
 }
 
-func (m *MockPlayer) SetRadio(ctx contexts.Context, b bool, guildID, channelID string) error {
+func (m *MockPlayer) SetRadio(ctx context.Context, b bool, guildID, channelID string) error {
 	m.statusMx.Lock()
 	m.radioStatus = b
 	m.statusMx.Unlock()

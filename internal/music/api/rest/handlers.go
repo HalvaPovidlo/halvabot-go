@@ -38,8 +38,8 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	song, playbacks, err := h.player.Play(contexts.Context{Context: c}, json.Song, "", "", "")
+	ctx := contexts.WithValues(c, h.logger, "")
+	song, playbacks, err := h.player.Play(ctx, json.Song, "", "", "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{Message: err.Error()})
 	}
@@ -52,7 +52,8 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 // @success  200  string  string
 // @router   /music/skip [get]
 func (h *Handler) skipHandler(c *gin.Context) {
-	h.player.Skip()
+	ctx := contexts.WithValues(c, h.logger, "")
+	h.player.Skip(ctx)
 	c.String(http.StatusOK, "")
 }
 
@@ -164,7 +165,8 @@ func (h *Handler) setRadioHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.player.SetRadio(contexts.Context{Context: c}, json.Enable, "", ""); err != nil {
+	ctx := contexts.WithValues(c, h.logger, "")
+	if err := h.player.SetRadio(ctx, json.Enable, "", ""); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
