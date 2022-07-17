@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 	"github.com/kkdai/youtube/v2"
 	"github.com/kkdai/youtube/v2/downloader"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+
+	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
 )
 
 type filesCache interface {
@@ -46,15 +48,17 @@ func (dl *Downloader) Download(ctx context.Context, v *youtube.Video, format *yo
 	case nil:
 		logger.Info("file is already downloaded", zap.String("name", destinationFile))
 		return nil
-	case os.ErrNotExist:
-		out, err = os.Create(destinationFile)
-		if err != nil {
+	default:
+		if errors.Is(err, os.ErrNotExist) {
+			out, err = os.Create(destinationFile)
+			if err != nil {
+				dl.loaded.Remove(destinationFile)
+				return err
+			}
+		} else {
 			dl.loaded.Remove(destinationFile)
 			return err
 		}
-	default:
-		dl.loaded.Remove(destinationFile)
-		return err
 	}
 	defer out.Close()
 
