@@ -32,6 +32,7 @@ func NewHandler(player Player, superGroup *gin.RouterGroup, logger *zap.Logger) 
 	return &Handler{
 		player: player,
 		super:  superGroup,
+		logger: logger,
 	}
 }
 
