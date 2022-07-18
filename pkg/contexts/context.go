@@ -5,6 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
 )
 
 type contextKey string
@@ -34,7 +36,7 @@ func GetLogger(ctx context.Context) *zap.Logger {
 	if ok && logger != nil {
 		return logger
 	}
-	return nil
+	return log.NewLogger(false).With(zap.String("logger", "default"))
 }
 
 func WithTraceID(parent context.Context, id string) context.Context {

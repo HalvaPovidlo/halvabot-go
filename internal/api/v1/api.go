@@ -19,6 +19,7 @@ func (h *API) Router() *gin.RouterGroup {
 		gin.LoggerWithConfig(gin.LoggerConfig{
 			SkipPaths: []string{
 				"/api/v1/music/now",
+				"/api/v1/music/status",
 				"/api/v1/music/songstatus",
 			},
 		}),

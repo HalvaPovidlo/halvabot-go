@@ -43,6 +43,7 @@ func main() {
 		gin.DisableConsoleColor()
 	}
 	router := gin.Default()
+	router.Use(v1.CORS())
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Mock
 	docs.SwaggerInfo.BasePath = "/api/v1"
 
