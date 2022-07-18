@@ -16,6 +16,7 @@ import (
 
 const (
 	messageSearching       = ":trumpet: **Searching** :mag_right:"
+	messageSkip            = ":fast_forward: Skipped :thumbsup:"
 	messageFound           = "**Song found** :notes:"
 	messageNotFound        = ":x: **Song not found**"
 	messageAgeRestriction  = ":underage: **Song is blocked**"
@@ -48,6 +49,10 @@ func (s *Service) sendComplexMessage(ctx context.Context, session *dg.Session, c
 
 func (s *Service) sendSearchingMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate) {
 	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageSearching), statusLevel)
+}
+
+func (s *Service) sendSkipMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate) {
+	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageSkip), statusLevel)
 }
 
 func (s *Service) sendFoundMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, artist, title string, playbacks int) {

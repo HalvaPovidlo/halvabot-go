@@ -11,7 +11,7 @@ import (
 )
 
 type songQuery struct {
-	Song string `json:"song" binding:"exists"`
+	Song string `json:"song" binding:"required"`
 }
 
 type enableQuery struct {

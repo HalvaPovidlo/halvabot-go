@@ -150,6 +150,7 @@ func (s *Service) playMessageHandler(ctx context.Context, ds *discordgo.Session,
 func (s *Service) skipMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
 	s.deleteMessage(ctx, session, m, statusLevel)
 	s.player.Skip(ctx)
+	s.sendSkipMessage(ctx, session, m)
 }
 
 func (s *Service) loopMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
