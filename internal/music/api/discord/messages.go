@@ -16,7 +16,7 @@ import (
 
 const (
 	messageSearching       = ":trumpet: **Searching** :mag_right:"
-	messageSkip            = ":fast_forward: Skipped :thumbsup:"
+	messageSkip            = ":fast_forward: **Skipped** :thumbsup:"
 	messageFound           = "**Song found** :notes:"
 	messageNotFound        = ":x: **Song not found**"
 	messageAgeRestriction  = ":underage: **Song is blocked**"
