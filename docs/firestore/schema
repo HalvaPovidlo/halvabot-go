@@ -1,0 +1,84 @@
+// https://dbdiagram.io
+Table users {
+  id varchar [pk] // "320309512697413633" - discordID
+  username varchar
+  password varchar
+  songs table
+  films table
+}
+
+Table songs {
+  id varchar [pk] // "youtube_KyEaDcQHirg"
+  artist_name varchar
+  artist_url varchar
+  artwork_url varchar
+  last_play timestamp
+  playbacks int
+  service varchar // "youtube"
+  thumbnail_url varchar
+  title varchar
+  url varchar
+}
+
+
+Table user_songs {
+  id varchar [pk] // "youtube_KyEaDcQHirg"
+  artist_name varchar
+  artist_url varchar
+  artwork_url varchar
+  last_play timestamp
+  playbacks int
+  service varchar
+  thumbnail_url
+  title varchar
+  url varchar
+}
+
+table films {
+  id varchar [pk]
+  title varchar
+  art_url varchar
+  director varchar
+  description varchar
+  duration int
+  series int
+  comments table
+  scores table
+  score int
+}
+
+table user_films {
+  id varchar [pk]
+  title varchar
+  art_url varchar
+  director varchar
+  duration int
+  series int
+  score int
+}
+
+table comments {
+  id varchar [pk]
+  author_id varchar // "320309512697413633" - discordID
+  text varchar
+  time timestamp
+}
+
+table scores {
+  id varchar [pk]
+  user_id varchar // "320309512697413633" - discordID
+  value int
+  time timestamp
+}
+
+Ref: user_songs.id <> songs.id
+Ref: users.songs < user_songs.id
+
+Ref: user_films.id <> films.id
+Ref: users.films < user_films.id
+
+Ref: films.comments < comments.id
+Ref: films.scores < scores.id
+
+Ref: scores.user_id <> users.id
+Ref: comments.author_id <> users.id
