@@ -1,5 +1,5 @@
-# DiscordBotGo
-[![Linter](https://github.com/HalvaPovidlo/discordBotGo/actions/workflows/linter.yml/badge.svg)](https://github.com/HalvaPovidlo/discordBotGo/actions/workflows/linter.yml) [![Test](https://github.com/HalvaPovidlo/discordBotGo/actions/workflows/test.yml/badge.svg)](https://github.com/HalvaPovidlo/discordBotGo/actions/workflows/test.yml)
+# halvabot-go
+[![Linter](https://github.com/HalvaPovidlo/halvabot-go/actions/workflows/linter.yml/badge.svg)](https://github.com/HalvaPovidlo/discordBotGo/actions/workflows/linter.yml) [![Test](https://github.com/HalvaPovidlo/halvabot-go/actions/workflows/test.yml/badge.svg)](https://github.com/HalvaPovidlo/halvabot-go/actions/workflows/test.yml)
 
 ## Enable Discord
 

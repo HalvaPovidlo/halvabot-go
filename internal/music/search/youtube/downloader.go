@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
 type filesCache interface {

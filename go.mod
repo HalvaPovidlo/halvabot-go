@@ -1,4 +1,4 @@
-module github.com/HalvaPovidlo/discordBotGo
+module github.com/HalvaPovidlo/halvabot-go
 
 go 1.17
 

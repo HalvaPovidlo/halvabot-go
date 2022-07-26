@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	phttp "github.com/HalvaPovidlo/discordBotGo/pkg/http"
+	phttp "github.com/HalvaPovidlo/halvabot-go/pkg/http"
 )
 
 const lichessOpenGameURL = "https://lichess.org/api/challenge/open"

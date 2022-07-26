@@ -5,8 +5,8 @@ package rest
 import (
 	"net/http"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/gin-gonic/gin"
 )
 

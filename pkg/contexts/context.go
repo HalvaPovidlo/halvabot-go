@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )
 
 type contextKey string

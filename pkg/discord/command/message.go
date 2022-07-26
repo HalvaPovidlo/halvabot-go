@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 	"github.com/bwmarrin/discordgo"
 )
 

@@ -8,7 +8,7 @@ import (
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 )
 
 var (

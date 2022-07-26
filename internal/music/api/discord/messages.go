@@ -9,9 +9,9 @@ import (
 	dg "github.com/bwmarrin/discordgo"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/discord"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 )
 
 const (

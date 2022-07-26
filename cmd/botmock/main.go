@@ -11,12 +11,12 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
-	"github.com/HalvaPovidlo/discordBotGo/docs"
-	v1 "github.com/HalvaPovidlo/discordBotGo/internal/api/v1"
-	musicrest "github.com/HalvaPovidlo/discordBotGo/internal/music/api/rest"
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/player"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
+	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
+	"github.com/HalvaPovidlo/halvabot-go/docs"
+	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
+	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/music/api/rest"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )
 
 // @title           HalvaBot mock for testing

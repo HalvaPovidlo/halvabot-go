@@ -21,7 +21,7 @@ output:
     sections:
       - standard                       # Captures all standard packages if they do not match another section.
       - default                        # Contains all imports that could not be matched to another section type.
-      - prefix(github.com/HalvaPovidlo/discordBotGo) # Groups all imports with the specified Prefix.
+      - prefix(github.com/HalvaPovidlo/halvabot-go) # Groups all imports with the specified Prefix.
 
     section-separators:
       - newLine

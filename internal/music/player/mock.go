@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 )
 
 type MockPlayer struct {

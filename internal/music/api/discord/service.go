@@ -11,11 +11,11 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/internal/music/search/youtube"
-	"github.com/HalvaPovidlo/discordBotGo/internal/pkg"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/contexts"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/discord/command"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/util"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/discord/command"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/util"
 )
 
 const (

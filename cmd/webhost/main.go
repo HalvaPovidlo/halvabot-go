@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/discordBotGo/cmd/config"
-	"github.com/HalvaPovidlo/discordBotGo/pkg/log"
+	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )
 
 const (
