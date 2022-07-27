@@ -18,6 +18,7 @@ type Config struct {
 	Host    HostConfig     `json:"host"`
 	Discord DiscordConfig  `json:"discord"`
 	Youtube youtube.Config `json:"youtube"`
+	Secret  string         `json:"secret"`
 	// Sheets  SheetsConfig  `json:"sheets"`
 	// VK      VKConfig      `json:"vk"`
 	// Lichess LichessConfig `json:"lichess"`

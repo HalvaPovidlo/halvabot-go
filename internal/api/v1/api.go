@@ -4,18 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type API struct {
-	super *gin.RouterGroup
+type LoginService interface {
+	LoginHandler(c *gin.Context)
 }
 
-func NewAPI(superGroup *gin.RouterGroup) *API {
-	return &API{
-		super: superGroup,
-	}
-}
-
-func (h *API) Router() *gin.RouterGroup {
-	h.super.Use(
+func NewAPIRouter(super *gin.Engine, login LoginService) *gin.RouterGroup {
+	api := super.Group("/api/v1")
+	api.Use(
 		gin.LoggerWithConfig(gin.LoggerConfig{
 			SkipPaths: []string{
 				"/api/v1/music/now",
@@ -26,7 +21,8 @@ func (h *API) Router() *gin.RouterGroup {
 		gin.Recovery(),
 		CORS(),
 	)
-	return h.super
+	api.POST("/login", login.LoginHandler)
+	return api
 }
 
 func CORS() gin.HandlerFunc {

@@ -31,18 +31,21 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	dpkg "github.com/HalvaPovidlo/halvabot-go/pkg/discord"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/http/login"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
+	pfirestore "github.com/HalvaPovidlo/halvabot-go/pkg/storage/firestore"
 )
 
-// @title           HalvaBot for Discord
-// @version         1.0
-// @description     A music discord bot.
+// @title       HalvaBot for Discord
+// @version     1.0
+// @description A music discord bot.
 
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+// @license.name Apache 2.0
+// @license.url  http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:9091
-// @BasePath  /api/v1
+// @host     localhost:9091
+// @BasePath /api/v1
 func main() {
 	// TODO: all magic vars to config
 	cfg, err := config.InitConfig()
@@ -87,9 +90,13 @@ func main() {
 	)
 
 	// Firestore stage
-	fireStorage, err := firestore.NewFirestoreClient(ctx, "halvabot-firebase.json", cfg.General.Debug)
+	fireClient, err := pfirestore.NewFirestoreClient(ctx, "halvabot-firebase.json")
 	if err != nil {
 		logger.Panic("new firestore client", zap.Error(err))
+	}
+	fireStorage, err := firestore.NewFirestoreClient(ctx, fireClient, cfg.General.Debug)
+	if err != nil {
+		logger.Panic("new firestore storage", zap.Error(err))
 	}
 	fireService, err := firestore.NewFirestoreService(ctx, fireStorage, songsCache)
 	if err != nil {
@@ -110,6 +117,9 @@ func main() {
 	chessCog := capi.NewCog(cfg.Discord.Prefix, lichessClient)
 	chessCog.RegisterCommands(session, cfg.General.Debug, logger)
 
+	// Auth stage
+	loginer := login.NewLoginService(login.NewFirebaseAuthenticator(fireClient), jwt.NewJWTokenizer(cfg.Secret))
+
 	// Http routers
 	if !cfg.General.Debug {
 		gin.SetMode(gin.ReleaseMode)
@@ -119,8 +129,8 @@ func main() {
 	router.Use(v1.CORS())
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
 	docs.SwaggerInfo.BasePath = "/api/v1"
-	apiRouter := v1.NewAPI(router.Group("/api/v1")).Router()
-	musicrest.NewHandler(musicPlayer, apiRouter, logger).Router()
+	apiRouter := v1.NewAPIRouter(router, loginer)
+	musicrest.NewHandler(musicPlayer, loginer, apiRouter, logger).Route()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":" + cfg.Host.Bot)

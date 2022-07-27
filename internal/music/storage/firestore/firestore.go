@@ -6,11 +6,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	firebase "firebase.google.com/go"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
@@ -36,25 +34,16 @@ type Client struct {
 
 var ErrNotFound = errors.New("no docs found")
 
-func NewFirestoreClient(ctx context.Context, creds string, debug bool) (*Client, error) {
-	sa := option.WithCredentialsFile(creds)
-	app, err := firebase.NewApp(ctx, nil, sa)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create firebase app")
-	}
-	c, err := app.Firestore(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create firestore client")
-	}
-	client := &Client{
-		Client:    c,
+func NewFirestoreClient(ctx context.Context, client *firestore.Client, debug bool) (*Client, error) {
+	c := &Client{
+		Client:    client,
 		songs:     make(map[string]*pkg.Song),
 		userSongs: make(map[string]map[string]*pkg.Song),
 		debug:     debug,
 	}
-	client.updateSongs(ctx)
-	client.updateUserSongs(ctx)
-	return client, nil
+	c.updateSongs(ctx)
+	c.updateUserSongs(ctx)
+	return c, nil
 }
 
 func (c *Client) GetSongByID(ctx context.Context, id pkg.SongID) (*pkg.Song, error) {

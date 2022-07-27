@@ -20,6 +20,29 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Validates your login and password. Returns JWT.",
+                "parameters": [
+                    {
+                        "description": "Login and password",
+                        "name": "query",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/login.Credentials"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/music/enqueue": {
             "post": {
                 "consumes": [
@@ -28,8 +51,19 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "music",
+                    "JWTAuth"
+                ],
                 "summary": "Play the song from YouTube by name or url",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Song name or url",
                         "name": "query",
@@ -67,6 +101,9 @@ const docTemplate = `{
                 "produces": [
                     "text/plain"
                 ],
+                "tags": [
+                    "music"
+                ],
                 "summary": "Is loop mode enabled",
                 "responses": {
                     "200": {
@@ -83,6 +120,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "music"
+                ],
                 "summary": "Song that is playing now",
                 "responses": {
                     "200": {
@@ -98,6 +138,9 @@ const docTemplate = `{
             "get": {
                 "produces": [
                     "text/plain"
+                ],
+                "tags": [
+                    "music"
                 ],
                 "summary": "Is radio mode enabled",
                 "responses": {
@@ -118,8 +161,19 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "music",
+                    "JWTAuth"
+                ],
                 "summary": "Set loop mode",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Send true to enable and false to disable",
                         "name": "query",
@@ -154,8 +208,19 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "music",
+                    "JWTAuth"
+                ],
                 "summary": "Set radio mode",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Send true to enable and false to disable",
                         "name": "query",
@@ -187,7 +252,20 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "music",
+                    "JWTAuth"
+                ],
                 "summary": "Skip the current song and play next from the queue",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -202,6 +280,9 @@ const docTemplate = `{
             "get": {
                 "produces": [
                     "application/json"
+                ],
+                "tags": [
+                    "music"
                 ],
                 "summary": "SongStatus of player on the current song",
                 "responses": {
@@ -219,6 +300,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "music"
+                ],
                 "summary": "Status of the player",
                 "responses": {
                     "200": {
@@ -235,7 +319,20 @@ const docTemplate = `{
                 "produces": [
                     "text/plain"
                 ],
+                "tags": [
+                    "music",
+                    "JWTAuth"
+                ],
                 "summary": "Skip the current song and play next from the queue",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -248,6 +345,21 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "login.Credentials": {
+            "type": "object",
+            "required": [
+                "login",
+                "password"
+            ],
+            "properties": {
+                "login": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
         "pkg.PlayDate": {
             "type": "object",
             "properties": {
@@ -339,9 +451,6 @@ const docTemplate = `{
         },
         "rest.enableQuery": {
             "type": "object",
-            "required": [
-                "enable"
-            ],
             "properties": {
                 "enable": {
                     "type": "boolean"

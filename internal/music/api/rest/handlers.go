@@ -5,9 +5,10 @@ package rest
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
-	"github.com/gin-gonic/gin"
 )
 
 type songQuery struct {
@@ -24,14 +25,19 @@ type EnqueueResponse struct {
 }
 
 // enqueue godoc
-// @summary  Play the song from YouTube by name or url
-// @accept   json
-// @produce  json
-// @param    query  body      songQuery        true  "Song name or url"
-// @success  200    {object}  EnqueueResponse  "The song that was added to the queue"
-// @failure  400    {object}  Response         "Incorrect input"
-// @failure  500    {object}  Response         "Internal error. This does not necessarily mean that the song will not play. For example, if there is a database error, the song will still be added to the queue."
-// @router   /music/enqueue [post]
+// @summary                    Play the song from YouTube by name or url
+// @securityDefinitions.apiKey JWT
+// @in                         header
+// @name                       Authorization
+// @Tags    music,JWTAuth
+// @accept                     json
+// @produce                    json
+// @param                      Authorization header   string      true "Bearer"
+// @param                      query         body     songQuery       true "Song name or url"
+// @success                    200           {object} EnqueueResponse "The song that was added to the queue"
+// @failure                    400           {object} Response        "Incorrect input"
+// @failure                    500           {object} Response        "Internal error. This does not necessarily mean that the song will not play. For example, if there is a database error, the song will still be added to the queue."
+// @router                     /music/enqueue [post]
 func (h *Handler) enqueueHandler(c *gin.Context) {
 	var json songQuery
 	if err := c.ShouldBindJSON(&json); err != nil {
@@ -47,31 +53,42 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 }
 
 // skip godoc
-// @summary  Skip the current song and play next from the queue
-// @produce  json
-// @success  200  string  string
-// @router   /music/skip [get]
+// @summary                    Skip the current song and play next from the queue
+// @securityDefinitions.apiKey JWT
+// @in                         header
+// @name                       Authorization
+// @Tags    music,JWTAuth
+// @produce                    json
+// @param                      Authorization header string true "Bearer"
+// @success                    200           string string
+// @router                     /music/skip [get]
 func (h *Handler) skipHandler(c *gin.Context) {
 	ctx := contexts.WithValues(c, h.logger, "")
 	h.player.Skip(ctx)
-	c.String(http.StatusOK, "")
+	c.String(http.StatusOK, c.GetString("user_id"))
 }
 
 // stop godoc
-// @summary  Skip the current song and play next from the queue
-// @produce  plain
-// @success  200  string  string
-// @router   /music/stop [get]
+// @summary                    Skip the current song and play next from the queue
+// @securityDefinitions.apiKey JWT
+// @in                         header
+// @name                       Authorization
+// @Tags    music,JWTAuth
+// @produce                    plain
+// @param                      Authorization header string true "Bearer"
+// @success                    200           string string
+// @router                     /music/stop [get]
 func (h *Handler) stopHandler(c *gin.Context) {
 	// h.player.Stop()
 	c.String(http.StatusNotImplemented, "")
 }
 
 // loopStatus godoc
-// @summary  Is loop mode enabled
-// @produce  plain
-// @success  200  string  string  "Returns true or false as string"
-// @router   /music/loopstatus [get]
+// @summary Is loop mode enabled
+// @Tags    music
+// @produce plain
+// @success 200 string string "Returns true or false as string"
+// @router  /music/loopstatus [get]
 func (h *Handler) loopStatusHandler(c *gin.Context) {
 	resp := ""
 	if h.player.LoopStatus() {
@@ -83,13 +100,18 @@ func (h *Handler) loopStatusHandler(c *gin.Context) {
 }
 
 // setLoop godoc
-// @summary  Set loop mode
-// @accept   json
-// @produce  json
-// @param    query  body      enableQuery  true  "Send true to enable and false to disable"
-// @success  200    string    string
-// @failure  400    {object}  Response  "Incorrect input"
-// @router   /music/setloop [post]
+// @summary                    Set loop mode
+// @securityDefinitions.apiKey JWT
+// @in                         header
+// @name                       Authorization
+// @Tags    music,JWTAuth
+// @accept                     json
+// @produce                    json
+// @param                      Authorization header   string      true "Bearer"
+// @param                      query         body     enableQuery true "Send true to enable and false to disable"
+// @success                    200           string   string
+// @failure                    400           {object} Response "Incorrect input"
+// @router                     /music/setloop [post]
 func (h *Handler) setLoopHandler(c *gin.Context) {
 	var json enableQuery
 	if err := c.ShouldBindJSON(&json); err != nil {
@@ -100,20 +122,22 @@ func (h *Handler) setLoopHandler(c *gin.Context) {
 }
 
 // SongStatus godoc
-// @summary  SongStatus of player on the current song
-// @produce  json
-// @success  200  {object}  pkg.SessionStats  "The song that is playing right now"
-// @router   /music/songstatus [get]
+// @summary SongStatus of player on the current song
+// @Tags                       music
+// @produce json
+// @success 200 {object} pkg.SessionStats "The song that is playing right now"
+// @router  /music/songstatus [get]
 func (h *Handler) songStatusHandler(c *gin.Context) {
 	entry := h.player.SongStatus()
 	c.JSON(http.StatusOK, entry)
 }
 
 // Status godoc
-// @summary  Status of the player
-// @produce  json
-// @success  200  {object}  pkg.PlayerStatus  "Status of the player"
-// @router   /music/status [get]
+// @summary Status of the player
+// @Tags                       music
+// @produce json
+// @success 200 {object} pkg.PlayerStatus "Status of the player"
+// @router  /music/status [get]
 func (h *Handler) statusHandler(c *gin.Context) {
 	status := h.player.Status()
 	if status.Now == nil {
@@ -123,10 +147,11 @@ func (h *Handler) statusHandler(c *gin.Context) {
 }
 
 // nowPlaying godoc
-// @summary  Song that is playing now
-// @produce  json
-// @success  200  {object}  pkg.Song  "The song that is playing right now"
-// @router   /music/now [get]
+// @summary Song that is playing now
+// @Tags                       music
+// @produce json
+// @success 200 {object} pkg.Song "The song that is playing right now"
+// @router  /music/now [get]
 func (h *Handler) nowPlayingHandler(c *gin.Context) {
 	entry := h.player.NowPlaying()
 	if entry == nil {
@@ -137,10 +162,11 @@ func (h *Handler) nowPlayingHandler(c *gin.Context) {
 }
 
 // radiostatus godoc
-// @summary  Is radio mode enabled
-// @produce  plain
-// @success  200  string  string  "Returns true or false as string"
-// @router   /music/radiostatus [get]
+// @summary Is radio mode enabled
+// @Tags                       music
+// @produce plain
+// @success 200 string string "Returns true or false as string"
+// @router  /music/radiostatus [get]
 func (h *Handler) radioStatusHandler(c *gin.Context) {
 	resp := ""
 	if h.player.RadioStatus() {
@@ -152,13 +178,18 @@ func (h *Handler) radioStatusHandler(c *gin.Context) {
 }
 
 // setLoop godoc
-// @summary  Set radio mode
-// @accept   json
-// @produce  json
-// @param    query  body      enableQuery  true  "Send true to enable and false to disable"
-// @success  200    string    string
-// @failure  400    {object}  Response  "Incorrect input"
-// @router   /music/setradio [post]
+// @summary                    Set radio mode
+// @securityDefinitions.apiKey JWT
+// @in                         header
+// @name                       Authorization
+// @Tags                       music,JWTAuth
+// @accept                     json
+// @produce                    json
+// @param                      Authorization header   string          true "Bearer"
+// @param                      query         body     enableQuery true "Send true to enable and false to disable"
+// @success                    200           string   string
+// @failure                    400           {object} Response "Incorrect input"
+// @router                     /music/setradio [post]
 func (h *Handler) setRadioHandler(c *gin.Context) {
 	var json enableQuery
 	if err := c.ShouldBindJSON(&json); err != nil {

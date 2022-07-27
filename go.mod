@@ -6,8 +6,8 @@ require (
 	cloud.google.com/go/firestore v1.6.1
 	firebase.google.com/go v3.13.0+incompatible
 	github.com/bwmarrin/discordgo v0.25.0
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.8.1
-	github.com/gocarina/gocsv v0.0.0-20220422102445-f48ffd81e276
 	github.com/google/uuid v1.3.0
 	github.com/khodand/dca v0.0.0-20220506230422-2986c6769dd8
 	github.com/kkdai/youtube/v2 v2.7.12
@@ -16,6 +16,7 @@ require (
 	github.com/swaggo/gin-swagger v1.4.2
 	github.com/swaggo/swag v1.8.1
 	go.uber.org/zap v1.21.0
+	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
 	google.golang.org/api v0.73.0
 	google.golang.org/grpc v1.45.0
 )
@@ -64,7 +65,6 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/net v0.0.0-20220614195744-fb05da6f9022 // indirect
-	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect
 	golang.org/x/sys v0.0.0-20220614162138-6c1b26c55098 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.10 // indirect

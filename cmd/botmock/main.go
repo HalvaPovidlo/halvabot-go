@@ -16,18 +16,20 @@ import (
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
 	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/music/api/rest"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/http/login"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )
 
-// @title           HalvaBot mock for testing
-// @version         1.0
-// @description     A music discord bot.
+// @title       HalvaBot mock for testing
+// @version     1.0
+// @description A music discord bot mock.
 
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+// @license.name Apache 2.0
+// @license.url  http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:9090
-// @BasePath  /api/v1
+// @host     localhost:9090
+// @BasePath /api/v1
 func main() {
 	cfg, err := config.InitConfig()
 	if err != nil {
@@ -36,6 +38,7 @@ func main() {
 	logger := log.NewLogger(cfg.General.Debug)
 
 	mock := &player.MockPlayer{}
+	loginer := login.NewLoginService(login.NewMockAuthenticator(), jwt.NewJWTokenizer("mock_secret"))
 
 	// Http routers
 	if !cfg.General.Debug {
@@ -47,8 +50,8 @@ func main() {
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Mock
 	docs.SwaggerInfo.BasePath = "/api/v1"
 
-	apiRouter := v1.NewAPI(router.Group("/api/v1")).Router()
-	musicrest.NewHandler(mock, apiRouter, logger).Router()
+	apiRouter := v1.NewAPIRouter(router, loginer)
+	musicrest.NewHandler(mock, loginer, apiRouter, logger).Route()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":" + cfg.Host.Mock)
