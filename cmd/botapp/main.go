@@ -18,7 +18,7 @@ import (
 	"google.golang.org/api/youtube/v3"
 
 	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
-	"github.com/HalvaPovidlo/halvabot-go/docs"
+	docs "github.com/HalvaPovidlo/halvabot-go/docs/botapp"
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
 	capi "github.com/HalvaPovidlo/halvabot-go/internal/chess/api/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/chess/lichess"

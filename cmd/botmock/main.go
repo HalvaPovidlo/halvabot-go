@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
-	"github.com/HalvaPovidlo/halvabot-go/docs"
+	docs "github.com/HalvaPovidlo/halvabot-go/docs/botmock"
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
 	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/music/api/rest"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
