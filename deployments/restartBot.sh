@@ -2,7 +2,7 @@
 
 cd $(dirname "$0")
 
-while getopts ":b:m:w" option; do
+while getopts "bmw" option; do
    case $option in
       b) # botapp
          killall botapp
