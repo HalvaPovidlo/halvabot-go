@@ -10,7 +10,6 @@ And join our HPDevelopment team.
 Create file `secret_config.json`
 
 ```json
-
 {
   "general":{
     "debug":true
@@ -32,9 +31,10 @@ Create file `secret_config.json`
     }
   },
   "youtube":{
-    "download":false,
-    "output":""
-  }
+    "download":true,
+    "output":"songfiles"
+  },
+  "secret":"***"
 }
 ```
 Replace `token` with token from Discord Developer Portal.

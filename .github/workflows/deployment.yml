@@ -34,4 +34,4 @@ jobs:
     - name: Deploy
       run: |
         rsync -avze "ssh -o StrictHostKeyChecking=no" deployments/* "$S_NAME":/home/halva/gobot/
-        ssh -o StrictHostKeyChecking=no "$S_NAME" /home/halva/gobot/restartBot.sh
+        ssh -o StrictHostKeyChecking=no "$S_NAME" /home/halva/gobot/restartBot.sh -bm
