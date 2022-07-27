@@ -25,7 +25,6 @@ type authorizer interface {
 	Authorization() gin.HandlerFunc
 }
 
-// Handler TODO: Auth
 type Handler struct {
 	player player
 	auth   authorizer
@@ -51,7 +50,7 @@ func (h *Handler) Route() {
 	music.GET("/now", h.nowPlayingHandler)
 	music.GET("/status", h.statusHandler)
 
-	// Unauthorized endpoints
+	// Authorized endpoints
 	music.Use(h.auth.Authorization())
 	music.POST("/enqueue", h.enqueueHandler)
 	music.GET("/skip", h.skipHandler)

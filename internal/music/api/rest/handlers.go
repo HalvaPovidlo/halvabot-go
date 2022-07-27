@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
@@ -45,7 +46,7 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 		return
 	}
 	ctx := contexts.WithValues(c, h.logger, "")
-	song, playbacks, err := h.player.Play(ctx, json.Song, "", "", "")
+	song, playbacks, err := h.player.Play(ctx, json.Song, c.GetString(login.UserID), "", "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{Message: err.Error()})
 	}
@@ -65,7 +66,7 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 func (h *Handler) skipHandler(c *gin.Context) {
 	ctx := contexts.WithValues(c, h.logger, "")
 	h.player.Skip(ctx)
-	c.String(http.StatusOK, c.GetString("user_id"))
+	c.Status(http.StatusOK)
 }
 
 // stop godoc
