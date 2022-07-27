@@ -22,6 +22,7 @@ import (
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
 	capi "github.com/HalvaPovidlo/halvabot-go/internal/chess/api/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/chess/lichess"
+	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	dapi "github.com/HalvaPovidlo/halvabot-go/internal/music/api/discord"
 	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/music/api/rest"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
@@ -32,7 +33,6 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	dpkg "github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
-	"github.com/HalvaPovidlo/halvabot-go/pkg/http/login"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 	pfirestore "github.com/HalvaPovidlo/halvabot-go/pkg/storage/firestore"
 )
@@ -61,14 +61,7 @@ func main() {
 	if err != nil {
 		logger.Panic("discord open session failed", zap.Error(err))
 	}
-	defer func() {
-		err = session.Close()
-		if err != nil {
-			logger.Error("close session", zap.Error(err))
-		} else {
-			logger.Info("Bot session closed")
-		}
-	}()
+	defer logger.Info("bot session closed", zap.Error(session.Close()))
 	// Load master
 	loadMaster := pkg.NewLoadMaster(ctx, 12*time.Hour)
 
@@ -118,7 +111,7 @@ func main() {
 	chessCog.RegisterCommands(session, cfg.General.Debug, logger)
 
 	// Auth stage
-	loginer := login.NewLoginService(login.NewFirebaseAuthenticator(fireClient), jwt.NewJWTokenizer(cfg.Secret))
+	loginService := login.NewLoginService(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret))
 
 	// Http routers
 	if !cfg.General.Debug {
@@ -129,8 +122,8 @@ func main() {
 	router.Use(v1.CORS())
 	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
 	docs.SwaggerInfo.BasePath = "/api/v1"
-	apiRouter := v1.NewAPIRouter(router, loginer)
-	musicrest.NewHandler(musicPlayer, loginer, apiRouter, logger).Route()
+	apiRouter := v1.NewAPIRouter(router, loginService)
+	musicrest.NewHandler(musicPlayer, loginService, apiRouter, logger).Route()
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	go func() {
 		err := router.Run(":" + cfg.Host.Bot)

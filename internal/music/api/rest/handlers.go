@@ -29,7 +29,7 @@ type EnqueueResponse struct {
 // @securityDefinitions.apiKey JWT
 // @in                         header
 // @name                       Authorization
-// @Tags    music,JWTAuth
+// @Tags    music,jwtAuth
 // @accept                     json
 // @produce                    json
 // @param                      Authorization header   string      true "Bearer"
@@ -57,7 +57,7 @@ func (h *Handler) enqueueHandler(c *gin.Context) {
 // @securityDefinitions.apiKey JWT
 // @in                         header
 // @name                       Authorization
-// @Tags    music,JWTAuth
+// @Tags    music,jwtAuth
 // @produce                    json
 // @param                      Authorization header string true "Bearer"
 // @success                    200           string string
@@ -73,7 +73,7 @@ func (h *Handler) skipHandler(c *gin.Context) {
 // @securityDefinitions.apiKey JWT
 // @in                         header
 // @name                       Authorization
-// @Tags    music,JWTAuth
+// @Tags    music,jwtAuth
 // @produce                    plain
 // @param                      Authorization header string true "Bearer"
 // @success                    200           string string
@@ -104,7 +104,7 @@ func (h *Handler) loopStatusHandler(c *gin.Context) {
 // @securityDefinitions.apiKey JWT
 // @in                         header
 // @name                       Authorization
-// @Tags    music,JWTAuth
+// @Tags    music,jwtAuth
 // @accept                     json
 // @produce                    json
 // @param                      Authorization header   string      true "Bearer"
@@ -182,7 +182,7 @@ func (h *Handler) radioStatusHandler(c *gin.Context) {
 // @securityDefinitions.apiKey JWT
 // @in                         header
 // @name                       Authorization
-// @Tags                       music,JWTAuth
+// @Tags                       music,jwtAuth
 // @accept                     json
 // @produce                    json
 // @param                      Authorization header   string          true "Bearer"

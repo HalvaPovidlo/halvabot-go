@@ -28,6 +28,9 @@ const docTemplate = `{
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "auth"
+                ],
                 "summary": "Validates your login and password. Returns JWT.",
                 "parameters": [
                     {
@@ -40,7 +43,14 @@ const docTemplate = `{
                         }
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "JWT of your session",
+                        "schema": {
+                            "$ref": "#/definitions/login.Response"
+                        }
+                    }
+                }
             }
         },
         "/music/enqueue": {
@@ -53,7 +63,7 @@ const docTemplate = `{
                 ],
                 "tags": [
                     "music",
-                    "JWTAuth"
+                    "jwtAuth"
                 ],
                 "summary": "Play the song from YouTube by name or url",
                 "parameters": [
@@ -163,7 +173,7 @@ const docTemplate = `{
                 ],
                 "tags": [
                     "music",
-                    "JWTAuth"
+                    "jwtAuth"
                 ],
                 "summary": "Set loop mode",
                 "parameters": [
@@ -210,7 +220,7 @@ const docTemplate = `{
                 ],
                 "tags": [
                     "music",
-                    "JWTAuth"
+                    "jwtAuth"
                 ],
                 "summary": "Set radio mode",
                 "parameters": [
@@ -254,7 +264,7 @@ const docTemplate = `{
                 ],
                 "tags": [
                     "music",
-                    "JWTAuth"
+                    "jwtAuth"
                 ],
                 "summary": "Skip the current song and play next from the queue",
                 "parameters": [
@@ -321,7 +331,7 @@ const docTemplate = `{
                 ],
                 "tags": [
                     "music",
-                    "JWTAuth"
+                    "jwtAuth"
                 ],
                 "summary": "Skip the current song and play next from the queue",
                 "parameters": [
@@ -356,6 +366,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "login.Response": {
+            "type": "object",
+            "properties": {
+                "token": {
                     "type": "string"
                 }
             }
