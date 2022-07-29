@@ -11,24 +11,21 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
+	fire "github.com/HalvaPovidlo/halvabot-go/pkg/storage/firestore"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	songsCollection = "songs"
-	usersCollection = "users"
-	// Maximum batch size by firestore docs
-	batchSize              = 500
 	approximateSongsNumber = 1000
 )
 
 type Client struct {
 	*firestore.Client
 	updateMx  sync.Mutex
-	songs     map[string]*pkg.Song
-	userSongs map[string]map[string]*pkg.Song
+	songs     map[string]*item.Song
+	userSongs map[string]map[string]*item.Song
 	debug     bool
 }
 
@@ -37,8 +34,8 @@ var ErrNotFound = errors.New("no docs found")
 func NewFirestoreClient(ctx context.Context, client *firestore.Client, debug bool) (*Client, error) {
 	c := &Client{
 		Client:    client,
-		songs:     make(map[string]*pkg.Song),
-		userSongs: make(map[string]map[string]*pkg.Song),
+		songs:     make(map[string]*item.Song),
+		userSongs: make(map[string]map[string]*item.Song),
 		debug:     debug,
 	}
 	c.updateSongs(ctx)
@@ -46,13 +43,13 @@ func NewFirestoreClient(ctx context.Context, client *firestore.Client, debug boo
 	return c, nil
 }
 
-func (c *Client) GetSongByID(ctx context.Context, id pkg.SongID) (*pkg.Song, error) {
-	doc, err := c.Collection(songsCollection).Doc(id.String()).Get(ctx)
+func (c *Client) GetSongByID(ctx context.Context, id item.SongID) (*item.Song, error) {
+	doc, err := c.Collection(fire.SongsCollection).Doc(id.String()).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return nil, ErrNotFound
 		}
-		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), songsCollection)
+		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), fire.SongsCollection)
 	}
 	s, err := parseSongDoc(doc)
 	if err != nil {
@@ -61,7 +58,7 @@ func (c *Client) GetSongByID(ctx context.Context, id pkg.SongID) (*pkg.Song, err
 	return &s, nil
 }
 
-func (c *Client) SetSong(ctx context.Context, song *pkg.Song) error {
+func (c *Client) SetSong(ctx context.Context, song *item.Song) error {
 	if c.debug {
 		return nil
 	}
@@ -71,26 +68,26 @@ func (c *Client) SetSong(ctx context.Context, song *pkg.Song) error {
 	return nil
 }
 
-func (c *Client) SetSongForced(ctx context.Context, song *pkg.Song) error {
+func (c *Client) SetSongForced(ctx context.Context, song *item.Song) error {
 	if c.debug {
 		return nil
 	}
 	contexts.GetLogger(ctx).Info("set song forced", zap.String("id", song.ID.String()))
-	_, err := c.Collection(songsCollection).Doc(song.ID.String()).Set(ctx, song)
+	_, err := c.Collection(fire.SongsCollection).Doc(song.ID.String()).Set(ctx, song)
 	if err != nil {
-		return errors.Wrapf(err, "failed to set %s from %s", song.ID.String(), songsCollection)
+		return errors.Wrapf(err, "failed to set %s from %s", song.ID.String(), fire.SongsCollection)
 	}
 	return nil
 }
 
-func (c *Client) GetUserSong(ctx context.Context, id pkg.SongID, user string) (*pkg.Song, error) {
+func (c *Client) GetUserSong(ctx context.Context, id item.SongID, user string) (*item.Song, error) {
 	contexts.GetLogger(ctx).Info("get user song", zap.String("id", id.String()), zap.String("user", user))
-	doc, err := c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(id.String()).Get(ctx)
+	doc, err := c.Collection(fire.UsersCollection).Doc(user).Collection(fire.SongsCollection).Doc(id.String()).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return nil, ErrNotFound
 		}
-		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), usersCollection)
+		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), fire.UsersCollection)
 	}
 	s, err := parseSongDoc(doc)
 	if err != nil {
@@ -99,26 +96,26 @@ func (c *Client) GetUserSong(ctx context.Context, id pkg.SongID, user string) (*
 	return &s, nil
 }
 
-func (c *Client) SetUserSong(ctx context.Context, song *pkg.Song, user string) error {
+func (c *Client) SetUserSong(ctx context.Context, song *item.Song, user string) error {
 	if c.debug {
 		return nil
 	}
 	c.updateMx.Lock()
 	if _, ok := c.userSongs[user]; !ok {
-		c.userSongs[user] = make(map[string]*pkg.Song)
+		c.userSongs[user] = make(map[string]*item.Song)
 	}
 	c.userSongs[user][song.ID.String()] = song
 	c.updateMx.Unlock()
 	return nil
 }
 
-func (c *Client) GetAllSongsID(ctx context.Context) ([]pkg.SongID, error) {
+func (c *Client) GetAllSongsID(ctx context.Context) ([]item.SongID, error) {
 	if c.debug {
 		return nil, nil
 	}
 	contexts.GetLogger(ctx).Info("get all songs")
-	iter := c.Collection(songsCollection).Documents(ctx)
-	res := make([]pkg.SongID, 0, approximateSongsNumber)
+	iter := c.Collection(fire.SongsCollection).Documents(ctx)
+	res := make([]item.SongID, 0, approximateSongsNumber)
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -132,7 +129,7 @@ func (c *Client) GetAllSongsID(ctx context.Context) ([]pkg.SongID, error) {
 			return nil, err
 		}
 		if s.ID.ID == "" {
-			s.ID = pkg.GetIDFromURL(s.URL)
+			s.ID = item.GetIDFromURL(s.URL)
 		}
 		res = append(res, s.ID)
 	}
@@ -141,16 +138,16 @@ func (c *Client) GetAllSongsID(ctx context.Context) ([]pkg.SongID, error) {
 
 // UpsertSongIncPlaybacks We don't use it because our cash of songs is always consistent
 // As we have only one writer to the song db - this bot
-func (c *Client) UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (int, error) {
+func (c *Client) UpsertSongIncPlaybacks(ctx context.Context, new *item.Song) (int, error) {
 	contexts.GetLogger(ctx).Info("upsert song and increment playbacks", zap.String("id", new.ID.String()))
-	ref := c.Collection(songsCollection).Doc(new.ID.String())
+	ref := c.Collection(fire.SongsCollection).Doc(new.ID.String())
 	playbacks := 0
 	err := c.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(ref) // tx.Get, NOT ref.Get!
 		if err != nil {
 			return err
 		}
-		var old pkg.Song
+		var old item.Song
 		if err := doc.DataTo(&old); err != nil {
 			return errors.Wrap(err, "parsing data to Song failed")
 		}
@@ -177,7 +174,7 @@ func (c *Client) updateSongs(ctx context.Context) {
 					c.updateMx.Unlock()
 					continue
 				}
-				toSend := make([]*pkg.Song, 0, len(c.songs))
+				toSend := make([]*item.Song, 0, len(c.songs))
 				for k, v := range c.songs {
 					toSend = append(toSend, v)
 					delete(c.songs, k)
@@ -203,9 +200,9 @@ func (c *Client) updateUserSongs(ctx context.Context) {
 			select {
 			case <-ticker.C:
 				c.updateMx.Lock()
-				toSend := make(map[string][]*pkg.Song)
+				toSend := make(map[string][]*item.Song)
 				for user, songs := range c.userSongs {
-					toSend[user] = make([]*pkg.Song, 0, len(songs))
+					toSend[user] = make([]*item.Song, 0, len(songs))
 					for k, v := range songs {
 						toSend[user] = append(toSend[user], v)
 						delete(c.songs, k)
@@ -219,7 +216,7 @@ func (c *Client) updateUserSongs(ctx context.Context) {
 							zap.String("user", user),
 							zap.Int("songs", len(songs)))
 						for i := range songs {
-							_, err := c.Collection(usersCollection).Doc(user).Collection(songsCollection).Doc(songs[i].ID.String()).Set(ctx, songs[i])
+							_, err := c.Collection(fire.UsersCollection).Doc(user).Collection(fire.SongsCollection).Doc(songs[i].ID.String()).Set(ctx, songs[i])
 							if err != nil {
 								contexts.GetLogger(ctx).Error("update user song",
 									zap.String("user", user),
@@ -236,10 +233,10 @@ func (c *Client) updateUserSongs(ctx context.Context) {
 	}()
 }
 
-func (c *Client) WriteBatch(ctx context.Context, songs []*pkg.Song) error {
+func (c *Client) WriteBatch(ctx context.Context, songs []*item.Song) error {
 	size := len(songs)
-	for i := 0; i < size; i += batchSize {
-		k := i + batchSize
+	for i := 0; i < size; i += fire.BatchSize {
+		k := i + fire.BatchSize
 		if k > size {
 			k = size
 		}
@@ -251,10 +248,10 @@ func (c *Client) WriteBatch(ctx context.Context, songs []*pkg.Song) error {
 	return nil
 }
 
-func (c *Client) doBatch(ctx context.Context, songs []*pkg.Song) error {
+func (c *Client) doBatch(ctx context.Context, songs []*item.Song) error {
 	batch := c.Batch()
 	for s := range songs {
-		batch.Set(c.Collection(songsCollection).Doc(songs[s].ID.String()), songs[s])
+		batch.Set(c.Collection(fire.SongsCollection).Doc(songs[s].ID.String()), songs[s])
 	}
 	_, err := batch.Commit(ctx)
 	return err

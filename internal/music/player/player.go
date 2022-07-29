@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"io"
 	"sync"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )
@@ -21,7 +21,7 @@ var ErrQueueEmpty = errors.New("queue is empty")
 
 type MediaPlayer interface {
 	Process(requests <-chan *audio.SongRequest) <-chan error
-	Stats() pkg.SessionStats
+	Stats() item.SessionStats
 	IsPlaying() bool
 	Stop()
 }
@@ -74,7 +74,7 @@ type command struct {
 	Type      commandType
 	guildID   string
 	channelID string
-	entry     *pkg.Song
+	entry     *item.Song
 	loop      bool
 	logger    *zap.Logger
 }
@@ -86,7 +86,7 @@ type Player struct {
 	audio MediaPlayer
 
 	currentLock   sync.Mutex
-	current       *pkg.Song
+	current       *item.Song
 	isWaited      bool
 	queue         Queue
 	errs          chan error
@@ -105,7 +105,7 @@ func NewPlayer(ctx context.Context, voice VoiceClient, audio MediaPlayer) *Playe
 }
 
 // Play next song and enqueue input
-func (p *Player) Play(ctx context.Context, s *pkg.Song) {
+func (p *Player) Play(ctx context.Context, s *item.Song) {
 	p.commands <- &command{
 		Type:   play,
 		entry:  s,
@@ -155,24 +155,24 @@ func (p *Player) Disconnect(ctx context.Context) {
 	}
 }
 
-func (p *Player) NowPlaying() *pkg.Song {
+func (p *Player) NowPlaying() *item.Song {
 	p.currentLock.Lock()
 	defer p.currentLock.Unlock()
 	return p.current
 }
 
-func (p *Player) setNowPlaying(s *pkg.Song) {
+func (p *Player) setNowPlaying(s *item.Song) {
 	p.currentLock.Lock()
 	defer p.currentLock.Unlock()
 	p.current = s
 }
 
-func (p *Player) SongStatus() pkg.SessionStats {
+func (p *Player) SongStatus() item.SessionStats {
 	s := p.audio.Stats()
 	if s.Duration == 0 {
 		now := p.NowPlaying()
 		if now == nil {
-			return pkg.SessionStats{}
+			return item.SessionStats{}
 		}
 		s.Duration = now.Duration
 	}
@@ -254,7 +254,7 @@ func (p *Player) processCommand(c *command, requests chan *audio.SongRequest) er
 	return nil
 }
 
-func (p *Player) processPlay(entry *pkg.Song, requests chan *audio.SongRequest, logger *zap.Logger) error {
+func (p *Player) processPlay(entry *item.Song, requests chan *audio.SongRequest, logger *zap.Logger) error {
 	if !p.voice.IsConnected() {
 		return ErrNotConnected
 	}

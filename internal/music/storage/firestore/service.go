@@ -2,6 +2,7 @@ package firestore
 
 import (
 	"context"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"math/rand"
 	"sync"
 	"time"
@@ -9,13 +10,12 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
 type shortCache struct {
 	sync.RWMutex
-	List []pkg.SongID
+	List []item.SongID
 }
 
 type Service struct {
@@ -38,7 +38,7 @@ func NewFirestoreService(ctx context.Context, client *Client, songs *SongsCache)
 	return &f, nil
 }
 
-func (s *Service) GetSong(ctx context.Context, id pkg.SongID) (*pkg.Song, error) {
+func (s *Service) GetSong(ctx context.Context, id item.SongID) (*item.Song, error) {
 	key := s.cache.KeyFromID(id)
 	logger := contexts.GetLogger(ctx)
 	logger.Debug("get song from cache", zap.String("id", id.String()))
@@ -57,7 +57,7 @@ func (s *Service) GetSong(ctx context.Context, id pkg.SongID) (*pkg.Song, error)
 	return song, nil
 }
 
-func (s *Service) SetSong(ctx context.Context, song *pkg.Song) error {
+func (s *Service) SetSong(ctx context.Context, song *item.Song) error {
 	s.setUpdate(true)
 	if err := s.client.SetSong(ctx, song); err != nil {
 		return errors.Wrap(err, "firestore set song")
@@ -66,7 +66,7 @@ func (s *Service) SetSong(ctx context.Context, song *pkg.Song) error {
 	return nil
 }
 
-func (s *Service) UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (int, error) {
+func (s *Service) UpsertSongIncPlaybacks(ctx context.Context, new *item.Song) (int, error) {
 	old, err := s.GetSong(ctx, new.ID)
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return 0, errors.Wrap(err, "failed to get song from db")
@@ -81,7 +81,7 @@ func (s *Service) UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (in
 	return playbacks, nil
 }
 
-func (s *Service) IncrementUserRequests(ctx context.Context, song *pkg.Song, userID string) {
+func (s *Service) IncrementUserRequests(ctx context.Context, song *item.Song, userID string) {
 	userSong, err := s.client.GetUserSong(ctx, song.ID, userID)
 	if err != nil {
 		if err == ErrNotFound {
@@ -98,8 +98,8 @@ func (s *Service) IncrementUserRequests(ctx context.Context, song *pkg.Song, use
 	}
 }
 
-func (s *Service) GetRandomSongs(ctx context.Context, n int) ([]*pkg.Song, error) {
-	set := make(map[string]pkg.SongID)
+func (s *Service) GetRandomSongs(ctx context.Context, n int) ([]*item.Song, error) {
+	set := make(map[string]item.SongID)
 	max := len(s.songsShort.List)
 	if max == 0 {
 		return nil, errors.New("no preloaded songs")
@@ -116,7 +116,7 @@ func (s *Service) GetRandomSongs(ctx context.Context, n int) ([]*pkg.Song, error
 		s.songsShort.RUnlock()
 	}
 
-	result := make([]*pkg.Song, 0, len(set))
+	result := make([]*item.Song, 0, len(set))
 	for _, v := range set {
 		song, err := s.GetSong(ctx, v)
 		if err != nil {

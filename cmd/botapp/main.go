@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,7 +26,6 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
 	ytsearch "github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/storage/firestore"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	dpkg "github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
@@ -50,7 +50,7 @@ func main() {
 	}
 	defer session.Close()
 	// Load master
-	loadMaster := pkg.NewLoadMaster(ctx, 12*time.Hour)
+	loadMaster := music.NewLoadMaster(ctx, 12*time.Hour)
 
 	// Cache
 	songsCache := firestore.NewSongsCache(ctx, 12*time.Hour)

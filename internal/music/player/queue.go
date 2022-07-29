@@ -1,23 +1,23 @@
 package player
 
 import (
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 )
 
 type Queue struct {
-	entries []*pkg.Song
-	current *pkg.Song
+	entries []*item.Song
+	current *item.Song
 
 	loopLock sync.Mutex
 	loop     bool
 }
 
-func (q *Queue) Next() *pkg.Song {
+func (q *Queue) Next() *item.Song {
 	if q.LoopStatus() {
 		return q.current
 	}
@@ -29,7 +29,7 @@ func (q *Queue) Next() *pkg.Song {
 	return q.current
 }
 
-func (q *Queue) Add(e *pkg.Song) {
+func (q *Queue) Add(e *item.Song) {
 	q.entries = append(q.entries, e)
 }
 
@@ -54,14 +54,14 @@ func (q *Queue) LoopStatus() bool {
 	return q.loop
 }
 
-func (q *Queue) Front() *pkg.Song {
+func (q *Queue) Front() *item.Song {
 	if len(q.entries) == 0 {
 		return nil
 	}
 	return q.entries[0]
 }
 
-func requestFromEntry(e *pkg.Song, connection *discordgo.VoiceConnection) *audio.SongRequest {
+func requestFromEntry(e *item.Song, connection *discordgo.VoiceConnection) *audio.SongRequest {
 	return &audio.SongRequest{
 		Voice: connection,
 		URI:   e.StreamURL,

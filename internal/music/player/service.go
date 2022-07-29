@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"io"
 	"sync"
 	"time"
@@ -10,21 +11,20 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
 const maxRadioSongDuration = 10000
 
 type Firestore interface {
-	UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (int, error)
-	IncrementUserRequests(ctx context.Context, song *pkg.Song, userID string)
-	GetRandomSongs(ctx context.Context, n int) ([]*pkg.Song, error)
+	UpsertSongIncPlaybacks(ctx context.Context, new *item.Song) (int, error)
+	IncrementUserRequests(ctx context.Context, song *item.Song, userID string)
+	GetRandomSongs(ctx context.Context, n int) ([]*item.Song, error)
 }
 
 type YouTube interface {
-	FindSong(ctx context.Context, query string) (*pkg.Song, error)
-	EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.Song, error)
+	FindSong(ctx context.Context, query string) (*item.Song, error)
+	EnsureStreamInfo(ctx context.Context, song *item.Song) (*item.Song, error)
 }
 
 type Service struct {
@@ -46,7 +46,7 @@ func NewMusicService(ctx context.Context, storage Firestore, youtube YouTube, vo
 	return s
 }
 
-func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error) {
+func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID string) (*item.Song, error) {
 	if !s.Player.voice.IsConnected() && (channelID == "" || guildID == "") {
 		return nil, ErrNotConnected
 	}
@@ -75,7 +75,7 @@ func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID st
 	return song, err
 }
 
-func (s *Service) Random(ctx context.Context, n int) ([]*pkg.Song, error) {
+func (s *Service) Random(ctx context.Context, n int) ([]*item.Song, error) {
 	return s.storage.GetRandomSongs(ctx, n)
 }
 
@@ -165,8 +165,8 @@ func (s *Service) Disconnect(ctx context.Context) {
 	s.Player.Disconnect(ctx)
 }
 
-func (s *Service) Status() pkg.PlayerStatus {
-	return pkg.PlayerStatus{
+func (s *Service) Status() item.PlayerStatus {
+	return item.PlayerStatus{
 		Loop:  s.LoopStatus(),
 		Radio: s.RadioStatus(),
 		Song:  s.SongStatus(),

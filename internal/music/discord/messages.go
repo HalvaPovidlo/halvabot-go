@@ -3,13 +3,13 @@ package discord
 import (
 	"context"
 	"fmt"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"strconv"
 	"time"
 
 	dg "github.com/bwmarrin/discordgo"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 )
@@ -88,7 +88,7 @@ func (s *Service) sendNotInVoiceWarning(ctx context.Context, ds *dg.Session, m *
 	s.sendComplexMessage(ctx, ds, m.ChannelID, strmsg(messageNotVoiceChannel), statusLevel)
 }
 
-func (s *Service) sendNowPlayingMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, song *pkg.Song, pos float64) {
+func (s *Service) sendNowPlayingMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, song *item.Song, pos float64) {
 	msg := &dg.MessageSend{
 		Embeds: []*dg.MessageEmbed{
 			{
@@ -126,7 +126,7 @@ func (s *Service) sendNowPlayingMessage(ctx context.Context, ds *dg.Session, m *
 	s.sendComplexMessage(ctx, ds, m.ChannelID, msg, infoLevel)
 }
 
-func (s *Service) sendRandomMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, songs []*pkg.Song) {
+func (s *Service) sendRandomMessage(ctx context.Context, ds *dg.Session, m *dg.MessageCreate, songs []*item.Song) {
 	msg := ""
 	for _, song := range songs {
 		if song.ArtistName != "" {

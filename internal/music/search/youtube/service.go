@@ -2,14 +2,13 @@ package youtube
 
 import (
 	"context"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"path/filepath"
 	"sort"
 
 	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
-
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 )
 
 const (
@@ -88,7 +87,7 @@ func getYTDLImages(ts ytdl.Thumbnails) (string, string) {
 	return thumbnails[maxIter].URL, thumbnails[maxIter].URL
 }
 
-func (y *YouTube) findSong(ctx context.Context, query string) (*pkg.Song, error) {
+func (y *YouTube) findSong(ctx context.Context, query string) (*item.Song, error) {
 	call := y.youtube.Search.List([]string{"id, snippet"}).
 		Q(query).
 		MaxResults(maxSearchResult)
@@ -101,17 +100,17 @@ func (y *YouTube) findSong(ctx context.Context, query string) (*pkg.Song, error)
 	for _, item := range response.Items {
 		if item.Id.Kind == videoKind {
 			art, thumb := getImages(item.Snippet.Thumbnails)
-			return &pkg.Song{
+			return &item.Song{
 				Title:        item.Snippet.Title,
 				URL:          videoPrefix + item.Id.VideoId,
-				Service:      pkg.ServiceYouTube,
+				Service:      item.ServiceYouTube,
 				ArtistName:   item.Snippet.ChannelTitle,
 				ArtistURL:    channelPrefix + item.Snippet.ChannelId,
 				ArtworkURL:   art,
 				ThumbnailURL: thumb,
-				ID: pkg.SongID{
+				ID: item.SongID{
 					ID:      item.Id.VideoId,
-					Service: pkg.ServiceYouTube,
+					Service: item.ServiceYouTube,
 				},
 			}, nil
 		}
@@ -119,7 +118,7 @@ func (y *YouTube) findSong(ctx context.Context, query string) (*pkg.Song, error)
 	return nil, ErrSongNotFound
 }
 
-func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.Song, error) {
+func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *item.Song) (*item.Song, error) {
 	videoInfo, err := y.ytdl.GetVideo(song.URL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", song.URL)
@@ -155,24 +154,24 @@ func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.So
 	return song, nil
 }
 
-func songFromInfo(v *ytdl.Video) *pkg.Song {
+func songFromInfo(v *ytdl.Video) *item.Song {
 	art, thumb := getYTDLImages(v.Thumbnails)
-	return &pkg.Song{
+	return &item.Song{
 		Title:        v.Title,
 		URL:          videoPrefix + v.ID,
-		Service:      pkg.ServiceYouTube,
+		Service:      item.ServiceYouTube,
 		ArtistName:   v.Author,
 		ArtworkURL:   art,
 		ThumbnailURL: thumb,
-		ID: pkg.SongID{
+		ID: item.SongID{
 			ID:      v.ID,
-			Service: pkg.ServiceYouTube,
+			Service: item.ServiceYouTube,
 		},
 		Duration: v.Duration.Seconds(),
 	}
 }
 
-func (y *YouTube) FindSong(ctx context.Context, query string) (*pkg.Song, error) {
+func (y *YouTube) FindSong(ctx context.Context, query string) (*item.Song, error) {
 	song, err := y.findSong(ctx, query)
 	if err != nil {
 		return nil, err

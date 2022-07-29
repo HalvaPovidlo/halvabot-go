@@ -1,14 +1,13 @@
 package audio
 
 import (
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
-
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 )
 
 var (
@@ -33,7 +32,7 @@ type Player struct {
 	isPlaying     bool
 
 	statsLock sync.Mutex
-	stats     pkg.SessionStats
+	stats     item.SessionStats
 }
 
 func NewPlayer(files filesCache, options *dca.EncodeOptions) *Player {
@@ -63,7 +62,7 @@ func (p *Player) Stop() {
 	}
 }
 
-func (p *Player) Stats() pkg.SessionStats {
+func (p *Player) Stats() item.SessionStats {
 	p.statsLock.Lock()
 	defer p.statsLock.Unlock()
 	return p.stats

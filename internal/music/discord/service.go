@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"fmt"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"strings"
 	"sync"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/discord/command"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/util"
@@ -31,14 +31,14 @@ const (
 )
 
 type Player interface {
-	Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error)
+	Play(ctx context.Context, query, userID, guildID, channelID string) (*item.Song, error)
 	Skip(ctx context.Context)
 	SetLoop(ctx context.Context, b bool)
 	LoopStatus() bool
-	NowPlaying() *pkg.Song
-	SongStatus() pkg.SessionStats
+	NowPlaying() *item.Song
+	SongStatus() item.SessionStats
 	Disconnect(ctx context.Context) //
-	Random(ctx context.Context, n int) ([]*pkg.Song, error)
+	Random(ctx context.Context, n int) ([]*item.Song, error)
 	SetRadio(ctx context.Context, b bool, guildID, channelID string) error
 	RadioStatus() bool
 	// SubscribeOnErrors(h player.ErrorHandler)
