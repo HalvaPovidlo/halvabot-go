@@ -80,7 +80,11 @@ func main() {
 	}
 	for i := 0; i < len(films); i++ {
 		film := &films[i]
-		fullFilm := buildFilmWithKinopoisk(ctx, filmFromCSV(film))
+		csv := filmFromCSV(film)
+		if csv.ID != "389" {
+			continue
+		}
+		fullFilm := buildFilmWithKinopoisk(ctx, csv)
 		if fullFilm == nil {
 			fmt.Println("ERROR")
 			fmt.Println(film)
@@ -126,7 +130,7 @@ func filmFromCSV(csv *CSVFilm) *item.Film {
 		Director:    csv.Director,
 		Description: csv.Description,
 		Duration:    csv.Duration,
-		Score:       &score,
+		Score:       score,
 		Average:     average,
 		Scores:      scores,
 		URL:         csv.URL,
@@ -143,10 +147,10 @@ func kinopoiskURLToID(uri string) string {
 	return strings.Trim(id, "/")
 }
 
-func getScores(csv *CSVFilm) (int, float64, map[item.UserID]int) {
+func getScores(csv *CSVFilm) (int, float64, map[string]int) {
 	var score int
 	var number int
-	scores := make(map[item.UserID]int)
+	scores := make(map[string]int)
 	if csv.Khodand != nil {
 		number++
 		score += *csv.Khodand
