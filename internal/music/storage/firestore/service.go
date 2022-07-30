@@ -2,7 +2,6 @@ package firestore
 
 import (
 	"context"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"math/rand"
 	"sync"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 

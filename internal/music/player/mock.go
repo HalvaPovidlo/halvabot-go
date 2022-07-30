@@ -2,9 +2,10 @@ package player
 
 import (
 	"context"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"sync"
 	"time"
+
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 type MockPlayer struct {

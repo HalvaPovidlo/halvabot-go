@@ -13,16 +13,16 @@ import (
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
 	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
 type playerService interface {
-	Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error)
+	Play(ctx context.Context, query, userID, guildID, channelID string) (*item.Song, error)
 	Skip(ctx context.Context)
 	SetLoop(ctx context.Context, b bool)
 	SetRadio(ctx context.Context, b bool, guildID, channelID string) error
-	Status() pkg.PlayerStatus
+	Status() item.PlayerStatus
 }
 
 type Handler struct {
@@ -67,7 +67,7 @@ func (h *Handler) PostMusicEnqueueServiceIdentifier(c *gin.Context, service stri
 	c.Status(http.StatusNotImplemented)
 }
 
-func buildSong(song *pkg.Song) *v1.Song {
+func buildSong(song *item.Song) *v1.Song {
 	return &v1.Song{
 		ArtistName:   song.ArtistName,
 		ArtistUrl:    song.ArtistURL,
@@ -81,8 +81,8 @@ func buildSong(song *pkg.Song) *v1.Song {
 	}
 }
 
-func convertService(service pkg.ServiceName) v1.SongService {
-	if service == pkg.ServiceYouTube {
+func convertService(service item.ServiceName) v1.SongService {
+	if service == item.ServiceYouTube {
 		return v1.Youtube
 	}
 	return v1.Unknown
@@ -124,7 +124,7 @@ func (h *Handler) PostMusicRadio(c *gin.Context) {
 func (h *Handler) GetMusicStatus(c *gin.Context) {
 	st := h.player.Status()
 	if st.Now == nil {
-		st.Now = &pkg.Song{}
+		st.Now = &item.Song{}
 	}
 	c.JSON(http.StatusOK, st)
 }

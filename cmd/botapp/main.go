@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/HalvaPovidlo/halvabot-go/internal/music"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +20,7 @@ import (
 	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	capi "github.com/HalvaPovidlo/halvabot-go/internal/chess/api/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/chess/lichess"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
 	dapi "github.com/HalvaPovidlo/halvabot-go/internal/music/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"

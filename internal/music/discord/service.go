@@ -3,7 +3,6 @@ package discord
 import (
 	"context"
 	"fmt"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/discord/command"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/util"

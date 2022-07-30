@@ -1,12 +1,12 @@
 package player
 
 import (
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 type Queue struct {

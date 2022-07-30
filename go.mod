@@ -9,6 +9,7 @@ require (
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.8.1
+	github.com/gocarina/gocsv v0.0.0-20220727205534-7fbf8e1b37fb
 	github.com/google/uuid v1.3.0
 	github.com/khodand/dca v0.0.0-20220506230422-2986c6769dd8
 	github.com/kkdai/youtube/v2 v2.7.16-0.20220814133111-5a2a7203e451

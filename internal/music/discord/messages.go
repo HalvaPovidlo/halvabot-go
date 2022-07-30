@@ -3,13 +3,13 @@ package discord
 import (
 	"context"
 	"fmt"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"strconv"
 	"time"
 
 	dg "github.com/bwmarrin/discordgo"
 	"go.uber.org/zap"
 
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 )

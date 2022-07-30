@@ -2,10 +2,11 @@ package firestore
 
 import (
 	"context"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 type Item struct {

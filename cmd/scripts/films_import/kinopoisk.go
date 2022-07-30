@@ -1,3 +1,4 @@
+//nolint:revive // blame Kinopoisk
 package main
 
 import (

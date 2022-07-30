@@ -2,7 +2,6 @@ package player
 
 import (
 	"context"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"io"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )

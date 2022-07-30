@@ -1,13 +1,14 @@
 package audio
 
 import (
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
+
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 var (
