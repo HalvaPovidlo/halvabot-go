@@ -1,8 +1,6 @@
 package pkg
 
 import (
-	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -21,10 +19,6 @@ type SongID struct {
 	Service ServiceName
 }
 
-type PlayDate struct {
-	time.Time
-}
-
 type Song struct {
 	Title        string      `firestore:"title,omitempty" csv:"title" json:"title,omitempty"`
 	URL          string      `firestore:"url,omitempty" csv:"url,omitempty" json:"url,omitempty"`
@@ -34,7 +28,7 @@ type Song struct {
 	ArtworkURL   string      `firestore:"artwork_url,omitempty" csv:"artwork_url,omitempty" json:"artwork_url,omitempty"`
 	ThumbnailURL string      `firestore:"thumbnail_url,omitempty" csv:"thumbnail_url,omitempty" json:"thumbnail_url,omitempty"`
 	Playbacks    int         `firestore:"playbacks,omitempty" csv:"playbacks" json:"playbacks,omitempty"`
-	LastPlay     PlayDate    `firestore:"last_play,omitempty" csv:"last_play,omitempty" json:"last_play,omitempty"`
+	LastPlay     time.Time   `firestore:"last_play,omitempty" csv:"last_play,omitempty" json:"last_play,omitempty"`
 
 	ID        SongID          `firestore:"-" csv:"-" json:"-"`
 	Requester *discordgo.User `firestore:"-" csv:"-" json:"-"`
@@ -57,24 +51,6 @@ type PlayerStatus struct {
 	Radio bool         `json:"radio"`
 	Song  SessionStats `json:"song"`
 	Now   *Song        `json:"now,omitempty"`
-}
-
-func (date *PlayDate) UnmarshalCSV(csv string) error {
-	in := strings.Split(csv, "/")
-	if len(in) < 3 {
-		return errors.New("wrong time format")
-	}
-	toParse := fmt.Sprintf("%s/%s/%s", in[1], in[0], in[2])
-	t, err := time.Parse("01/02/2006", toParse)
-	if err != nil {
-		return err
-	}
-	*date = PlayDate{t}
-	return nil
-}
-
-func (date PlayDate) String() string {
-	return date.Time.String()
 }
 
 func (id SongID) String() string {

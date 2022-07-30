@@ -50,9 +50,6 @@ func (s *Service) GetSong(ctx context.Context, id pkg.SongID) (*pkg.Song, error)
 
 	song, err := s.client.GetSongByID(ctx, id)
 	if err != nil {
-		if err == ErrNotFound {
-			return nil, ErrNotFound
-		}
 		return nil, errors.Wrapf(err, "get song by id %s", id)
 	}
 	logger.Debug("set song to cache", zap.String("id", id.String()))

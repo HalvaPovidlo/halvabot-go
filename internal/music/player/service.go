@@ -44,23 +44,23 @@ func NewMusicService(ctx context.Context, storage Firestore, youtube YouTube, vo
 	return s
 }
 
-func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
+func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error) {
 	if !s.Player.voice.IsConnected() && (channelID == "" || guildID == "") {
-		return nil, 0, ErrNotConnected
+		return nil, ErrNotConnected
 	}
 
 	contexts.GetLogger(ctx).Info("finding song")
 	song, err := s.youtube.FindSong(ctx, query)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "find and load song from youtube")
+		return nil, errors.Wrap(err, "find and load song from youtube")
 	}
 
 	if channelID != "" || guildID != "" {
 		s.Connect(ctx, guildID, channelID)
 	}
 
-	song.LastPlay = pkg.PlayDate{Time: time.Now()}
-	playbacks, err := s.storage.UpsertSongIncPlaybacks(ctx, song)
+	song.LastPlay = time.Now()
+	_, err = s.storage.UpsertSongIncPlaybacks(ctx, song)
 	if err != nil {
 		err = errors.Wrap(err, "upsert song with increment")
 	}
@@ -70,7 +70,7 @@ func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID st
 	}
 
 	go s.Player.Play(ctx, song)
-	return song, playbacks, err
+	return song, err
 }
 
 func (s *Service) Random(ctx context.Context, n int) ([]*pkg.Song, error) {
@@ -78,8 +78,8 @@ func (s *Service) Random(ctx context.Context, n int) ([]*pkg.Song, error) {
 }
 
 func (s *Service) SetRadio(ctx context.Context, b bool, guildID, channelID string) error {
-	s.setRadio(b)
 	if !b {
+		s.setRadio(b)
 		return nil
 	}
 	if !s.Player.voice.IsConnected() {
@@ -88,6 +88,7 @@ func (s *Service) SetRadio(ctx context.Context, b bool, guildID, channelID strin
 		}
 		s.Player.Connect(ctx, guildID, channelID)
 	}
+	s.setRadio(b)
 	if s.NowPlaying() == nil {
 		return s.playRandomSong(ctx)
 	}

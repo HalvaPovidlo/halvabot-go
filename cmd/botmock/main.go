@@ -5,31 +5,17 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
-	docs "github.com/HalvaPovidlo/halvabot-go/docs/botmock"
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
-	"github.com/HalvaPovidlo/halvabot-go/internal/login"
-	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/music/api/rest"
+	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
+	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )
 
-// @title       HalvaBot mock for testing
-// @version     1.0
-// @description A music discord bot mock.
-
-// @license.name Apache 2.0
-// @license.url  http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @host     localhost:9090
-// @BasePath /api/v1
 func main() {
 	cfg, err := config.InitConfig()
 	if err != nil {
@@ -39,27 +25,10 @@ func main() {
 
 	mock := &player.MockPlayer{}
 	loginService := login.NewLoginService(login.NewMockStorage(), jwt.NewJWTokenizer("mock_secret"))
-
+	musicService := music.NewMusicHandler(mock, logger)
 	// Http routers
-	if !cfg.General.Debug {
-		gin.SetMode(gin.ReleaseMode)
-		gin.DisableConsoleColor()
-	}
-	router := gin.Default()
-	router.Use(v1.CORS())
-	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Mock
-	docs.SwaggerInfo.BasePath = "/api/v1"
-
-	apiRouter := v1.NewAPIRouter(router, loginService)
-	musicrest.NewHandler(mock, loginService, apiRouter, logger).Route()
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	go func() {
-		err := router.Run(":" + cfg.Host.Mock)
-		if err != nil {
-			logger.Error("run router", zap.Error(err))
-			return
-		}
-	}()
+	server := v1.NewServer(musicService, loginService)
+	server.Run(cfg.Host.IP, cfg.Host.Mock, config.SwaggerPath, cfg.General.Debug)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)

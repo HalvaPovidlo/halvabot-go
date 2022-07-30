@@ -8,24 +8,20 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
 	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
-	docs "github.com/HalvaPovidlo/halvabot-go/docs/botapp"
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
+	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
+	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	capi "github.com/HalvaPovidlo/halvabot-go/internal/chess/api/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/chess/lichess"
-	"github.com/HalvaPovidlo/halvabot-go/internal/login"
-	dapi "github.com/HalvaPovidlo/halvabot-go/internal/music/api/discord"
-	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/music/api/rest"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
+	dapi "github.com/HalvaPovidlo/halvabot-go/internal/music/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
 	ytsearch "github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/storage/firestore"
@@ -37,15 +33,6 @@ import (
 	pfirestore "github.com/HalvaPovidlo/halvabot-go/pkg/storage/firestore"
 )
 
-// @title       HalvaBot for Discord
-// @version     1.0
-// @description A music discord bot.
-
-// @license.name Apache 2.0
-// @license.url  http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @host     localhost:9091
-// @BasePath /api/v1
 func main() {
 	// TODO: all magic vars to config
 	cfg, err := config.InitConfig()
@@ -114,24 +101,8 @@ func main() {
 	loginService := login.NewLoginService(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret))
 
 	// Http routers
-	if !cfg.General.Debug {
-		gin.SetMode(gin.ReleaseMode)
-		gin.DisableConsoleColor()
-	}
-	router := gin.New()
-	router.Use(v1.CORS())
-	docs.SwaggerInfo.Host = cfg.Host.IP + ":" + cfg.Host.Bot
-	docs.SwaggerInfo.BasePath = "/api/v1"
-	apiRouter := v1.NewAPIRouter(router, loginService)
-	musicrest.NewHandler(musicPlayer, loginService, apiRouter, logger).Route()
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	go func() {
-		err := router.Run(":" + cfg.Host.Bot)
-		if err != nil {
-			logger.Error("run router", zap.Error(err))
-			return
-		}
-	}()
+	server := v1.NewServer(musicrest.NewMusicHandler(musicPlayer, logger), loginService)
+	server.Run(cfg.Host.IP, cfg.Host.Bot, config.SwaggerPath, cfg.General.Debug)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)

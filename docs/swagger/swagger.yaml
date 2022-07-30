@@ -1,0 +1,371 @@
+openapi: 3.0.0
+info:
+  title: halvabot
+  version: '1.0'
+  description: This API controls the music player and movie library
+  contact:
+    name: Andrei Khodko
+    url: 'mailto:andrei.khodko@gmail.com'
+    email: andrei.khodko@gmail.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+servers:
+  - url: 'http://51.250.81.4:9091/api/v1'
+    description: botapp
+  - url: 'http://51.250.81.4:9090/api/v1'
+    description: botmock
+  - description: local-app
+    url: 'http://localhost:9091/api/v1'
+  - url: 'http://localhost:9090/api/v1'
+    description: local-mock
+tags:
+  - name: auth
+    description: Authorization and authentication
+  - name: films
+    description: Acess to the films library
+  - name: music
+    description: Music player control
+  - name: protected
+    description: Access by authorization only
+paths:
+  '/music/enqueue/{service}/{kind}':
+    parameters:
+      - schema:
+          type: string
+          default: youtube
+          enum:
+            - youtube
+            - vk
+        name: service
+        in: path
+        required: true
+        description: 'Which service to search for a song '
+      - schema:
+          type: string
+          default: query
+          enum:
+            - query
+            - id
+        name: kind
+        in: path
+        required: true
+        description: Which kind of query use to find a song
+    post:
+      summary: Find and enqueue song
+      operationId: post-music-enqueue-service-identifier
+      responses:
+        '200':
+          description: Song has been queued up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Song'
+              examples:
+                example-1:
+                  value:
+                    title: string
+                    url: 'http://example.com'
+                    service: youtube
+                    artist_name: string
+                    artist_url: 'http://example.com'
+                    artwork_url: 'http://example.com'
+                    thumbnail_url: 'http://example.com'
+                    playbacks: 0
+                    last_play: '2022-07-29T17:51:09.851964+03:00'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: Bot is not connected to the server
+        '500':
+          $ref: '#/components/responses/Error'
+        '507':
+          description: Internal Storage Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  song:
+                    $ref: '#/components/schemas/Song'
+                  error:
+                    type: string
+      tags:
+        - music
+        - protected
+      description: Finds and enqueues a song for playback in the selected service and by the specified ID.
+      security:
+        - JWT: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              x-examples:
+                example-1:
+                  input: ckfd
+              properties:
+                input:
+                  type: string
+                  x-oapi-codegen-extra-tags:
+                    binding: required
+              required:
+                - input
+            examples:
+              example-1:
+                value:
+                  input: string
+        description: Query of specified
+  /music/skip:
+    parameters: []
+    post:
+      summary: Skip song
+      operationId: post-music-skip
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+        '409':
+          description: Bot is not connected to the server
+        '500':
+          $ref: '#/components/responses/Error'
+      description: Skip the current song and play the next song from the queue
+      security:
+        - JWT: []
+      tags:
+        - music
+        - protected
+  /music/status:
+    get:
+      summary: Player status
+      tags:
+        - music
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-examples:
+                  example-1:
+                    loop: true
+                    now:
+                      artist_name: string
+                      artist_url: string
+                      artwork_url: string
+                      last_play:
+                        time.Time: string
+                      playbacks: 0
+                      service: string
+                      thumbnail_url: string
+                      title: string
+                      url: string
+                    radio: true
+                    song:
+                      duration: 0
+                      position: 0
+                properties:
+                  loop:
+                    type: boolean
+                  now:
+                    $ref: '#/components/schemas/Song'
+                  radio:
+                    type: boolean
+                  duration:
+                    type: integer
+                  position:
+                    type: integer
+                required:
+                  - loop
+                  - now
+                  - radio
+                  - duration
+                  - position
+      operationId: get-music-status
+      description: 'Player status: radio mode, loop mode, current song and duration'
+  /music/loop:
+    post:
+      summary: Set loop mode
+      operationId: post-music-loop
+      responses:
+        '200':
+          description: OK
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: Bot is not connected
+        '500':
+          $ref: '#/components/responses/Error'
+      description: Set the song loop mode
+      security:
+        - JWT: []
+      tags:
+        - protected
+        - music
+      requestBody:
+        $ref: '#/components/requestBodies/Enable-mode'
+  /music/radio:
+    post:
+      summary: Set radio mode
+      operationId: post-music-radio
+      responses:
+        '200':
+          description: OK
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: Bot is not connected
+        '500':
+          $ref: '#/components/responses/Error'
+      tags:
+        - protected
+        - music
+      description: Set the player to radio mode
+      requestBody:
+        $ref: '#/components/requestBodies/Enable-mode'
+      security:
+        - JWT: []
+  /auth/token:
+    post:
+      summary: Login
+      operationId: post-auth-token
+      responses:
+        '200':
+          $ref: '#/components/responses/Token'
+        '401':
+          $ref: '#/components/responses/Error'
+      tags:
+        - auth
+      description: Get JWT for authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              x-examples:
+                example-1:
+                  login: adfadsaf
+                  password: asdfs
+              properties:
+                login:
+                  type: string
+                  x-oapi-codegen-extra-tags:
+                    binding: required
+                  description: Case-insensitive
+                password:
+                  type: string
+                  x-oapi-codegen-extra-tags:
+                    binding: required
+                  description: Case-sensitive
+              required:
+                - login
+                - password
+        description: Login and password
+components:
+  schemas:
+    Song:
+      type: object
+      x-examples: {}
+      description: The object that describes a song
+      title: Song
+      x-tags:
+        - music
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        service:
+          type: string
+          enum:
+            - youtube
+            - unknown
+        artist_name:
+          type: string
+        artist_url:
+          type: string
+          format: uri
+        artwork_url:
+          type: string
+          format: uri
+        thumbnail_url:
+          type: string
+          format: uri
+        playbacks:
+          type: integer
+        last_play:
+          type: string
+          format: date-time
+          example: '2022-07-29T17:51:09.851964+03:00'
+      required:
+        - title
+        - url
+        - service
+        - artist_name
+        - artist_url
+        - artwork_url
+        - thumbnail_url
+        - playbacks
+        - last_play
+  securitySchemes:
+    JWT:
+      type: http
+      scheme: bearer
+      description: ''
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              msg:
+                type: string
+            required:
+              - msg
+    Token:
+      description: JWT
+      content:
+        application/json:
+          schema:
+            type: object
+            x-examples:
+              example-1:
+                token: string
+            properties:
+              token:
+                type: string
+            required:
+              - token
+          examples:
+            example-1:
+              value:
+                token: string
+  requestBodies:
+    Enable-mode:
+      content:
+        application/json:
+          schema:
+            type: object
+            x-examples:
+              example-1:
+                enable: true
+            properties:
+              enable:
+                type: boolean
+                x-oapi-codegen-extra-tags:
+                  binding: exists
+            required:
+              - enable
+      description: Enable/disable mode

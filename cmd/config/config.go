@@ -7,11 +7,12 @@ import (
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/api/discord"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 )
 
 const FilePath = "secret_config.json"
+const SwaggerPath = "/docs/swagger/swagger.yaml"
 
 type Config struct {
 	General GeneralConfig  `json:"general"`

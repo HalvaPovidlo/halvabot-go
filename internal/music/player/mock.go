@@ -14,7 +14,7 @@ type MockPlayer struct {
 	radioStatus bool
 }
 
-func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error) {
+func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error) {
 	song := &pkg.Song{
 		Title:        query,
 		URL:          "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -24,7 +24,7 @@ func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID
 		ArtworkURL:   "https://s.namemc.com/3d/skin/body.png?id=d4347e67364ad441&model=slim&width=282&height=282",
 		ThumbnailURL: "https://s.namemc.com/3d/skin/body.png?id=d4347e67364ad441&model=slim&width=282&height=282",
 		Playbacks:    10,
-		LastPlay:     pkg.PlayDate{Time: time.Now().Add(-35 * time.Hour)},
+		LastPlay:     time.Now(),
 		ID: pkg.SongID{
 			ID:      "dQw4w9WgXcQ",
 			Service: "youtube",
@@ -33,7 +33,7 @@ func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID
 		StreamURL: "",
 		Duration:  212,
 	}
-	return song, 11, nil
+	return song, nil
 }
 
 func (m *MockPlayer) Skip(ctx context.Context) {}
@@ -60,7 +60,7 @@ func (m *MockPlayer) NowPlaying() *pkg.Song {
 		ArtworkURL:   "https://s.namemc.com/3d/skin/body.png?id=d4347e67364ad441&model=slim&width=282&height=282",
 		ThumbnailURL: "https://s.namemc.com/3d/skin/body.png?id=d4347e67364ad441&model=slim&width=282&height=282",
 		Playbacks:    10,
-		LastPlay:     pkg.PlayDate{Time: time.Now().Add(-35 * time.Hour)},
+		LastPlay:     time.Now(),
 		ID: pkg.SongID{
 			ID:      "dQw4w9WgXcQ",
 			Service: "youtube",

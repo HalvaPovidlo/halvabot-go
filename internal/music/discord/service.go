@@ -31,7 +31,7 @@ const (
 )
 
 type Player interface {
-	Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, int, error)
+	Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error)
 	Skip(ctx context.Context)
 	SetLoop(ctx context.Context, b bool)
 	LoopStatus() bool
@@ -130,7 +130,7 @@ func (s *Service) playMessageHandler(ctx context.Context, ds *discordgo.Session,
 		return
 	}
 	s.sendSearchingMessage(ctx, ds, m)
-	song, playbacks, err := s.player.Play(ctx, query, m.Author.ID, m.GuildID, id)
+	song, err := s.player.Play(ctx, query, m.Author.ID, m.GuildID, id)
 	if err != nil {
 		if errors.Is(err, youtube.ErrSongNotFound) {
 			s.sendNotFoundMessage(ctx, ds, m)
@@ -144,7 +144,7 @@ func (s *Service) playMessageHandler(ctx context.Context, ds *discordgo.Session,
 		s.sendInternalErrorMessage(ctx, ds, m, statusLevel)
 		return
 	}
-	s.sendFoundMessage(ctx, ds, m, song.ArtistName, song.Title, playbacks)
+	s.sendFoundMessage(ctx, ds, m, song.ArtistName, song.Title, song.Playbacks)
 }
 
 func (s *Service) skipMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
