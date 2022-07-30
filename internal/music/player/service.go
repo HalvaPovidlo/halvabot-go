@@ -14,6 +14,8 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
+const maxRadioSongDuration = 10000
+
 type Firestore interface {
 	UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (int, error)
 	IncrementUserRequests(ctx context.Context, song *pkg.Song, userID string)
@@ -111,6 +113,10 @@ func (s *Service) playRandomSong(ctx context.Context) error {
 		song, err = s.youtube.EnsureStreamInfo(ctx, song)
 		if err != nil {
 			contexts.GetLogger(ctx).Error("ensure stream info for radio", zap.Error(err))
+			return s.playRandomSong(ctx)
+		}
+		if song.Duration > maxRadioSongDuration {
+			contexts.GetLogger(ctx).Info("too long song found - skipping")
 			return s.playRandomSong(ctx)
 		}
 	}

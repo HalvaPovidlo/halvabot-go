@@ -15,7 +15,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/swaggo/files v0.0.0-20210815190702-a29dd2bc99b2
 	github.com/swaggo/gin-swagger v1.4.2
-	github.com/swaggo/swag v1.8.1
 	go.uber.org/zap v1.21.0
 	google.golang.org/api v0.86.0
 	google.golang.org/grpc v1.47.0
@@ -60,6 +59,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.2 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/swaggo/swag v1.8.1 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/vbauerster/mpb/v5 v5.4.0 // indirect
 	go.opencensus.io v0.23.0 // indirect

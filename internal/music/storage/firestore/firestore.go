@@ -54,10 +54,9 @@ func (c *Client) GetSongByID(ctx context.Context, id pkg.SongID) (*pkg.Song, err
 		}
 		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), songsCollection)
 	}
-	var s pkg.Song
-	err = doc.DataTo(&s)
+	s, err := parseSongDoc(doc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse doc into struct")
+		return nil, err
 	}
 	return &s, nil
 }
@@ -93,10 +92,9 @@ func (c *Client) GetUserSong(ctx context.Context, id pkg.SongID, user string) (*
 		}
 		return nil, errors.Wrapf(err, "failed to get %s from %s", id.String(), usersCollection)
 	}
-	var s pkg.Song
-	err = doc.DataTo(&s)
+	s, err := parseSongDoc(doc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse doc into struct")
+		return nil, err
 	}
 	return &s, nil
 }
@@ -129,10 +127,9 @@ func (c *Client) GetAllSongsID(ctx context.Context) ([]pkg.SongID, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "iteration failed")
 		}
-		var s pkg.Song
-		err = doc.DataTo(&s)
+		s, err := parseSongDoc(doc)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to marshal data")
+			return nil, err
 		}
 		if s.ID.ID == "" {
 			s.ID = pkg.GetIDFromURL(s.URL)
