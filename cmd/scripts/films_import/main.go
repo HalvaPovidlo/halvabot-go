@@ -81,15 +81,15 @@ func main() {
 	for i := 0; i < len(films); i++ {
 		film := &films[i]
 		csv := filmFromCSV(film)
-		if csv.ID != "389" {
-			continue
-		}
 		fullFilm := buildFilmWithKinopoisk(ctx, csv)
 		if fullFilm == nil {
 			fmt.Println("ERROR")
 			fmt.Println(film)
 			fmt.Println("----------------------------------------------------------------")
 			continue
+		}
+		if i%20 == 0 {
+			fmt.Println(i)
 		}
 		time.Sleep(time.Second / 10)
 		if err := addToFirestore(ctx, app, fullFilm); err != nil {
@@ -99,21 +99,13 @@ func main() {
 	fmt.Println("Success")
 }
 
-type fireScore struct {
-	Score int `firestore:"score"`
-}
-
 func addToFirestore(ctx context.Context, app *firestore.Client, film *item.Film) error {
 	filmID := string(film.ID)
 	batch := app.Batch()
-
-	filmDoc := app.Collection(fire.FilmsCollection).Doc(filmID)
-	batch.Set(filmDoc, film)
+	batch.Set(app.Collection(fire.FilmsCollection).Doc(filmID), film)
 	for user, score := range film.Scores {
-		userID := string(user)
-		batch.Set(filmDoc.Collection(fire.ScoresCollection).Doc(userID), fireScore{Score: score})
 		film.UserScore = &score
-		batch.Set(app.Collection(fire.UsersCollection).Doc(userID).Collection(fire.FilmsCollection).Doc(filmID), film)
+		batch.Set(app.Collection(fire.UsersCollection).Doc(user).Collection(fire.FilmsCollection).Doc(filmID), film)
 	}
 	_, err := batch.Commit(ctx)
 	return err
@@ -125,7 +117,7 @@ func filmFromCSV(csv *CSVFilm) *item.Film {
 	}
 	score, average, scores := getScores(csv)
 	film := &item.Film{
-		ID:          item.FilmID(kinopoiskURLToID(csv.URL)),
+		ID:          kinopoiskURLToID(csv.URL),
 		Title:       csv.Title,
 		Director:    csv.Director,
 		Description: csv.Description,

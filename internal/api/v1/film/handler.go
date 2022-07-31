@@ -1,4 +1,4 @@
-package rest
+package film
 
 import (
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"

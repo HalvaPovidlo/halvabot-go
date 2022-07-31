@@ -2,10 +2,9 @@ package player
 
 import (
 	"context"
-	"io"
 	"sync"
-	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -14,162 +13,173 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
-const maxRadioSongDuration = 10000
+var ErrNotConnected = errors.New("player not connected")
+var ErrQueueEmpty = errors.New("queue is empty")
 
-type Firestore interface {
-	UpsertSongIncPlaybacks(ctx context.Context, new *item.Song) (int, error)
-	IncrementUserRequests(ctx context.Context, song *item.Song, userID string)
-	GetRandomSongs(ctx context.Context, n int) ([]*item.Song, error)
+type MediaPlayer interface {
+	Process(requests <-chan *audio.SongRequest) <-chan error
+	Stats() item.SessionStats
+	IsPlaying() bool
+	Stop()
 }
 
-type YouTube interface {
-	FindSong(ctx context.Context, query string) (*item.Song, error)
-	EnsureStreamInfo(ctx context.Context, song *item.Song) (*item.Song, error)
+type VoiceClient interface {
+	Connection() *discordgo.VoiceConnection
+	Connect(guildID, channelID string) error
+	IsConnected() bool
+	Disconnect() error
 }
 
-type Service struct {
-	*Player
-	storage Firestore
-	youtube YouTube
+type ErrorHandler func(err error)
 
-	radioMutex sync.Mutex
-	isRadio    bool
-}
+type commandType int
 
-func NewMusicService(ctx context.Context, storage Firestore, youtube YouTube, voice VoiceClient, audio MediaPlayer) *Service {
-	s := &Service{
-		Player:  NewPlayer(ctx, voice, audio),
-		storage: storage,
-		youtube: youtube,
+const (
+	play commandType = iota
+	next
+	skip
+	stop
+	connect
+	disconnect
+	shuffle
+	loop
+)
+
+func (c commandType) String() string {
+	switch c {
+	case play:
+		return "play"
+	case next:
+		return "next"
+	case skip:
+		return "skip"
+	case stop:
+		return "stop"
+	case connect:
+		return "connect"
+	case disconnect:
+		return "disconnect"
+	case shuffle:
+		return "shuffle"
+	case loop:
+		return "loop"
 	}
-	s.Player.SubscribeOnErrors(s.handleError)
+	return ""
+}
+
+type command struct {
+	Type      commandType
+	guildID   string
+	channelID string
+	entry     *item.Song
+	loop      bool
+	logger    *zap.Logger
+}
+
+// Service all public methods are concurrent and
+// most private methods are designed to be synchronous
+type Service struct {
+	voice VoiceClient
+	audio MediaPlayer
+
+	currentLock   sync.Mutex
+	current       *item.Song
+	isWaited      bool
+	queue         Queue
+	errs          chan error
+	commands      chan *command
+	errorHandlers chan ErrorHandler
+}
+
+func NewPlayer(ctx context.Context, voice VoiceClient, audio MediaPlayer) *Service {
+	p := Service{
+		voice: voice,
+		audio: audio,
+	}
+	p.commands, p.errs = p.processCommands(ctx)
+	p.errorHandlers = p.processErrors(p.errs)
+	return &p
+}
+
+// Play next song and enqueue input
+func (p *Service) Play(ctx context.Context, s *item.Song) {
+	p.commands <- &command{
+		Type:   play,
+		entry:  s,
+		logger: contexts.GetLogger(ctx),
+	}
+}
+
+func (p *Service) Skip(ctx context.Context) {
+	p.commands <- &command{
+		Type:   skip,
+		logger: contexts.GetLogger(ctx),
+	}
+}
+
+func (p *Service) Stop(ctx context.Context) {
+	p.commands <- &command{
+		Type:   stop,
+		logger: contexts.GetLogger(ctx),
+	}
+}
+
+func (p *Service) LoopStatus() bool {
+	return p.queue.LoopStatus()
+}
+
+func (p *Service) SetLoop(ctx context.Context, b bool) {
+	p.commands <- &command{
+		Type:   loop,
+		loop:   b,
+		logger: contexts.GetLogger(ctx),
+	}
+}
+
+func (p *Service) Connect(ctx context.Context, guildID, channelID string) {
+	p.commands <- &command{
+		Type:      connect,
+		guildID:   guildID,
+		channelID: channelID,
+		logger:    contexts.GetLogger(ctx),
+	}
+}
+
+func (p *Service) IsConnected() bool {
+	return p.voice.IsConnected()
+}
+
+func (p *Service) Disconnect(ctx context.Context) {
+	p.commands <- &command{
+		Type:   disconnect,
+		logger: contexts.GetLogger(ctx),
+	}
+}
+
+func (p *Service) NowPlaying() *item.Song {
+	p.currentLock.Lock()
+	defer p.currentLock.Unlock()
+	return p.current
+}
+
+func (p *Service) setNowPlaying(s *item.Song) {
+	p.currentLock.Lock()
+	defer p.currentLock.Unlock()
+	p.current = s
+}
+
+func (p *Service) SongStatus() item.SessionStats {
+	s := p.audio.Stats()
+	if s.Duration == 0 {
+		now := p.NowPlaying()
+		if now == nil {
+			return item.SessionStats{}
+		}
+		s.Duration = now.Duration
+	}
 	return s
 }
 
-func (s *Service) Play(ctx context.Context, query, userID, guildID, channelID string) (*item.Song, error) {
-	if !s.Player.voice.IsConnected() && (channelID == "" || guildID == "") {
-		return nil, ErrNotConnected
-	}
-
-	contexts.GetLogger(ctx).Info("finding song")
-	song, err := s.youtube.FindSong(ctx, query)
-	if err != nil {
-		return nil, errors.Wrap(err, "find and load song from youtube")
-	}
-
-	if channelID != "" || guildID != "" {
-		s.Connect(ctx, guildID, channelID)
-	}
-
-	song.LastPlay = time.Now()
-	_, err = s.storage.UpsertSongIncPlaybacks(ctx, song)
-	if err != nil {
-		err = errors.Wrap(err, "upsert song with increment")
-	}
-
-	if userID != "" {
-		s.storage.IncrementUserRequests(ctx, song, userID)
-	}
-
-	go s.Player.Play(ctx, song)
-	return song, err
-}
-
-func (s *Service) Random(ctx context.Context, n int) ([]*item.Song, error) {
-	return s.storage.GetRandomSongs(ctx, n)
-}
-
-func (s *Service) SetRadio(ctx context.Context, b bool, guildID, channelID string) error {
-	if !b {
-		s.setRadio(b)
-		return nil
-	}
-	if !s.Player.voice.IsConnected() {
-		if guildID == "" || channelID == "" {
-			return ErrNotConnected
-		}
-		s.Player.Connect(ctx, guildID, channelID)
-	}
-	s.setRadio(b)
-	if s.NowPlaying() == nil {
-		return s.playRandomSong(ctx)
-	}
-	return nil
-}
-
-func (s *Service) setRadio(b bool) {
-	s.radioMutex.Lock()
-	s.isRadio = b
-	s.radioMutex.Unlock()
-}
-
-func (s *Service) playRandomSong(ctx context.Context) error {
-	songs, err := s.storage.GetRandomSongs(ctx, 1)
-	if err != nil {
-		return errors.Wrap(err, "get 1 random song from bd")
-	}
-	song := songs[0]
-	if song.StreamURL == "" {
-		song, err = s.youtube.EnsureStreamInfo(ctx, song)
-		if err != nil {
-			contexts.GetLogger(ctx).Error("ensure stream info for radio", zap.Error(err))
-			return s.playRandomSong(ctx)
-		}
-		if song.Duration > maxRadioSongDuration {
-			contexts.GetLogger(ctx).Info("too long song found - skipping")
-			return s.playRandomSong(ctx)
-		}
-	}
-	s.Player.Play(ctx, song)
-	return nil
-}
-
-func (s *Service) RadioStatus() bool {
-	s.radioMutex.Lock()
-	b := s.isRadio
-	s.radioMutex.Unlock()
-	return b
-}
-
-func (s *Service) handleError(err error) {
-	if errors.Is(err, ErrQueueEmpty) {
-		if s.RadioStatus() {
-			err := s.playRandomSong(context.Background())
-			if err != nil {
-				s.setRadio(false)
-			}
-		}
-		return
-	}
-	if !errors.Is(err, audio.ErrManualStop) && !errors.Is(err, io.EOF) {
-		s.setRadio(false)
-	}
-}
-
-func (s *Service) SubscribeOnErrors(h ErrorHandler) {
-	s.Player.SubscribeOnErrors(func(err error) {
-		if errors.Is(err, io.EOF) || errors.Is(err, audio.ErrManualStop) || errors.Is(err, ErrQueueEmpty) {
-			return
-		}
-		h(err)
-	})
-}
-
-func (s *Service) Stop(ctx context.Context) {
-	s.setRadio(false)
-	s.Player.Stop(ctx)
-}
-
-func (s *Service) Disconnect(ctx context.Context) {
-	s.setRadio(false)
-	s.Player.Disconnect(ctx)
-}
-
-func (s *Service) Status() item.PlayerStatus {
-	return item.PlayerStatus{
-		Loop:  s.LoopStatus(),
-		Radio: s.RadioStatus(),
-		Song:  s.SongStatus(),
-		Now:   s.NowPlaying(),
-	}
+func (p *Service) SubscribeOnErrors(h ErrorHandler) {
+	p.errorHandlers <- h
 }

@@ -17,7 +17,7 @@ const (
 type FilmID string
 
 type Film struct {
-	ID                       FilmID             `firestore:"-" json:"film_id,omitempty"`
+	ID                       string             `firestore:"-" json:"film_id,omitempty"`
 	Title                    string             `firestore:"title,omitempty" json:"title,omitempty"`
 	TitleOriginal            string             `firestore:"title_original,omitempty" json:"title_original,omitempty"`
 	Poster                   string             `firestore:"cover,omitempty" json:"cover,omitempty"`

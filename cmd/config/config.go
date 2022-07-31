@@ -2,12 +2,12 @@ package config
 
 import (
 	"encoding/json"
+	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	"io/ioutil"
 
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 )
 
@@ -26,12 +26,12 @@ type Config struct {
 }
 
 type DiscordConfig struct {
-	Token  string            `json:"token"`
-	Bot    string            `json:"bot"`
-	ID     int64             `json:"id"`
-	Prefix string            `json:"prefix"`
-	API    discord.APIConfig `json:"api"`
-	Voice  VoiceConfig       `json:"voice"`
+	Token  string          `json:"token"`
+	Bot    string          `json:"bot"`
+	ID     int64           `json:"id"`
+	Prefix string          `json:"prefix"`
+	API    music.APIConfig `json:"api"`
+	Voice  VoiceConfig     `json:"voice"`
 }
 
 type VoiceConfig struct {

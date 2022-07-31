@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
+	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 )
 
 type accountsStorage interface {
-	GetAccount(ctx context.Context, login string) (*AccountInfo, error)
+	GetAccount(ctx context.Context, login string) (*login.AccountInfo, error)
 }
 
 type tokenizer interface {
@@ -32,7 +33,7 @@ type Service struct {
 	tokenizer tokenizer
 }
 
-func NewLoginService(loginService accountsStorage, jWtService tokenizer) *Service {
+func NewLoginHandler(loginService accountsStorage, jWtService tokenizer) *Service {
 	return &Service{
 		accounts:  loginService,
 		tokenizer: jWtService,
