@@ -365,7 +365,5 @@ components:
               enable:
                 type: boolean
                 x-oapi-codegen-extra-tags:
-                  binding: exists
-            required:
-              - enable
+                  binding: required
       description: Enable/disable mode

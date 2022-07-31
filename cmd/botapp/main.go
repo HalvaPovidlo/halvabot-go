@@ -48,7 +48,7 @@ func main() {
 	if err != nil {
 		logger.Panic("discord open session failed", zap.Error(err))
 	}
-	defer logger.Info("bot session closed", zap.Error(session.Close()))
+	defer session.Close()
 	// Load master
 	loadMaster := pkg.NewLoadMaster(ctx, 12*time.Hour)
 

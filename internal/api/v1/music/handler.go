@@ -54,7 +54,7 @@ func (h *Handler) PostMusicEnqueueServiceIdentifier(c *gin.Context, service stri
 		case errors.Is(err, player.ErrNotConnected):
 			c.Status(http.StatusConflict)
 			return
-		case status.Convert(err).Code() != codes.Unknown:
+		case status.Convert(err).Code() != codes.OK && status.Convert(err).Code() != codes.Unknown:
 			c.JSON(http.StatusInsufficientStorage, gin.H{"song": song, "msg": err.Error()})
 			return
 		case err != nil:
@@ -110,7 +110,7 @@ func (h *Handler) PostMusicRadio(c *gin.Context) {
 		return
 	}
 	ctx := contexts.WithValues(c, h.logger, "")
-	err := h.player.SetRadio(ctx, json.Enable, "", "")
+	err := h.player.SetRadio(ctx, *json.Enable, "", "")
 	switch {
 	case errors.Is(err, player.ErrNotConnected):
 		c.Status(http.StatusConflict)

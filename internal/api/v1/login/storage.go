@@ -35,7 +35,7 @@ func (s *storage) GetAccount(ctx context.Context, login string) (*AccountInfo, e
 		}
 		return nil, err
 	}
-	var info *AccountInfo
-	err = doc.DataTo(info)
-	return info, err
+	var info AccountInfo
+	err = doc.DataTo(&info)
+	return &info, err
 }

@@ -68,7 +68,7 @@ func (s *Service) SetSong(ctx context.Context, song *pkg.Song) error {
 
 func (s *Service) UpsertSongIncPlaybacks(ctx context.Context, new *pkg.Song) (int, error) {
 	old, err := s.GetSong(ctx, new.ID)
-	if err != nil && err != ErrNotFound {
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		return 0, errors.Wrap(err, "failed to get song from db")
 	}
 	playbacks := 0

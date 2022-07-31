@@ -45,7 +45,7 @@ type Token struct {
 
 // EnableMode defines model for Enable-mode.
 type EnableMode struct {
-	Enable bool `binding:"exists" json:"enable"`
+	Enable *bool `binding:"required" json:"enable,omitempty"`
 }
 
 // PostAuthTokenJSONBody defines parameters for PostAuthToken.
