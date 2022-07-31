@@ -1,8 +1,9 @@
 package film
 
 import (
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/gin-gonic/gin"
+
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 type FilmService interface {

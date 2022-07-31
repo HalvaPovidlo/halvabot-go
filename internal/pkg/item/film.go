@@ -14,11 +14,9 @@ const (
 	ScoreBackSort SortCode = 4
 )
 
-type FilmID string
-
 type Film struct {
-	ID                       string             `firestore:"-" json:"film_id,omitempty"`
-	Title                    string             `firestore:"title,omitempty" json:"title,omitempty"`
+	ID                       string             `firestore:"-" json:"id"`
+	Title                    string             `firestore:"title,omitempty" json:"title"`
 	TitleOriginal            string             `firestore:"title_original,omitempty" json:"title_original,omitempty"`
 	Poster                   string             `firestore:"cover,omitempty" json:"cover,omitempty"`
 	Cover                    string             `firestore:"poster,omitempty" json:"poster,omitempty"`
@@ -43,7 +41,7 @@ type Film struct {
 }
 
 type Comment struct {
-	UserID    UserID    `firestore:"user_id" json:"user_id"`
+	UserID    string    `firestore:"user_id" json:"user_id"`
 	Text      string    `firestore:"text" json:"text"`
 	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
 }
