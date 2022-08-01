@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	approximateSongsNumber = 1000
+	approximateSongsNumber = 1500
 )
 
 type Client struct {

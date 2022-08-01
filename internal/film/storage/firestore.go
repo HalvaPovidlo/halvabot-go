@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/pkg/errors"
@@ -12,8 +11,16 @@ import (
 	fire "github.com/HalvaPovidlo/halvabot-go/pkg/storage/firestore"
 )
 
+const approximateFilmsNumber = 512
+
 type Firestore struct {
 	*firestore.Client
+}
+
+func NewFirestore(client *firestore.Client) *Firestore {
+	return &Firestore{
+		Client: client,
+	}
 }
 
 var ErrNoUserScore = errors.New("empty user score")
@@ -35,8 +42,8 @@ func (f *Firestore) EditFilm(ctx context.Context, film *item.Film) error {
 	return err
 }
 
-func (f *Firestore) AllFilms(ctx context.Context, userID string) ([]item.Film, error) {
-	var films []item.Film
+func (f *Firestore) AllFilms(ctx context.Context) ([]item.Film, error) {
+	films := make([]item.Film, 0, approximateFilmsNumber)
 	iter := f.Collection(fire.FilmsCollection).Documents(ctx)
 	for {
 		doc, err := iter.Next()
@@ -46,7 +53,7 @@ func (f *Firestore) AllFilms(ctx context.Context, userID string) ([]item.Film, e
 		if err != nil {
 			return nil, err
 		}
-		film, err := parseFilm(doc, userID)
+		film, err := parseFilm(doc)
 		if err != nil {
 			return nil, err
 		}
@@ -55,34 +62,30 @@ func (f *Firestore) AllFilms(ctx context.Context, userID string) ([]item.Film, e
 	return films, nil
 }
 
-func (f *Firestore) Film(ctx context.Context, filmID, userID string) (*item.Film, error) {
+func (f *Firestore) Film(ctx context.Context, filmID string) (*item.Film, error) {
 	doc, err := f.Collection(fire.FilmsCollection).Doc(filmID).Get(ctx)
 	if err != nil {
 		return nil, err
 	}
-	film, err := parseFilm(doc, userID)
+	film, err := parseFilm(doc)
 	if err != nil {
 		return nil, err
 	}
 	comments, err := f.Comments(ctx, filmID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "get comments film=%s", filmID)
+		return nil, errors.Wrapf(err, "get film comments")
 	}
 	film.Comments = comments
+	film.WithComments = true
 	return film, nil
 }
 
-func parseFilm(doc *firestore.DocumentSnapshot, userID string) (*item.Film, error) {
+func parseFilm(doc *firestore.DocumentSnapshot) (*item.Film, error) {
 	var film item.Film
 	if err := doc.DataTo(&film); err != nil {
 		return nil, errors.Wrap(err, "parse film doc")
 	}
 	film.ID = doc.Ref.ID
-	if userID != "" {
-		if userScore, ok := film.Scores[userID]; ok {
-			film.UserScore = &userScore
-		}
-	}
 	return &film, nil
 }
 
@@ -106,12 +109,7 @@ func (f *Firestore) Comments(ctx context.Context, filmID string) (map[string]ite
 	return comments, nil
 }
 
-func (f *Firestore) Comment(ctx context.Context, text, filmID, userID string) (string, error) {
-	comment := item.Comment{
-		UserID:    userID,
-		Text:      text,
-		CreatedAt: time.Now(),
-	}
+func (f *Firestore) Comment(ctx context.Context, filmID string, comment *item.Comment) (string, error) {
 	doc, _, err := f.Collection(fire.FilmsCollection).Doc(filmID).Collection(fire.CommentsCollection).Add(ctx, comment)
 	if err != nil {
 		return "", err
@@ -119,7 +117,8 @@ func (f *Firestore) Comment(ctx context.Context, text, filmID, userID string) (s
 	return doc.ID, nil
 }
 
-func (f *Firestore) Score(ctx context.Context, filmID, userID string, score int) error {
+func (f *Firestore) Score(ctx context.Context, filmID, userID string, score int) (item.Film, error) {
+	var film item.Film
 	filmRef := f.Collection(fire.FilmsCollection).Doc(filmID)
 	userRef := f.Collection(fire.UsersCollection).Doc(userID).Collection(fire.FilmsCollection).Doc(filmID)
 	err := f.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
@@ -127,7 +126,6 @@ func (f *Firestore) Score(ctx context.Context, filmID, userID string, score int)
 		if err != nil {
 			return err
 		}
-		var film item.Film
 		if err := doc.DataTo(&film); err != nil {
 			return errors.Wrap(err, "parse film doc")
 		}
@@ -141,5 +139,5 @@ func (f *Firestore) Score(ctx context.Context, filmID, userID string, score int)
 		film.UserScore = &score
 		return tx.Set(userRef, film)
 	})
-	return err
+	return film, err
 }

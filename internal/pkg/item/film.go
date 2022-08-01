@@ -28,6 +28,7 @@ type Film struct {
 	Average                  float64            `firestore:"average,omitempty" json:"average,omitempty"`
 	Scores                   map[string]int     `firestore:"scores" json:"scores,omitempty"`
 	Comments                 map[string]Comment `firestore:"-" json:"comments,omitempty"`
+	WithComments             bool               `firestore:"-" json:"-"`
 	URL                      string             `firestore:"kinopoisk,omitempty" json:"kinopoisk,omitempty"`
 	RatingKinopoisk          float64            `firestore:"rating_kinopoisk,omitempty" json:"rating_kinopoisk,omitempty"`
 	RatingKinopoiskVoteCount int                `firestore:"rating_kinopoisk_vote_count,omitempty" json:"rating_kinopoisk_vote_count,omitempty"`
