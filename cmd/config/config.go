@@ -15,11 +15,12 @@ const FilePath = "secret_config.json"
 const SwaggerPath = "/docs/swagger/swagger.yaml"
 
 type Config struct {
-	General GeneralConfig  `json:"general"`
-	Host    HostConfig     `json:"host"`
-	Discord DiscordConfig  `json:"discord"`
-	Youtube youtube.Config `json:"youtube"`
-	Secret  string         `json:"secret"`
+	General   GeneralConfig  `json:"general"`
+	Host      HostConfig     `json:"host"`
+	Discord   DiscordConfig  `json:"discord"`
+	Youtube   youtube.Config `json:"youtube"`
+	Secret    string         `json:"secret"`
+	Kinopoisk string         `json:"kinopoisk"`
 	// Sheets  SheetsConfig  `json:"sheets"`
 	// VK      VKConfig      `json:"vk"`
 	// Lichess LichessConfig `json:"lichess"`
