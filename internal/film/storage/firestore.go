@@ -23,14 +23,9 @@ func NewFirestore(client *firestore.Client) *Firestore {
 	}
 }
 
-var ErrNoUserScore = errors.New("empty user score")
-
 func (f *Firestore) NewFilm(ctx context.Context, film *item.Film, userID string) error {
 	batch := f.Batch()
 	batch.Create(f.Collection(fire.FilmsCollection).Doc(film.ID), film)
-	if film.UserScore == nil {
-		return ErrNoUserScore
-	}
 	batch.Create(f.Collection(fire.UsersCollection).Doc(userID).Collection(fire.FilmsCollection).Doc(film.ID), film)
 	_, err := batch.Commit(ctx)
 	return err
