@@ -25,10 +25,21 @@ type MusicHandler interface {
 	GetMusicStatus(c *gin.Context)
 }
 
+type FilmsHandler interface {
+	GetFilmsAll(c *gin.Context)
+	PostFilmsKinopoisk(c *gin.Context)
+	PostFilmsNew(c *gin.Context, params PostFilmsNewParams)
+	GetFilms(c *gin.Context, id FilmId)
+	PostFilmsId(c *gin.Context, id FilmId)
+	PostFilms(c *gin.Context, id FilmId)
+	PostFilmsIdScore(c *gin.Context, id FilmId)
+}
+
 type Server struct {
 	router *gin.Engine
 	MusicHandler
 	LoginHandler
+	FilmsHandler
 }
 
 func NewServer(music MusicHandler, login LoginHandler) *Server {
@@ -70,12 +81,19 @@ func (s *Server) RegisterHandlers() {
 	api := s.router.Group(basePath)
 	api.POST("/auth/token", wrapper.PostAuthToken)
 	api.GET("/music/status", wrapper.GetMusicStatus)
+	api.GET("/films/all", wrapper.GetFilmsAll)
+	api.GET("/films/:id", wrapper.GetFilms)
 
 	api.Use(s.Authorization())
 	api.POST("/music/enqueue/:service/:kind", wrapper.PostMusicEnqueueServiceIdentifier)
 	api.POST("/music/loop", wrapper.PostMusicLoop)
 	api.POST("/music/radio", wrapper.PostMusicRadio)
 	api.POST("/music/skip", wrapper.PostMusicSkip)
+	api.POST("/films/kinopoisk", wrapper.PostFilmsKinopoisk)
+	api.POST("/films/new", wrapper.PostFilmsNew)
+	api.POST("/films/:id", wrapper.PostFilmsId)
+	api.POST("/films/:id/comment", wrapper.PostFilms)
+	api.POST("/films/:id/score", wrapper.PostFilmsIdScore)
 }
 
 func CORS() gin.HandlerFunc {

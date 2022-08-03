@@ -17,6 +17,33 @@ const (
 	Youtube SongService = "youtube"
 )
 
+// Film structure
+type Film struct {
+	Average                  float32                 `json:"average"`
+	Comments                 *map[string]interface{} `json:"comments,omitempty"`
+	Cover                    *string                 `json:"cover,omitempty"`
+	Description              *string                 `json:"description,omitempty"`
+	Director                 *string                 `json:"director,omitempty"`
+	Duration                 *string                 `json:"duration,omitempty"`
+	FilmId                   string                  `json:"film_id"`
+	FilmLength               *int                    `json:"film_length,omitempty"`
+	Genres                   *[]string               `json:"genres,omitempty"`
+	Kinopoisk                string                  `json:"kinopoisk"`
+	Poster                   *string                 `json:"poster,omitempty"`
+	RatingImdb               float32                 `json:"rating_imdb"`
+	RatingImdbVoteCount      int                     `json:"rating_imdb_vote_count"`
+	RatingKinopoisk          float32                 `json:"rating_kinopoisk"`
+	RatingKinopoiskVoteCount int                     `json:"rating_kinopoisk_vote_count"`
+	Score                    int                     `json:"score"`
+	Scores                   *map[string]interface{} `json:"scores,omitempty"`
+	Serial                   bool                    `json:"serial"`
+	ShortFilm                bool                    `json:"short_film"`
+	Title                    string                  `json:"title"`
+	TitleOriginal            *string                 `json:"title_original,omitempty"`
+	UserScore                *int                    `json:"user_score,omitempty"`
+	Year                     *int                    `json:"year,omitempty"`
+}
+
 // The object that describes a song
 type Song struct {
 	ArtistName   string      `json:"artist_name"`
@@ -33,9 +60,17 @@ type Song struct {
 // SongService defines model for Song.Service.
 type SongService string
 
+// FilmId defines model for film-id.
+type FilmId = string
+
 // Error defines model for Error.
 type Error struct {
 	Msg string `json:"msg"`
+}
+
+// Films defines model for Films.
+type Films struct {
+	Items *[]Film `json:"items,omitempty"`
 }
 
 // Token defines model for Token.
@@ -43,9 +78,28 @@ type Token struct {
 	Token string `json:"token"`
 }
 
+// Comment defines model for Comment.
+type Comment struct {
+	Text *string `json:"text,omitempty"`
+}
+
 // EnableMode defines model for Enable-mode.
 type EnableMode struct {
 	Enable *bool `binding:"required" json:"enable,omitempty"`
+}
+
+// Film structure
+type NewFilm = Film
+
+// NewKinoposk defines model for New-kinoposk.
+type NewKinoposk struct {
+	Score int    `json:"score"`
+	Url   string `json:"url"`
+}
+
+// Score defines model for Score.
+type Score struct {
+	Score int `json:"score"`
 }
 
 // PostAuthTokenJSONBody defines parameters for PostAuthToken.
@@ -57,6 +111,12 @@ type PostAuthTokenJSONBody struct {
 	Password string `binding:"required" json:"password"`
 }
 
+// PostFilmsNewParams defines parameters for PostFilmsNew.
+type PostFilmsNewParams struct {
+	// Use kinopoisk api help
+	Kinopoisk *bool `form:"kinopoisk,omitempty" json:"kinopoisk,omitempty"`
+}
+
 // PostMusicEnqueueServiceIdentifierJSONBody defines parameters for PostMusicEnqueueServiceIdentifier.
 type PostMusicEnqueueServiceIdentifierJSONBody struct {
 	Input string `binding:"required" json:"input"`
@@ -64,6 +124,18 @@ type PostMusicEnqueueServiceIdentifierJSONBody struct {
 
 // PostAuthTokenJSONRequestBody defines body for PostAuthToken for application/json ContentType.
 type PostAuthTokenJSONRequestBody PostAuthTokenJSONBody
+
+// PostFilmsKinopoiskJSONRequestBody defines body for PostFilmsKinopoisk for application/json ContentType.
+type PostFilmsKinopoiskJSONRequestBody NewKinoposk
+
+// PostFilmsNewJSONRequestBody defines body for PostFilmsNew for application/json ContentType.
+type PostFilmsNewJSONRequestBody = NewFilm
+
+// PostFilmsJSONRequestBody defines body for PostFilms for application/json ContentType.
+type PostFilmsJSONRequestBody Comment
+
+// PostFilmsIdScoreJSONRequestBody defines body for PostFilmsIdScore for application/json ContentType.
+type PostFilmsIdScoreJSONRequestBody Score
 
 // PostMusicEnqueueServiceIdentifierJSONRequestBody defines body for PostMusicEnqueueServiceIdentifier for application/json ContentType.
 type PostMusicEnqueueServiceIdentifierJSONRequestBody PostMusicEnqueueServiceIdentifierJSONBody

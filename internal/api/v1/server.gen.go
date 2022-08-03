@@ -16,6 +16,27 @@ type ServerInterface interface {
 	// Login
 	// (POST /auth/token)
 	PostAuthToken(c *gin.Context)
+	// All films
+	// (GET /films/all)
+	GetFilmsAll(c *gin.Context)
+	// Add kinopoisk film
+	// (POST /films/kinopoisk)
+	PostFilmsKinopoisk(c *gin.Context)
+	// Add new film
+	// (POST /films/new)
+	PostFilmsNew(c *gin.Context, params PostFilmsNewParams)
+	// Get film
+	// (GET /films/{id})
+	GetFilms(c *gin.Context, id FilmId)
+	// Edit film
+	// (POST /films/{id})
+	PostFilmsId(c *gin.Context, id FilmId)
+	// Comment film
+	// (POST /films/{id}/comment)
+	PostFilms(c *gin.Context, id FilmId)
+	// Score film
+	// (POST /films/{id}/score)
+	PostFilmsIdScore(c *gin.Context, id FilmId)
 	// Find and enqueue song
 	// (POST /music/enqueue/{service}/{kind})
 	PostMusicEnqueueServiceIdentifier(c *gin.Context, service string, kind string)
@@ -49,6 +70,146 @@ func (siw *ServerInterfaceWrapper) PostAuthToken(c *gin.Context) {
 	}
 
 	siw.Handler.PostAuthToken(c)
+}
+
+// GetFilmsAll operation middleware
+func (siw *ServerInterfaceWrapper) GetFilmsAll(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetFilmsAll(c)
+}
+
+// PostFilmsKinopoisk operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsKinopoisk(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsKinopoisk(c)
+}
+
+// PostFilmsNew operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsNew(c *gin.Context) {
+
+	var err error
+
+	c.Set(JWTScopes, []string{""})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostFilmsNewParams
+
+	// ------------- Optional query parameter "kinopoisk" -------------
+	if paramValue := c.Query("kinopoisk"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "kinopoisk", c.Request.URL.Query(), &params.Kinopoisk)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter kinopoisk: %s", err)})
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsNew(c, params)
+}
+
+// GetFilms operation middleware
+func (siw *ServerInterfaceWrapper) GetFilms(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetFilms(c, id)
+}
+
+// PostFilmsId operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsId(c, id)
+}
+
+// PostFilms operation middleware
+func (siw *ServerInterfaceWrapper) PostFilms(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilms(c, id)
+}
+
+// PostFilmsIdScore operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsIdScore(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsIdScore(c, id)
 }
 
 // PostMusicEnqueueServiceIdentifier operation middleware
@@ -148,6 +309,20 @@ func RegisterHandlersWithOptions(router *gin.Engine, si ServerInterface, options
 	}
 
 	router.POST(options.BaseURL+"/auth/token", wrapper.PostAuthToken)
+
+	router.GET(options.BaseURL+"/films/all", wrapper.GetFilmsAll)
+
+	router.POST(options.BaseURL+"/films/kinopoisk", wrapper.PostFilmsKinopoisk)
+
+	router.POST(options.BaseURL+"/films/new", wrapper.PostFilmsNew)
+
+	router.GET(options.BaseURL+"/films/:id", wrapper.GetFilms)
+
+	router.POST(options.BaseURL+"/films/:id", wrapper.PostFilmsId)
+
+	router.POST(options.BaseURL+"/films/:id/comment", wrapper.PostFilms)
+
+	router.POST(options.BaseURL+"/films/:id/score", wrapper.PostFilmsIdScore)
 
 	router.POST(options.BaseURL+"/music/enqueue/:service/:kind", wrapper.PostMusicEnqueueServiceIdentifier)
 
