@@ -5,6 +5,7 @@ go 1.19
 require (
 	cloud.google.com/go/firestore v1.6.1
 	firebase.google.com/go v3.13.0+incompatible
+	github.com/AlekSi/pointer v1.2.0
 	github.com/bwmarrin/discordgo v0.25.0
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -26,7 +27,6 @@ require (
 	cloud.google.com/go/compute v1.8.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
 	cloud.google.com/go/storage v1.23.0 // indirect
-	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect

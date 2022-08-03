@@ -70,7 +70,7 @@ type Error struct {
 
 // Films defines model for Films.
 type Films struct {
-	Items *[]Film `json:"items,omitempty"`
+	Items []Film `json:"items"`
 }
 
 // Token defines model for Token.
@@ -80,7 +80,7 @@ type Token struct {
 
 // Comment defines model for Comment.
 type Comment struct {
-	Text *string `json:"text,omitempty"`
+	Text string `json:"text"`
 }
 
 // EnableMode defines model for Enable-mode.
@@ -130,6 +130,9 @@ type PostFilmsKinopoiskJSONRequestBody NewKinoposk
 
 // PostFilmsNewJSONRequestBody defines body for PostFilmsNew for application/json ContentType.
 type PostFilmsNewJSONRequestBody = NewFilm
+
+// PostFilmsIdJSONRequestBody defines body for PostFilmsId for application/json ContentType.
+type PostFilmsIdJSONRequestBody = NewFilm
 
 // PostFilmsJSONRequestBody defines body for PostFilms for application/json ContentType.
 type PostFilmsJSONRequestBody Comment

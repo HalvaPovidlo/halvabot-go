@@ -318,10 +318,12 @@ paths:
       operationId: post-films-id
       responses:
         '200':
-          description: OK
+          $ref: '#/components/responses/Film'
       description: Edit an existing film
       security:
         - JWT: []
+      requestBody:
+        $ref: '#/components/requestBodies/New-film'
   '/films/{id}/score':
     parameters:
       - $ref: '#/components/parameters/film-id'
@@ -549,6 +551,8 @@ components:
                 type: array
                 items:
                   $ref: '#/components/schemas/Film'
+            required:
+              - items
     Film:
       description: Response film
       content:
@@ -621,12 +625,14 @@ components:
         application/json:
           schema:
             type: object
-            properties:
-              text:
-                type: string
             x-examples:
               example-1:
                 text: good film
+            properties:
+              text:
+                type: string
+            required:
+              - text
           examples:
             example-1:
               value:
