@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
-	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
+	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 

@@ -2,7 +2,10 @@ package login
 
 import (
 	"context"
-	login2 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
+)
+
+const (
+	UserID = "user_id"
 )
 
 type mock struct{}
@@ -12,8 +15,8 @@ func NewMockStorage() *mock {
 }
 
 func (a *mock) GetAccount(ctx context.Context, login string) (*AccountInfo, error) {
-	return &login.AccountInfo{
-		Password:      "password",
-		login2.UserID: "user_id",
+	return &AccountInfo{
+		Password: "password",
+		UserID:   "user_id",
 	}, nil
 }

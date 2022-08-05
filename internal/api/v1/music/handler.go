@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
-	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
+	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"

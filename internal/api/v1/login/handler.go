@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	UserID              = "user_id"
 	authorizationHeader = "Authorization"
 	bearerSchema        = "Bearer "
 )
@@ -80,12 +79,12 @@ func (s *Service) Authorization() gin.HandlerFunc {
 		}
 		if token.Valid {
 			claims := token.Claims.(jwt.MapClaims)
-			if id, ok := claims[UserID]; ok {
+			if id, ok := claims[login.UserID]; ok {
 				value, valid := id.(string)
 				if !valid {
 					c.AbortWithStatus(http.StatusInternalServerError)
 				}
-				c.Set(UserID, value)
+				c.Set(login.UserID, value)
 			}
 		} else {
 			c.AbortWithStatus(http.StatusUnauthorized)

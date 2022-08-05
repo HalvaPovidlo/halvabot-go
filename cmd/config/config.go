@@ -2,12 +2,12 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	"io/ioutil"
 
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
+	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 )
 
