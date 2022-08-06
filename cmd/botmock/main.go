@@ -23,7 +23,7 @@ func main() {
 	}
 	logger := log.NewLogger(cfg.General.Debug)
 
-	loginService := v1login.NewLoginHandler(login.NewMockStorage(), jwt.NewJWTokenizer("mock_secret"))
+	loginService := v1login.NewLoginHandler(login.NewLoginService(login.NewMockStorage(), jwt.NewJWTokenizer("mock_secret")))
 	musicService := music.NewMusicHandler(&music.MockPlayer{}, logger)
 	// Http routers
 	server := v1.NewServer(musicService, loginService)

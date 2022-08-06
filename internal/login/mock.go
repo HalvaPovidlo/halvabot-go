@@ -4,10 +4,6 @@ import (
 	"context"
 )
 
-const (
-	UserID = "user_id"
-)
-
 type mock struct{}
 
 func NewMockStorage() *mock {

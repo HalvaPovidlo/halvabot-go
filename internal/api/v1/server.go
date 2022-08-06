@@ -14,7 +14,8 @@ const basePath = "/api/v1"
 
 type LoginHandler interface {
 	PostAuthToken(c *gin.Context)
-	Authorization() gin.HandlerFunc
+	HardAuthorization() gin.HandlerFunc
+	SoftAuthorization() gin.HandlerFunc
 }
 
 type MusicHandler interface {
@@ -79,12 +80,13 @@ func (s *Server) RegisterHandlers() {
 		},
 	}
 	api := s.router.Group(basePath)
+	api.Use(s.SoftAuthorization())
 	api.POST("/auth/token", wrapper.PostAuthToken)
 	api.GET("/music/status", wrapper.GetMusicStatus)
 	api.GET("/films/all", wrapper.GetFilmsAll)
 	api.GET("/films/:id", wrapper.GetFilms)
 
-	api.Use(s.Authorization())
+	api.Use(s.HardAuthorization())
 	api.POST("/music/enqueue/:service/:kind", wrapper.PostMusicEnqueueServiceIdentifier)
 	api.POST("/music/loop", wrapper.PostMusicLoop)
 	api.POST("/music/radio", wrapper.PostMusicRadio)

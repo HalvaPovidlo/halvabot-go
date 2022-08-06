@@ -99,10 +99,10 @@ func main() {
 	v1chess.NewDiscordChessHandler(cfg.Discord.Prefix, lichessClient).RegisterCommands(session, cfg.General.Debug, logger)
 
 	// Auth stage
-	loginService := v1login.NewLoginHandler(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret))
+	loginHandler := v1login.NewLoginHandler(login.NewLoginService(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret)))
 
 	// Http routers
-	server := v1.NewServer(v1music.NewMusicHandler(musicService, logger), loginService)
+	server := v1.NewServer(v1music.NewMusicHandler(musicService, logger), loginHandler)
 	server.Run(cfg.Host.IP, cfg.Host.Bot, config.SwaggerPath, cfg.General.Debug)
 
 	sc := make(chan os.Signal, 1)
