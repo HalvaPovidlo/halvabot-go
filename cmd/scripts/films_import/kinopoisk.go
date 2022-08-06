@@ -14,7 +14,7 @@ import (
 )
 
 func buildFilmWithKinopoisk(ctx context.Context, film *item.Film) *item.Film {
-	kf, err := getKinopoiskFilm(ctx, string(film.ID))
+	kf, err := getKinopoiskFilm(ctx, film.ID)
 	if err != nil {
 		fmt.Println("GET KINOPOISK ", err)
 		return nil

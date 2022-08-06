@@ -2,11 +2,11 @@ package film
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 
-	"encoding/json"
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
@@ -17,7 +17,7 @@ const (
 	seriesURL = `https://www.kinopoisk.ru/series/`
 
 	apiFilms      = "https://kinopoiskapiunofficial.tech/api/v2.2/films/"
-	xApiKeyHeader = "X-API-KEY"
+	xAPIKeyHeader = "X-API-KEY"
 )
 
 type KinopoiskFilm struct {
@@ -38,7 +38,7 @@ type KinopoiskFilm struct {
 	Serial                   bool             `json:"serial"`
 	ShortFilm                bool             `json:"shortFilm"`
 	Completed                bool             `json:"completed"`
-	WebUrl                   string           `json:"webUrl"`
+	WebURL                   string           `json:"webUrl"`
 }
 
 type KinopoiskGenre struct {
@@ -63,7 +63,7 @@ func (k *Kinopoisk) GetFilm(ctx context.Context, id string) (*KinopoiskFilm, err
 		return nil, err
 	}
 
-	req.Header.Add(xApiKeyHeader, k.apiKey)
+	req.Header.Add(xAPIKeyHeader, k.apiKey)
 	resp, err := k.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -89,13 +89,13 @@ func BuildFilm(kf *KinopoiskFilm) *item.Film {
 		genres = append(genres, kf.Genres[i].Genre)
 	}
 	return &item.Film{
-		ID:                       IDFromKinopoiskURL(kf.WebUrl),
+		ID:                       IDFromKinopoiskURL(kf.WebURL),
 		Title:                    kf.NameRu,
 		TitleOriginal:            kf.NameOriginal,
 		Poster:                   kf.PosterURL,
 		Cover:                    kf.CoverURL,
 		Description:              kf.Description,
-		URL:                      kf.WebUrl,
+		URL:                      kf.WebURL,
 		RatingKinopoisk:          kf.RatingKinopoisk,
 		RatingKinopoiskVoteCount: kf.RatingKinopoiskVoteCount,
 		RatingImdb:               kf.RatingImdb,
@@ -125,7 +125,7 @@ func MergeFilm(kf *KinopoiskFilm, f *item.Film) *item.Film {
 		f.Director = kf.Description
 	}
 	if f.URL == "" {
-		f.URL = kf.WebUrl
+		f.URL = kf.WebURL
 	}
 	if f.Year == 0 {
 		f.Year = kf.Year

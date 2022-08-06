@@ -1,3 +1,4 @@
+//nolint:revive // generated interface
 package film
 
 import (
@@ -69,7 +70,7 @@ func (h *Handler) PostFilmsNew(c *gin.Context, params v1.PostFilmsNewParams) {
 		c.JSON(http.StatusBadRequest, v1.Error{Msg: err.Error()})
 		return
 	}
-	useKinopoisk := params.Kinopoisk == nil || *params.Kinopoisk == true
+	useKinopoisk := params.Kinopoisk == nil || *params.Kinopoisk
 	film, err := h.service.NewFilm(c, convertItem(&json), c.GetString(login.UserID), useKinopoisk)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})

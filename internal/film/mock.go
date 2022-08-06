@@ -152,5 +152,5 @@ var mockKPFilm = KinopoiskFilm{
 	},
 	Serial:    true,
 	Completed: false,
-	WebUrl:    "https://www.kinopoisk.ru/film/841681/",
+	WebURL:    "https://www.kinopoisk.ru/film/841681/",
 }

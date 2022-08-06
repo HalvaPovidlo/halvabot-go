@@ -85,7 +85,7 @@ func parseFilm(doc *firestore.DocumentSnapshot) (*item.Film, error) {
 }
 
 func (f *Firestore) Comments(ctx context.Context, filmID string) (map[string]item.Comment, error) {
-	var comments map[string]item.Comment
+	comments := make(map[string]item.Comment)
 	iter := f.Collection(fire.FilmsCollection).Doc(filmID).Collection(fire.CommentsCollection).Documents(ctx)
 	for {
 		doc, err := iter.Next()

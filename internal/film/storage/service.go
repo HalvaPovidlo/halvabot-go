@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"cloud.google.com/go/firestore"
 	"context"
+
+	"cloud.google.com/go/firestore"
 	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"

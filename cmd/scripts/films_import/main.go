@@ -100,12 +100,11 @@ func main() {
 }
 
 func addToFirestore(ctx context.Context, app *firestore.Client, film *item.Film) error {
-	filmID := string(film.ID)
 	batch := app.Batch()
-	batch.Set(app.Collection(fire.FilmsCollection).Doc(filmID), film)
+	batch.Set(app.Collection(fire.FilmsCollection).Doc(film.ID), film)
 	for user, score := range film.Scores {
 		film.UserScore = &score
-		batch.Set(app.Collection(fire.UsersCollection).Doc(user).Collection(fire.FilmsCollection).Doc(filmID), film)
+		batch.Set(app.Collection(fire.UsersCollection).Doc(user).Collection(fire.FilmsCollection).Doc(film.ID), film)
 	}
 	_, err := batch.Commit(ctx)
 	return err
