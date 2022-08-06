@@ -23,6 +23,13 @@ type Service struct {
 	kinopoisk *Kinopoisk
 }
 
+func NewService(storage storage, apiKey string) *Service {
+	return &Service{
+		storage:   storage,
+		kinopoisk: NewKinopoisk(apiKey),
+	}
+}
+
 var ErrNoUserScore = errors.New("no user score")
 
 func (s *Service) NewFilm(ctx context.Context, film *item.Film, userID string, withKP bool) (*item.Film, error) {
@@ -31,6 +38,7 @@ func (s *Service) NewFilm(ctx context.Context, film *item.Film, userID string, w
 	}
 	film.Score = *film.UserScore
 	film.Average = float64(*film.UserScore)
+	film.Scores = make(map[string]int)
 	film.Scores[userID] = *film.UserScore
 
 	if withKP {
@@ -109,12 +117,3 @@ func (s *Service) Score(ctx context.Context, filmID, userID string, score int) (
 	}
 	return film, nil
 }
-
-//
-//func setUserScore(film *item.Film, userID string) *item.Film {
-//	film.UserScore = nil
-//	if score, ok := film.Scores[userID]; ok {
-//		film.UserScore = &score
-//	}
-//	return film
-//}

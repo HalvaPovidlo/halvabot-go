@@ -9,8 +9,10 @@ import (
 
 	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
+	v1film "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/film"
 	v1login "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
+	"github.com/HalvaPovidlo/halvabot-go/internal/film"
 	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
@@ -25,8 +27,9 @@ func main() {
 
 	loginService := v1login.NewLoginHandler(login.NewLoginService(login.NewMockStorage(), jwt.NewJWTokenizer("mock_secret")))
 	musicService := music.NewMusicHandler(&music.MockPlayer{}, logger)
+	filmHandler := v1film.NewFilmHandler(film.NewMock())
 	// Http routers
-	server := v1.NewServer(musicService, loginService)
+	server := v1.NewServer(loginService, musicService, filmHandler)
 	server.Run(cfg.Host.IP, cfg.Host.Mock, config.SwaggerPath, cfg.General.Debug)
 
 	sc := make(chan os.Signal, 1)

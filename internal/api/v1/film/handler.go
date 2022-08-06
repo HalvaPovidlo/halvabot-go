@@ -12,7 +12,7 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
-type FilmService interface {
+type internalService interface {
 	NewFilm(ctx context.Context, film *item.Film, userID string, withKP bool) (*item.Film, error)
 	NewKinopoiskFilm(ctx context.Context, uri, userID string, score int) (*item.Film, error)
 	EditFilm(ctx context.Context, film *item.Film) (*item.Film, error)
@@ -27,10 +27,10 @@ type Films struct {
 }
 
 type Handler struct {
-	service FilmService
+	service internalService
 }
 
-func NewHandler(service FilmService) *Handler {
+func NewFilmHandler(service internalService) *Handler {
 	return &Handler{
 		service: service,
 	}
@@ -44,7 +44,7 @@ func (h *Handler) GetFilmsAll(c *gin.Context) {
 	}
 	items := make([]v1.Film, 0, len(films))
 	for i := range films {
-		items = append(items, convertFilm(&films[i]))
+		items = append(items, convertFilm(setUserScore(&films[i], c.GetString(login.UserID))))
 	}
 	c.JSON(http.StatusOK, v1.Films{Items: items})
 }
@@ -60,7 +60,7 @@ func (h *Handler) PostFilmsKinopoisk(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, convertFilm(film))
+	c.JSON(http.StatusOK, convertFilm(setUserScore(film, c.GetString(login.UserID))))
 }
 
 func (h *Handler) PostFilmsNew(c *gin.Context, params v1.PostFilmsNewParams) {
@@ -84,7 +84,7 @@ func (h *Handler) GetFilms(c *gin.Context, id v1.FilmId) {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, convertFilm(film))
+	c.JSON(http.StatusOK, convertFilm(setUserScore(film, c.GetString(login.UserID))))
 }
 
 func (h *Handler) PostFilmsId(c *gin.Context, id v1.FilmId) {
@@ -99,10 +99,9 @@ func (h *Handler) PostFilmsId(c *gin.Context, id v1.FilmId) {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, convertFilm(film))
+	c.JSON(http.StatusOK, convertFilm(setUserScore(film, c.GetString(login.UserID))))
 }
 
-// comment
 func (h *Handler) PostFilmsIdComment(c *gin.Context, id v1.FilmId) {
 	var json v1.PostFilmsIdCommentJSONRequestBody
 	if err := c.ShouldBindJSON(&json); err != nil {
@@ -128,7 +127,7 @@ func (h *Handler) PostFilmsIdScore(c *gin.Context, id v1.FilmId) {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, convertFilm(film))
+	c.JSON(http.StatusOK, convertFilm(setUserScore(film, c.GetString(login.UserID))))
 }
 
 func convertFilm(f *item.Film) v1.Film {
@@ -205,4 +204,15 @@ func convertItem(f *v1.Film) *item.Film {
 		ShortFilm:                f.ShortFilm,
 		Genres:                   genres,
 	}
+}
+
+func setUserScore(film *item.Film, userID string) *item.Film {
+	film.UserScore = nil
+	if userID == "" {
+		return film
+	}
+	if score, ok := film.Scores[userID]; ok {
+		film.UserScore = &score
+	}
+	return film
 }

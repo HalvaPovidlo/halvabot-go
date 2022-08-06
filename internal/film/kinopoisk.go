@@ -16,8 +16,8 @@ const (
 	filmURL   = `https://www.kinopoisk.ru/film/`
 	seriesURL = `https://www.kinopoisk.ru/series/`
 
-	apiFilms = "https://kinopoiskapiunofficial.tech/api/v2.2/films/"
-	xApiKey  = "X-API-KEY"
+	apiFilms      = "https://kinopoiskapiunofficial.tech/api/v2.2/films/"
+	xApiKeyHeader = "X-API-KEY"
 )
 
 type KinopoiskFilm struct {
@@ -63,7 +63,7 @@ func (k *Kinopoisk) GetFilm(ctx context.Context, id string) (*KinopoiskFilm, err
 		return nil, err
 	}
 
-	req.Header.Add(xApiKey, k.apiKey)
+	req.Header.Add(xApiKeyHeader, k.apiKey)
 	resp, err := k.client.Do(req)
 	if err != nil {
 		return nil, err

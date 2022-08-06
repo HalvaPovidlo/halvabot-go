@@ -17,9 +17,12 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
 	v1chess "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/chess"
+	v1film "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/film"
 	v1login "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
 	v1music "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	"github.com/HalvaPovidlo/halvabot-go/internal/chess/lichess"
+	"github.com/HalvaPovidlo/halvabot-go/internal/film"
+	fstorage "github.com/HalvaPovidlo/halvabot-go/internal/film/storage"
 	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
@@ -101,8 +104,11 @@ func main() {
 	// Auth stage
 	loginHandler := v1login.NewLoginHandler(login.NewLoginService(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret)))
 
+	// Films stage
+	filmHandler := v1film.NewFilmHandler(film.NewService(fstorage.NewStorage(fireClient), cfg.Kinopoisk))
+
 	// Http routers
-	server := v1.NewServer(v1music.NewMusicHandler(musicService, logger), loginHandler)
+	server := v1.NewServer(loginHandler, v1music.NewMusicHandler(musicService, logger), filmHandler)
 	server.Run(cfg.Host.IP, cfg.Host.Bot, config.SwaggerPath, cfg.General.Debug)
 
 	sc := make(chan os.Signal, 1)

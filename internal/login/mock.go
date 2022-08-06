@@ -13,6 +13,6 @@ func NewMockStorage() *mock {
 func (a *mock) GetAccount(ctx context.Context, login string) (*AccountInfo, error) {
 	return &AccountInfo{
 		Password: "password",
-		UserID:   "user_id",
+		UserID:   "mockman_id",
 	}, nil
 }

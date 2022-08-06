@@ -43,10 +43,11 @@ type Server struct {
 	FilmsHandler
 }
 
-func NewServer(music MusicHandler, login LoginHandler) *Server {
+func NewServer(login LoginHandler, music MusicHandler, films FilmsHandler) *Server {
 	return &Server{
-		MusicHandler: music,
 		LoginHandler: login,
+		MusicHandler: music,
+		FilmsHandler: films,
 		router:       gin.New(),
 	}
 }
