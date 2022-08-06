@@ -103,8 +103,8 @@ func (h *Handler) PostFilmsId(c *gin.Context, id v1.FilmId) {
 }
 
 // comment
-func (h *Handler) PostFilms(c *gin.Context, id v1.FilmId) {
-	var json v1.PostFilmsJSONRequestBody
+func (h *Handler) PostFilmsIdComment(c *gin.Context, id v1.FilmId) {
+	var json v1.PostFilmsIdCommentJSONRequestBody
 	if err := c.ShouldBindJSON(&json); err != nil {
 		c.JSON(http.StatusBadRequest, v1.Error{Msg: err.Error()})
 		return

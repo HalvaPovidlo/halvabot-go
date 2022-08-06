@@ -345,7 +345,7 @@ paths:
       - $ref: '#/components/parameters/film-id'
     post:
       summary: Comment film
-      operationId: post-films
+      operationId: post-films-id-comment
       responses:
         '200':
           description: OK

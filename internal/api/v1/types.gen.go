@@ -134,8 +134,8 @@ type PostFilmsNewJSONRequestBody = NewFilm
 // PostFilmsIdJSONRequestBody defines body for PostFilmsId for application/json ContentType.
 type PostFilmsIdJSONRequestBody = NewFilm
 
-// PostFilmsJSONRequestBody defines body for PostFilms for application/json ContentType.
-type PostFilmsJSONRequestBody Comment
+// PostFilmsIdCommentJSONRequestBody defines body for PostFilmsIdComment for application/json ContentType.
+type PostFilmsIdCommentJSONRequestBody Comment
 
 // PostFilmsIdScoreJSONRequestBody defines body for PostFilmsIdScore for application/json ContentType.
 type PostFilmsIdScoreJSONRequestBody Score

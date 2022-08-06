@@ -32,7 +32,7 @@ type FilmsHandler interface {
 	PostFilmsNew(c *gin.Context, params PostFilmsNewParams)
 	GetFilms(c *gin.Context, id FilmId)
 	PostFilmsId(c *gin.Context, id FilmId)
-	PostFilms(c *gin.Context, id FilmId)
+	PostFilmsIdComment(c *gin.Context, id FilmId)
 	PostFilmsIdScore(c *gin.Context, id FilmId)
 }
 
@@ -94,7 +94,7 @@ func (s *Server) RegisterHandlers() {
 	api.POST("/films/kinopoisk", wrapper.PostFilmsKinopoisk)
 	api.POST("/films/new", wrapper.PostFilmsNew)
 	api.POST("/films/:id", wrapper.PostFilmsId)
-	api.POST("/films/:id/comment", wrapper.PostFilms)
+	api.POST("/films/:id/comment", wrapper.PostFilmsIdComment)
 	api.POST("/films/:id/score", wrapper.PostFilmsIdScore)
 }
 

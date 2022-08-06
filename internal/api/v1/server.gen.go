@@ -33,7 +33,7 @@ type ServerInterface interface {
 	PostFilmsId(c *gin.Context, id FilmId)
 	// Comment film
 	// (POST /films/{id}/comment)
-	PostFilms(c *gin.Context, id FilmId)
+	PostFilmsIdComment(c *gin.Context, id FilmId)
 	// Score film
 	// (POST /films/{id}/score)
 	PostFilmsIdScore(c *gin.Context, id FilmId)
@@ -166,8 +166,8 @@ func (siw *ServerInterfaceWrapper) PostFilmsId(c *gin.Context) {
 	siw.Handler.PostFilmsId(c, id)
 }
 
-// PostFilms operation middleware
-func (siw *ServerInterfaceWrapper) PostFilms(c *gin.Context) {
+// PostFilmsIdComment operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsIdComment(c *gin.Context) {
 
 	var err error
 
@@ -186,7 +186,7 @@ func (siw *ServerInterfaceWrapper) PostFilms(c *gin.Context) {
 		middleware(c)
 	}
 
-	siw.Handler.PostFilms(c, id)
+	siw.Handler.PostFilmsIdComment(c, id)
 }
 
 // PostFilmsIdScore operation middleware
@@ -320,7 +320,7 @@ func RegisterHandlersWithOptions(router *gin.Engine, si ServerInterface, options
 
 	router.POST(options.BaseURL+"/films/:id", wrapper.PostFilmsId)
 
-	router.POST(options.BaseURL+"/films/:id/comment", wrapper.PostFilms)
+	router.POST(options.BaseURL+"/films/:id/comment", wrapper.PostFilmsIdComment)
 
 	router.POST(options.BaseURL+"/films/:id/score", wrapper.PostFilmsIdScore)
 
