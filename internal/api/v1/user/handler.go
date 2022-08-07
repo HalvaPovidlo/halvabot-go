@@ -19,11 +19,15 @@ type internalService interface {
 	Songs(ctx context.Context, userID string) ([]item.Song, error)
 }
 
-type Handler struct {
+type handler struct {
 	service internalService
 }
 
-func (h *Handler) GetUserFilms(c *gin.Context) {
+func NewUserHandler(service internalService) *handler {
+	return &handler{service: service}
+}
+
+func (h *handler) GetUserFilms(c *gin.Context) {
 	films, err := h.service.Films(c, c.GetString(login.UserID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
@@ -36,7 +40,7 @@ func (h *Handler) GetUserFilms(c *gin.Context) {
 	c.JSON(http.StatusOK, v1.Films{Items: items})
 }
 
-func (h *Handler) GetUserInfo(c *gin.Context) {
+func (h *handler) GetUserInfo(c *gin.Context) {
 	user, err := h.service.User(c, c.GetString(login.UserID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
@@ -45,7 +49,7 @@ func (h *Handler) GetUserInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, buildUser(user))
 }
 
-func (h *Handler) PatchUserInfo(c *gin.Context) {
+func (h *handler) PatchUserInfo(c *gin.Context) {
 	var json v1.User
 	err := c.ShouldBindJSON(&json)
 	if err != nil {
@@ -58,10 +62,9 @@ func (h *Handler) PatchUserInfo(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, buildUser(user))
-
 }
 
-func (h *Handler) GetUserSongs(c *gin.Context) {
+func (h *handler) GetUserSongs(c *gin.Context) {
 	songs, err := h.service.Songs(c, c.GetString(login.UserID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
