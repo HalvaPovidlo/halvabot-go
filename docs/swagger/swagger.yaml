@@ -580,6 +580,8 @@ components:
       properties:
         username:
           type: string
+          x-oapi-codegen-extra-tags:
+            binding: required
         avatar:
           type: string
           format: uri

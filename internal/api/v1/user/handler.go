@@ -50,7 +50,7 @@ func (h *handler) GetUserInfo(c *gin.Context) {
 }
 
 func (h *handler) PatchUserInfo(c *gin.Context) {
-	var json v1.User
+	var json v1.PatchUserInfoJSONBody
 	err := c.ShouldBindJSON(&json)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, v1.Error{Msg: err.Error()})

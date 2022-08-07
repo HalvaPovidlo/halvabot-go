@@ -63,7 +63,7 @@ type SongService string
 // User common info
 type User struct {
 	Avatar   *string `json:"avatar,omitempty"`
-	Username string  `json:"username"`
+	Username string  `binding:"required" json:"username"`
 }
 
 // FilmId defines model for film-id.
