@@ -60,6 +60,12 @@ type Song struct {
 // SongService defines model for Song.Service.
 type SongService string
 
+// User common info
+type User struct {
+	Avatar   *string `json:"avatar,omitempty"`
+	Username string  `json:"username"`
+}
+
 // FilmId defines model for film-id.
 type FilmId = string
 
@@ -71,6 +77,11 @@ type Error struct {
 // Films defines model for Films.
 type Films struct {
 	Items []Film `json:"items"`
+}
+
+// Songs defines model for Songs.
+type Songs struct {
+	Items []Song `json:"items"`
 }
 
 // Token defines model for Token.
@@ -122,6 +133,9 @@ type PostMusicEnqueueServiceIdentifierJSONBody struct {
 	Input string `binding:"required" json:"input"`
 }
 
+// PatchUserInfoJSONBody defines parameters for PatchUserInfo.
+type PatchUserInfoJSONBody = User
+
 // PostAuthTokenJSONRequestBody defines body for PostAuthToken for application/json ContentType.
 type PostAuthTokenJSONRequestBody PostAuthTokenJSONBody
 
@@ -131,8 +145,8 @@ type PostFilmsKinopoiskJSONRequestBody NewKinoposk
 // PostFilmsNewJSONRequestBody defines body for PostFilmsNew for application/json ContentType.
 type PostFilmsNewJSONRequestBody = NewFilm
 
-// PostFilmsIdJSONRequestBody defines body for PostFilmsId for application/json ContentType.
-type PostFilmsIdJSONRequestBody = NewFilm
+// PatchFilmsIdJSONRequestBody defines body for PatchFilmsId for application/json ContentType.
+type PatchFilmsIdJSONRequestBody = NewFilm
 
 // PostFilmsIdCommentJSONRequestBody defines body for PostFilmsIdComment for application/json ContentType.
 type PostFilmsIdCommentJSONRequestBody Comment
@@ -148,3 +162,6 @@ type PostMusicLoopJSONRequestBody EnableMode
 
 // PostMusicRadioJSONRequestBody defines body for PostMusicRadio for application/json ContentType.
 type PostMusicRadioJSONRequestBody EnableMode
+
+// PatchUserInfoJSONRequestBody defines body for PatchUserInfo for application/json ContentType.
+type PatchUserInfoJSONRequestBody = PatchUserInfoJSONBody

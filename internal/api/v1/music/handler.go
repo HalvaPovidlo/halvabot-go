@@ -55,37 +55,16 @@ func (h *Handler) PostMusicEnqueueServiceIdentifier(c *gin.Context, service stri
 			c.Status(http.StatusConflict)
 			return
 		case status.Convert(err).Code() != codes.OK && status.Convert(err).Code() != codes.Unknown:
-			c.JSON(http.StatusInsufficientStorage, gin.H{"song": song, "msg": err.Error()})
+			c.JSON(http.StatusInsufficientStorage, gin.H{"song": v1.BuildSong(song), "msg": err.Error()})
 			return
 		case err != nil:
 			c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, buildSong(song))
+		c.JSON(http.StatusOK, v1.BuildSong(song))
 		return
 	}
 	c.Status(http.StatusNotImplemented)
-}
-
-func buildSong(song *item.Song) *v1.Song {
-	return &v1.Song{
-		ArtistName:   song.ArtistName,
-		ArtistUrl:    song.ArtistURL,
-		ArtworkUrl:   song.ArtworkURL,
-		LastPlay:     song.LastPlay,
-		Playbacks:    song.Playbacks,
-		Service:      convertService(song.Service),
-		ThumbnailUrl: song.ThumbnailURL,
-		Title:        song.Title,
-		Url:          song.URL,
-	}
-}
-
-func convertService(service item.ServiceName) v1.SongService {
-	if service == item.ServiceYouTube {
-		return v1.Youtube
-	}
-	return v1.Unknown
 }
 
 func (h *Handler) PostMusicSkip(c *gin.Context) {

@@ -29,8 +29,8 @@ type ServerInterface interface {
 	// (GET /films/{id})
 	GetFilms(c *gin.Context, id FilmId)
 	// Edit film
-	// (POST /films/{id})
-	PostFilmsId(c *gin.Context, id FilmId)
+	// (PATCH /films/{id})
+	PatchFilmsId(c *gin.Context, id FilmId)
 	// Comment film
 	// (POST /films/{id}/comment)
 	PostFilmsIdComment(c *gin.Context, id FilmId)
@@ -52,6 +52,18 @@ type ServerInterface interface {
 	// Player status
 	// (GET /music/status)
 	GetMusicStatus(c *gin.Context)
+	// Get films
+	// (GET /user/films)
+	GetUserFilms(c *gin.Context)
+	// Get info
+	// (GET /user/info)
+	GetUserInfo(c *gin.Context)
+	// Edit info
+	// (PATCH /user/info)
+	PatchUserInfo(c *gin.Context)
+	// Get songs
+	// (GET /user/songs)
+	GetUserSongs(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -143,8 +155,8 @@ func (siw *ServerInterfaceWrapper) GetFilms(c *gin.Context) {
 	siw.Handler.GetFilms(c, id)
 }
 
-// PostFilmsId operation middleware
-func (siw *ServerInterfaceWrapper) PostFilmsId(c *gin.Context) {
+// PatchFilmsId operation middleware
+func (siw *ServerInterfaceWrapper) PatchFilmsId(c *gin.Context) {
 
 	var err error
 
@@ -163,7 +175,7 @@ func (siw *ServerInterfaceWrapper) PostFilmsId(c *gin.Context) {
 		middleware(c)
 	}
 
-	siw.Handler.PostFilmsId(c, id)
+	siw.Handler.PatchFilmsId(c, id)
 }
 
 // PostFilmsIdComment operation middleware
@@ -290,6 +302,54 @@ func (siw *ServerInterfaceWrapper) GetMusicStatus(c *gin.Context) {
 	siw.Handler.GetMusicStatus(c)
 }
 
+// GetUserFilms operation middleware
+func (siw *ServerInterfaceWrapper) GetUserFilms(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetUserFilms(c)
+}
+
+// GetUserInfo operation middleware
+func (siw *ServerInterfaceWrapper) GetUserInfo(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetUserInfo(c)
+}
+
+// PatchUserInfo operation middleware
+func (siw *ServerInterfaceWrapper) PatchUserInfo(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PatchUserInfo(c)
+}
+
+// GetUserSongs operation middleware
+func (siw *ServerInterfaceWrapper) GetUserSongs(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetUserSongs(c)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL     string
@@ -318,7 +378,7 @@ func RegisterHandlersWithOptions(router *gin.Engine, si ServerInterface, options
 
 	router.GET(options.BaseURL+"/films/:id", wrapper.GetFilms)
 
-	router.POST(options.BaseURL+"/films/:id", wrapper.PostFilmsId)
+	router.PATCH(options.BaseURL+"/films/:id", wrapper.PatchFilmsId)
 
 	router.POST(options.BaseURL+"/films/:id/comment", wrapper.PostFilmsIdComment)
 
@@ -333,6 +393,14 @@ func RegisterHandlersWithOptions(router *gin.Engine, si ServerInterface, options
 	router.POST(options.BaseURL+"/music/skip", wrapper.PostMusicSkip)
 
 	router.GET(options.BaseURL+"/music/status", wrapper.GetMusicStatus)
+
+	router.GET(options.BaseURL+"/user/films", wrapper.GetUserFilms)
+
+	router.GET(options.BaseURL+"/user/info", wrapper.GetUserInfo)
+
+	router.PATCH(options.BaseURL+"/user/info", wrapper.PatchUserInfo)
+
+	router.GET(options.BaseURL+"/user/songs", wrapper.GetUserSongs)
 
 	return router
 }

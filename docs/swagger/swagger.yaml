@@ -313,9 +313,9 @@ paths:
       description: Get full film data
     parameters:
       - $ref: '#/components/parameters/film-id'
-    post:
+    patch:
       summary: Edit film
-      operationId: post-films-id
+      operationId: patch-films-id
       responses:
         '200':
           $ref: '#/components/responses/Film'
@@ -366,6 +366,72 @@ paths:
           $ref: '#/components/responses/Films'
       operationId: get-films-all
       description: Get all films
+  /user/info:
+    get:
+      summary: Get info
+      tags:
+        - user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                example-1:
+                  value:
+                    username: string
+                    avatar: 'http://example.com'
+      operationId: get-user-info
+      security:
+        - JWT: []
+      description: Get information about the user
+    patch:
+      summary: Edit info
+      operationId: patch-user-info
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+      description: Edit user information
+      tags:
+        - user
+      security:
+        - JWT: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: New user info
+  /user/songs:
+    get:
+      summary: Get songs
+      tags:
+        - user
+      responses:
+        '200':
+          $ref: '#/components/responses/Songs'
+      operationId: get-user-songs
+      description: Get the songs that the user played in the music player
+      security:
+        - JWT: []
+  /user/films:
+    get:
+      summary: Get films
+      tags:
+        - user
+      responses:
+        '200':
+          $ref: '#/components/responses/Films'
+      operationId: get-user-films
+      description: Get films that the user has rated
+      security:
+        - JWT: []
 components:
   schemas:
     Song:
@@ -505,6 +571,22 @@ components:
         - rating_imdb_vote_count
         - serial
         - short_film
+    User:
+      type: object
+      x-examples:
+        example-1:
+          username: khodand
+          avatar: 'https://static-cdn.jtvnw.net/jtv_user_pictures/4398953f-51e5-4519-ba37-5d12eceea5fa-profile_image-300x300.png'
+      properties:
+        username:
+          type: string
+        avatar:
+          type: string
+          format: uri
+      required:
+        - username
+      title: UserInfo
+      description: User common info
   securitySchemes:
     JWT:
       type: http
@@ -553,6 +635,34 @@ components:
                   $ref: '#/components/schemas/Film'
             required:
               - items
+          examples:
+            example-1:
+              value:
+                items:
+                  - film_id: string
+                    title: string
+                    title_original: string
+                    cover: string
+                    poster: string
+                    director: string
+                    description: string
+                    duration: string
+                    score: 0
+                    user_score: 0
+                    average: 0
+                    kinopoisk: string
+                    rating_kinopoisk: 0
+                    rating_kinopoisk_vote_count: 0
+                    rating_imdb: 0
+                    rating_imdb_vote_count: 0
+                    year: 0
+                    film_length: 0
+                    serial: true
+                    short_film: true
+                    genres:
+                      - string
+                    scores: {}
+                    comments: {}
     Film:
       description: Response film
       content:
@@ -585,6 +695,32 @@ components:
                 genres:
                   - string
                 scores: {}
+    Songs:
+      description: Array of songs
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Song'
+            required:
+              - items
+          examples:
+            example-1:
+              value:
+                items:
+                  - title: string
+                    url: 'http://example.com'
+                    service: youtube
+                    artist_name: string
+                    artist_url: 'http://example.com'
+                    artwork_url: 'http://example.com'
+                    thumbnail_url: 'http://example.com'
+                    playbacks: 0
+                    last_play: '2022-07-29T17:51:09.851964+03:00'
   requestBodies:
     Enable-mode:
       content:

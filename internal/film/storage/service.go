@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"cloud.google.com/go/firestore"
-	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
@@ -24,7 +23,7 @@ func NewStorage(client *firestore.Client) *Service {
 func (s *Service) NewFilm(ctx context.Context, film *item.Film, userID string) error {
 	err := s.storage.NewFilm(ctx, film, userID)
 	if err != nil {
-		return errors.Wrap(err, "add new film to firestore")
+		return err
 	}
 	film.WithComments = true
 	s.cache.NewFilm(*film)
@@ -34,7 +33,7 @@ func (s *Service) NewFilm(ctx context.Context, film *item.Film, userID string) e
 func (s *Service) EditFilm(ctx context.Context, film *item.Film) error {
 	err := s.storage.EditFilm(ctx, film)
 	if err != nil {
-		return errors.Wrap(err, "edit film in firestore")
+		return err
 	}
 	s.cache.EditFilm(*film)
 	return nil
@@ -45,7 +44,7 @@ func (s *Service) AllFilms(ctx context.Context) ([]item.Film, error) {
 	if len(films) == 0 {
 		all, err := s.storage.AllFilms(ctx)
 		if err != nil {
-			return nil, errors.Wrap(err, "get all films from firestore")
+			return nil, err
 		}
 		s.cache.Fill(all)
 		films = all
@@ -60,7 +59,7 @@ func (s *Service) Film(ctx context.Context, filmID string) (*item.Film, error) {
 	}
 	film, err := s.storage.Film(ctx, filmID)
 	if err != nil {
-		return nil, errors.Wrap(err, "get film from firestore")
+		return nil, err
 	}
 	s.cache.SetFilm(*film)
 	return film, nil
@@ -69,7 +68,7 @@ func (s *Service) Film(ctx context.Context, filmID string) (*item.Film, error) {
 func (s *Service) Comment(ctx context.Context, filmID string, comment *item.Comment) error {
 	id, err := s.storage.Comment(ctx, filmID, comment)
 	if err != nil {
-		return errors.Wrap(err, "add comment to the film in firestore")
+		return err
 	}
 	s.cache.Comment(filmID, id, *comment)
 	return nil
@@ -78,7 +77,7 @@ func (s *Service) Comment(ctx context.Context, filmID string, comment *item.Comm
 func (s *Service) Score(ctx context.Context, filmID, userID string, score int) (*item.Film, error) {
 	film, err := s.storage.Score(ctx, filmID, userID, score)
 	if err != nil {
-		return nil, errors.Wrap(err, "add score to the film in firestore")
+		return nil, err
 	}
 	s.cache.EditFilm(film)
 	return &film, nil

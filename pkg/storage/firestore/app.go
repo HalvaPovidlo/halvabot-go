@@ -13,7 +13,6 @@ const (
 	SongsCollection    = "songs"
 	UsersCollection    = "users"
 	FilmsCollection    = "films"
-	ScoresCollection   = "scores"
 	CommentsCollection = "comments"
 	LoginsCollection   = "logins"
 	BatchSize          = 500
