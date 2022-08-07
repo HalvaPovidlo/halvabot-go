@@ -86,9 +86,10 @@ func (m *Mock) Score(ctx context.Context, filmID, userID string, score int) (*it
 		return nil, errors.New("film not found")
 	}
 	oldScore := f.Scores[userID]
-	f.Score = score - oldScore
+	f.Score += score - oldScore
 	f.Scores[userID] = score
-	f.Average = float64(score) / float64(len(f.Scores))
+	f.Average = float64(f.Score) / float64(len(f.Scores))
+	m.films[filmID] = f
 	return &f, nil
 }
 

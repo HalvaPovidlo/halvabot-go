@@ -125,9 +125,9 @@ func (f *Firestore) Score(ctx context.Context, filmID, userID string, score int)
 			return errors.Wrap(err, "parse film doc")
 		}
 		oldScore := film.Scores[userID]
-		film.Score = score - oldScore
+		film.Score += score - oldScore
 		film.Scores[userID] = score
-		film.Average = float64(score) / float64(len(film.Scores))
+		film.Average = float64(film.Score) / float64(len(film.Scores))
 		if err := tx.Set(filmRef, film); err != nil {
 			return err
 		}
