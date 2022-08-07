@@ -122,6 +122,10 @@ func (h *Handler) PostFilmsIdScore(c *gin.Context, id v1.FilmId) {
 		c.JSON(http.StatusBadRequest, v1.Error{Msg: err.Error()})
 		return
 	}
+	if json.Score < -1 || json.Score > 1 {
+		c.JSON(http.StatusBadRequest, v1.Error{Msg: "score must be an integer in the range [-1,1]"})
+		return
+	}
 	film, err := h.service.Score(c, id, c.GetString(login.UserID), json.Score)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
