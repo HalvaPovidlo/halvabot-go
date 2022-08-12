@@ -30,7 +30,7 @@ type MusicHandler interface {
 }
 
 type FilmsHandler interface {
-	GetFilmsAll(c *gin.Context)
+	GetFilmsAll(c *gin.Context, params GetFilmsAllParams)
 	PostFilmsKinopoisk(c *gin.Context)
 	PostFilmsNew(c *gin.Context, params PostFilmsNewParams)
 	GetFilms(c *gin.Context, id FilmId)
@@ -40,7 +40,7 @@ type FilmsHandler interface {
 }
 
 type UserHandler interface {
-	GetUserFilms(c *gin.Context)
+	GetUserFilms(c *gin.Context, params GetUserFilmsParams)
 	GetUserInfo(c *gin.Context)
 	PatchUserInfo(c *gin.Context)
 	GetUserSongs(c *gin.Context)
@@ -227,4 +227,24 @@ func convertService(service item.ServiceName) SongService {
 		return Youtube
 	}
 	return Unknown
+}
+
+func ConvertSortKet(k Sort) item.SortKey {
+	switch k {
+	case SortAverage:
+		return item.AverageSort
+	case SortHalva:
+		return item.HalvaSort
+	case SortImdb:
+		return item.ImdbSort
+	case SortKinopoisk:
+		return item.KinopoiskSort
+	case SortRandom:
+		return item.RandomSort
+	case SortScore:
+		return item.ScoreSort
+	case SortTitle:
+		return item.TitleSort
+	}
+	return item.TitleSort
 }

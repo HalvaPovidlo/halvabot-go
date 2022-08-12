@@ -26,8 +26,8 @@ func (s *Mock) User(ctx context.Context, userID string) (*item.User, error) {
 	return userMock, nil
 }
 
-func (s *Mock) Films(ctx context.Context, userID string) ([]item.Film, error) {
-	return []item.Film{
+func (s *Mock) Films(ctx context.Context, userID string) (item.Films, error) {
+	return item.Films{
 		{
 			ID:                       "12434",
 			Title:                    "wasdo;nlk",

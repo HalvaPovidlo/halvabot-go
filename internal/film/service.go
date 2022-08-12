@@ -12,7 +12,7 @@ import (
 type storage interface {
 	NewFilm(ctx context.Context, film *item.Film, userID string) error
 	EditFilm(ctx context.Context, film *item.Film) error
-	AllFilms(ctx context.Context) ([]item.Film, error)
+	AllFilms(ctx context.Context) (item.Films, error)
 	Film(ctx context.Context, filmID string) (*item.Film, error)
 	Comment(ctx context.Context, filmID string, comment *item.Comment) error
 	Score(ctx context.Context, filmID, userID string, score int) (*item.Film, error)
@@ -81,7 +81,7 @@ func (s *Service) EditFilm(ctx context.Context, film *item.Film) (*item.Film, er
 	return film, nil
 }
 
-func (s *Service) AllFilms(ctx context.Context) ([]item.Film, error) {
+func (s *Service) AllFilms(ctx context.Context) (item.Films, error) {
 	films, err := s.storage.AllFilms(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "all films from storage")

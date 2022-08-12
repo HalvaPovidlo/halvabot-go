@@ -11,7 +11,7 @@ import (
 type userStorage interface {
 	EditUser(ctx context.Context, user *item.User) error
 	User(ctx context.Context, userID string) (*item.User, error)
-	Films(ctx context.Context, userID string) ([]item.Film, error)
+	Films(ctx context.Context, userID string) (item.Films, error)
 	Songs(ctx context.Context, userID string) ([]item.Song, error)
 }
 
@@ -39,7 +39,7 @@ func (s *service) User(ctx context.Context, userID string) (*item.User, error) {
 	return user, nil
 }
 
-func (s *service) Films(ctx context.Context, userID string) ([]item.Film, error) {
+func (s *service) Films(ctx context.Context, userID string) (item.Films, error) {
 	films, err := s.storage.Films(ctx, userID)
 	if err != nil {
 		return nil, errors.Wrap(err, "get user films from storage")

@@ -16,14 +16,14 @@ type internalService interface {
 	NewFilm(ctx context.Context, film *item.Film, userID string, withKP bool) (*item.Film, error)
 	NewKinopoiskFilm(ctx context.Context, uri, userID string, score int) (*item.Film, error)
 	EditFilm(ctx context.Context, film *item.Film) (*item.Film, error)
-	AllFilms(ctx context.Context) ([]item.Film, error)
+	AllFilms(ctx context.Context) (item.Films, error)
 	Film(ctx context.Context, filmID string) (*item.Film, error)
 	Comment(ctx context.Context, text, filmID, userID string) error
 	Score(ctx context.Context, filmID, userID string, score int) (*item.Film, error)
 }
 
 type Films struct {
-	Items []item.Film `json:"items"`
+	Items item.Films `json:"items"`
 }
 
 type Handler struct {
@@ -36,12 +36,17 @@ func NewFilmHandler(service internalService) *Handler {
 	}
 }
 
-func (h *Handler) GetFilmsAll(c *gin.Context) {
+func (h *Handler) GetFilmsAll(c *gin.Context, params v1.GetFilmsAllParams) {
 	films, err := h.service.AllFilms(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 		return
 	}
+	sortKey := v1.SortTitle
+	if params.Sort == nil {
+		sortKey = v1.Sort(*params.Sort)
+	}
+	films.Sort(v1.ConvertSortKet(sortKey))
 	items := make([]v1.Film, 0, len(films))
 	for i := range films {
 		items = append(items, v1.ConvertFilm(setUserScore(&films[i], c.GetString(login.UserID))))

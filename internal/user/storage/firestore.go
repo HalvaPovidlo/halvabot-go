@@ -1,9 +1,8 @@
 package storage
 
 import (
-	"context"
-
 	"cloud.google.com/go/firestore"
+	"context"
 	"github.com/pkg/errors"
 	"google.golang.org/api/iterator"
 
@@ -39,8 +38,8 @@ func (f *Firestore) User(ctx context.Context, userID string) (*item.User, error)
 	return &user, nil
 }
 
-func (f *Firestore) Films(ctx context.Context, userID string) ([]item.Film, error) {
-	var films []item.Film
+func (f *Firestore) Films(ctx context.Context, userID string) (item.Films, error) {
+	var films item.Films
 	iter := f.Collection(fire.UsersCollection).Doc(userID).Collection(fire.FilmsCollection).Documents(ctx)
 	for {
 		doc, err := iter.Next()

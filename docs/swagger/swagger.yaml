@@ -368,6 +368,8 @@ paths:
           $ref: '#/components/responses/Films'
       operationId: get-films-all
       description: Get all films
+      parameters:
+        - $ref: '#/components/parameters/sort'
   /user/info:
     get:
       summary: Get info
@@ -434,6 +436,8 @@ paths:
       description: Get films that the user has rated
       security:
         - JWT: []
+      parameters:
+        - $ref: '#/components/parameters/sort'
 components:
   schemas:
     Song:
@@ -804,3 +808,19 @@ components:
       schema:
         type: string
       description: Film kinopoisk id
+    sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - title
+          - random
+          - score
+          - average
+          - kinopoisk
+          - imdb
+          - halva
+        default: title
+      description: Sorting key

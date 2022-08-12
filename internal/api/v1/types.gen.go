@@ -17,6 +17,17 @@ const (
 	Youtube SongService = "youtube"
 )
 
+// Defines values for Sort.
+const (
+	SortAverage   Sort = "average"
+	SortHalva     Sort = "halva"
+	SortImdb      Sort = "imdb"
+	SortKinopoisk Sort = "kinopoisk"
+	SortRandom    Sort = "random"
+	SortScore     Sort = "score"
+	SortTitle     Sort = "title"
+)
+
 // Film structure
 type Film struct {
 	Average                  float32                 `json:"average"`
@@ -68,6 +79,9 @@ type User struct {
 
 // FilmId defines model for film-id.
 type FilmId = string
+
+// Sort defines model for sort.
+type Sort string
 
 // Error defines model for Error.
 type Error struct {
@@ -122,6 +136,15 @@ type PostAuthTokenJSONBody struct {
 	Password string `binding:"required" json:"password"`
 }
 
+// GetFilmsAllParams defines parameters for GetFilmsAll.
+type GetFilmsAllParams struct {
+	// Sorting key
+	Sort *GetFilmsAllParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+}
+
+// GetFilmsAllParamsSort defines parameters for GetFilmsAll.
+type GetFilmsAllParamsSort string
+
 // PostFilmsNewParams defines parameters for PostFilmsNew.
 type PostFilmsNewParams struct {
 	// Use kinopoisk api help
@@ -132,6 +155,15 @@ type PostFilmsNewParams struct {
 type PostMusicEnqueueServiceIdentifierJSONBody struct {
 	Input string `binding:"required" json:"input"`
 }
+
+// GetUserFilmsParams defines parameters for GetUserFilms.
+type GetUserFilmsParams struct {
+	// Sorting key
+	Sort *GetUserFilmsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+}
+
+// GetUserFilmsParamsSort defines parameters for GetUserFilms.
+type GetUserFilmsParamsSort string
 
 // PatchUserInfoJSONBody defines parameters for PatchUserInfo.
 type PatchUserInfoJSONBody = User

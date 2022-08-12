@@ -1,17 +1,23 @@
 package item
 
 import (
+	"math"
+	"math/rand"
+	"sort"
 	"time"
 )
 
-type SortCode int8
+type SortKey int8
 
 const (
-	RandomSort    SortCode = 0
-	TitleSort     SortCode = 1
-	TitleBackSort SortCode = 2
-	ScoreSort     SortCode = 3
-	ScoreBackSort SortCode = 4
+	// Ascending
+	TitleSort SortKey = iota
+	RandomSort
+	ScoreSort
+	AverageSort
+	KinopoiskSort
+	ImdbSort
+	HalvaSort
 )
 
 type Film struct {
@@ -34,6 +40,7 @@ type Film struct {
 	RatingKinopoiskVoteCount int                `firestore:"rating_kinopoisk_vote_count,omitempty" json:"rating_kinopoisk_vote_count,omitempty"`
 	RatingImdb               float64            `firestore:"rating_imdb,omitempty" json:"rating_imdb,omitempty"`
 	RatingImdbVoteCount      int                `firestore:"rating_imdb_vote_count,omitempty" json:"rating_imdb_vote_count,omitempty"`
+	RatingHalva              float64            `firestore:"rating_halva" json:"rating_halva"`
 	Year                     int                `firestore:"year,omitempty" json:"year,omitempty"`
 	FilmLength               int                `firestore:"film_length,omitempty" json:"film_length,omitempty"`
 	Serial                   bool               `firestore:"serial" json:"serial"`
@@ -47,6 +54,46 @@ type Comment struct {
 	CreatedAt time.Time `firestore:"created_at" json:"created_at"`
 }
 
-type FireScore struct {
-	Score int `firestore:"score"`
+func (f *Film) Rate(score int, userID string) {
+	oldScore := f.Scores[userID]
+	f.Score += score - oldScore
+	f.Scores[userID] = score
+	f.Average = float64(f.Score) / float64(len(f.Scores))
+	f.RatingHalva = float64(f.Score) * math.Abs(f.Average)
+}
+
+type Films []Film
+
+func (f Films) Sort(code SortKey) Films {
+	// TitleSort
+	sort.Slice(f, func(i, j int) bool {
+		return f[i].Title < f[j].Title
+	})
+	switch code {
+	case RandomSort:
+		rand.Shuffle(len(f), func(i, j int) {
+			f[i], f[j] = f[j], f[i]
+		})
+	case ScoreSort:
+		sort.SliceStable(f, func(i, j int) bool {
+			return f[i].Score < f[j].Score
+		})
+	case AverageSort:
+		sort.SliceStable(f, func(i, j int) bool {
+			return f[i].Average < f[j].Average
+		})
+	case KinopoiskSort:
+		sort.SliceStable(f, func(i, j int) bool {
+			return f[i].RatingKinopoisk < f[j].RatingKinopoisk
+		})
+	case ImdbSort:
+		sort.SliceStable(f, func(i, j int) bool {
+			return f[i].RatingImdb < f[j].RatingImdb
+		})
+	case HalvaSort:
+		sort.SliceStable(f, func(i, j int) bool {
+			return f[i].RatingHalva < f[j].RatingHalva
+		})
+	}
+	return f
 }

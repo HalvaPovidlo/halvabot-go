@@ -17,7 +17,7 @@ func NewCache() *Cache {
 	}
 }
 
-func (c *Cache) Fill(films []item.Film) {
+func (c *Cache) Fill(films item.Films) {
 	c.Lock()
 	for i := range films {
 		c.films[films[i].ID] = films[i]
@@ -49,10 +49,10 @@ func (c *Cache) SetFilm(film item.Film) {
 	c.Unlock()
 }
 
-func (c *Cache) AllFilms() []item.Film {
+func (c *Cache) AllFilms() item.Films {
 	c.Lock()
-	var films []item.Film
-	films = make([]item.Film, 0, len(c.films))
+	var films item.Films
+	films = make(item.Films, 0, len(c.films))
 	for _, f := range c.films {
 		films = append(films, f)
 	}

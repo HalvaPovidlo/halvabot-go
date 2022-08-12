@@ -39,7 +39,7 @@ func (s *Service) EditFilm(ctx context.Context, film *item.Film) error {
 	return nil
 }
 
-func (s *Service) AllFilms(ctx context.Context) ([]item.Film, error) {
+func (s *Service) AllFilms(ctx context.Context) (item.Films, error) {
 	films := s.cache.AllFilms()
 	if len(films) == 0 {
 		all, err := s.storage.AllFilms(ctx)

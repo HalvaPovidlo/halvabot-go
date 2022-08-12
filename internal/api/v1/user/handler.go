@@ -15,7 +15,7 @@ import (
 type internalService interface {
 	EditUser(ctx context.Context, user *item.User) (*item.User, error)
 	User(ctx context.Context, userID string) (*item.User, error)
-	Films(ctx context.Context, userID string) ([]item.Film, error)
+	Films(ctx context.Context, userID string) (item.Films, error)
 	Songs(ctx context.Context, userID string) ([]item.Song, error)
 }
 
@@ -27,12 +27,17 @@ func NewUserHandler(service internalService) *handler {
 	return &handler{service: service}
 }
 
-func (h *handler) GetUserFilms(c *gin.Context) {
+func (h *handler) GetUserFilms(c *gin.Context, params v1.GetUserFilmsParams) {
 	films, err := h.service.Films(c, c.GetString(login.UserID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 		return
 	}
+	sortKey := v1.SortTitle
+	if params.Sort == nil {
+		sortKey = v1.Sort(*params.Sort)
+	}
+	films.Sort(v1.ConvertSortKet(sortKey))
 	items := make([]v1.Film, 0, len(films))
 	for i := range films {
 		items = append(items, v1.ConvertFilm(&films[i]))

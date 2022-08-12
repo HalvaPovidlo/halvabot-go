@@ -41,7 +41,7 @@ func (s *Service) User(ctx context.Context, userID string) (*item.User, error) {
 	return user, nil
 }
 
-func (s *Service) Films(ctx context.Context, userID string) ([]item.Film, error) {
+func (s *Service) Films(ctx context.Context, userID string) (item.Films, error) {
 	films, err := s.storage.Films(ctx, userID)
 	if err != nil {
 		return nil, err

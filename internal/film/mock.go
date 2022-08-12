@@ -49,8 +49,8 @@ func (m *Mock) EditFilm(ctx context.Context, film *item.Film) (*item.Film, error
 	return film, nil
 }
 
-func (m *Mock) AllFilms(ctx context.Context) ([]item.Film, error) {
-	films := make([]item.Film, 0, len(m.films))
+func (m *Mock) AllFilms(ctx context.Context) (item.Films, error) {
+	films := make(item.Films, 0, len(m.films))
 	for _, v := range m.films {
 		v.Comments = nil
 		films = append(films, v)
@@ -85,10 +85,7 @@ func (m *Mock) Score(ctx context.Context, filmID, userID string, score int) (*it
 	if !ok {
 		return nil, errors.New("film not found")
 	}
-	oldScore := f.Scores[userID]
-	f.Score += score - oldScore
-	f.Scores[userID] = score
-	f.Average = float64(f.Score) / float64(len(f.Scores))
+	f.Rate(score, userID)
 	m.films[filmID] = f
 	return &f, nil
 }
