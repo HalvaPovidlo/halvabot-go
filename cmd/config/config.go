@@ -1,9 +1,9 @@
 package config
 
 import (
-	"encoding/json"
-	"io/ioutil"
+	"os"
 
+	"encoding/json"
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
@@ -66,7 +66,7 @@ type HostConfig struct {
 
 func InitConfig() (*Config, error) {
 	var config Config
-	jsonFile, err := ioutil.ReadFile(FilePath)
+	jsonFile, err := os.ReadFile(FilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "read failed")
 	}

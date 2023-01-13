@@ -3,11 +3,11 @@ package music
 import (
 	"context"
 	"fmt"
+	"github.com/bwmarrin/discordgo"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -87,7 +87,7 @@ func (h *DiscordHandler) RegisterCommands(ctx context.Context, session *discordg
 	command.NewMessageCommand(h.prefix+skip, h.skipMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(h.prefix+skipFS, h.skipMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(h.prefix+loop, h.loopMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+nowPlaying, h.nowpMessageHandler, debug).RegisterCommand(session, logger)
+	command.NewMessageCommand(h.prefix+nowPlaying, h.nowMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(h.prefix+random, h.randomMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(h.prefix+radio, h.radioMessageHandler, debug).RegisterCommand(session, logger)
 	command.NewMessageCommand(h.prefix+disconnect, h.disconnectMessageHandler, debug).RegisterCommand(session, logger)
@@ -142,7 +142,7 @@ func (h *DiscordHandler) loopMessageHandler(ctx context.Context, session *discor
 	h.player.SetLoop(ctx, !b)
 }
 
-func (h *DiscordHandler) nowpMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
+func (h *DiscordHandler) nowMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
 	h.deleteMessage(ctx, session, m, infoLevel)
 	h.sendNowPlayingMessage(ctx, session, m, h.player.NowPlaying(), h.player.SongStatus().Pos)
 }

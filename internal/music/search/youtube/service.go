@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
+
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 const (
@@ -24,6 +25,10 @@ var (
 	ErrSongNotFound = errors.New("song not found")
 )
 
+type loader interface {
+	Download(ctx context.Context, v *ytdl.Video, format *ytdl.Format, outputFile string) error
+}
+
 type Config struct {
 	Download  bool   `json:"download"`
 	OutputDir string `json:"output"`
@@ -32,7 +37,7 @@ type Config struct {
 type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
-	loader  *Downloader
+	loader  loader
 	config  Config
 }
 
@@ -88,6 +93,7 @@ func getYTDLImages(ts ytdl.Thumbnails) (string, string) {
 }
 
 func (y *YouTube) findSong(ctx context.Context, query string) (*item.Song, error) {
+	y.youtube.Videos.List()
 	call := y.youtube.Search.List([]string{"id, snippet"}).
 		Q(query).
 		MaxResults(maxSearchResult)
