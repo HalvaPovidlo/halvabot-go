@@ -16,6 +16,27 @@ type ServerInterface interface {
 	// Login
 	// (POST /auth/token)
 	PostAuthToken(c *gin.Context)
+	// All films
+	// (GET /films/all)
+	GetFilmsAll(c *gin.Context, params GetFilmsAllParams)
+	// Add kinopoisk film
+	// (POST /films/kinopoisk)
+	PostFilmsKinopoisk(c *gin.Context)
+	// Add new film
+	// (POST /films/new)
+	PostFilmsNew(c *gin.Context, params PostFilmsNewParams)
+	// Get film
+	// (GET /films/{id})
+	GetFilms(c *gin.Context, id FilmId)
+	// Edit film
+	// (PATCH /films/{id})
+	PatchFilmsId(c *gin.Context, id FilmId)
+	// Comment film
+	// (POST /films/{id}/comment)
+	PostFilmsIdComment(c *gin.Context, id FilmId)
+	// Score film
+	// (POST /films/{id}/score)
+	PostFilmsIdScore(c *gin.Context, id FilmId)
 	// Find and enqueue song
 	// (POST /music/enqueue/{service}/{kind})
 	PostMusicEnqueueServiceIdentifier(c *gin.Context, service string, kind string)
@@ -31,6 +52,18 @@ type ServerInterface interface {
 	// Player status
 	// (GET /music/status)
 	GetMusicStatus(c *gin.Context)
+	// Get films
+	// (GET /user/films)
+	GetUserFilms(c *gin.Context, params GetUserFilmsParams)
+	// Get info
+	// (GET /user/info)
+	GetUserInfo(c *gin.Context)
+	// Edit info
+	// (PATCH /user/info)
+	PatchUserInfo(c *gin.Context)
+	// Get songs
+	// (GET /user/songs)
+	GetUserSongs(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -49,6 +82,162 @@ func (siw *ServerInterfaceWrapper) PostAuthToken(c *gin.Context) {
 	}
 
 	siw.Handler.PostAuthToken(c)
+}
+
+// GetFilmsAll operation middleware
+func (siw *ServerInterfaceWrapper) GetFilmsAll(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetFilmsAllParams
+
+	// ------------- Optional query parameter "sort" -------------
+	if paramValue := c.Query("sort"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "sort", c.Request.URL.Query(), &params.Sort)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter sort: %s", err)})
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetFilmsAll(c, params)
+}
+
+// PostFilmsKinopoisk operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsKinopoisk(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsKinopoisk(c)
+}
+
+// PostFilmsNew operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsNew(c *gin.Context) {
+
+	var err error
+
+	c.Set(JWTScopes, []string{""})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostFilmsNewParams
+
+	// ------------- Optional query parameter "kinopoisk" -------------
+	if paramValue := c.Query("kinopoisk"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "kinopoisk", c.Request.URL.Query(), &params.Kinopoisk)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter kinopoisk: %s", err)})
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsNew(c, params)
+}
+
+// GetFilms operation middleware
+func (siw *ServerInterfaceWrapper) GetFilms(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetFilms(c, id)
+}
+
+// PatchFilmsId operation middleware
+func (siw *ServerInterfaceWrapper) PatchFilmsId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PatchFilmsId(c, id)
+}
+
+// PostFilmsIdComment operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsIdComment(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsIdComment(c, id)
+}
+
+// PostFilmsIdScore operation middleware
+func (siw *ServerInterfaceWrapper) PostFilmsIdScore(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id FilmId
+
+	err = runtime.BindStyledParameter("simple", false, "id", c.Param("id"), &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter id: %s", err)})
+		return
+	}
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PostFilmsIdScore(c, id)
 }
 
 // PostMusicEnqueueServiceIdentifier operation middleware
@@ -129,6 +318,70 @@ func (siw *ServerInterfaceWrapper) GetMusicStatus(c *gin.Context) {
 	siw.Handler.GetMusicStatus(c)
 }
 
+// GetUserFilms operation middleware
+func (siw *ServerInterfaceWrapper) GetUserFilms(c *gin.Context) {
+
+	var err error
+
+	c.Set(JWTScopes, []string{""})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetUserFilmsParams
+
+	// ------------- Optional query parameter "sort" -------------
+	if paramValue := c.Query("sort"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "sort", c.Request.URL.Query(), &params.Sort)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": fmt.Sprintf("Invalid format for parameter sort: %s", err)})
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetUserFilms(c, params)
+}
+
+// GetUserInfo operation middleware
+func (siw *ServerInterfaceWrapper) GetUserInfo(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetUserInfo(c)
+}
+
+// PatchUserInfo operation middleware
+func (siw *ServerInterfaceWrapper) PatchUserInfo(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.PatchUserInfo(c)
+}
+
+// GetUserSongs operation middleware
+func (siw *ServerInterfaceWrapper) GetUserSongs(c *gin.Context) {
+
+	c.Set(JWTScopes, []string{""})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+	}
+
+	siw.Handler.GetUserSongs(c)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL     string
@@ -149,6 +402,20 @@ func RegisterHandlersWithOptions(router *gin.Engine, si ServerInterface, options
 
 	router.POST(options.BaseURL+"/auth/token", wrapper.PostAuthToken)
 
+	router.GET(options.BaseURL+"/films/all", wrapper.GetFilmsAll)
+
+	router.POST(options.BaseURL+"/films/kinopoisk", wrapper.PostFilmsKinopoisk)
+
+	router.POST(options.BaseURL+"/films/new", wrapper.PostFilmsNew)
+
+	router.GET(options.BaseURL+"/films/:id", wrapper.GetFilms)
+
+	router.PATCH(options.BaseURL+"/films/:id", wrapper.PatchFilmsId)
+
+	router.POST(options.BaseURL+"/films/:id/comment", wrapper.PostFilmsIdComment)
+
+	router.POST(options.BaseURL+"/films/:id/score", wrapper.PostFilmsIdScore)
+
 	router.POST(options.BaseURL+"/music/enqueue/:service/:kind", wrapper.PostMusicEnqueueServiceIdentifier)
 
 	router.POST(options.BaseURL+"/music/loop", wrapper.PostMusicLoop)
@@ -158,6 +425,14 @@ func RegisterHandlersWithOptions(router *gin.Engine, si ServerInterface, options
 	router.POST(options.BaseURL+"/music/skip", wrapper.PostMusicSkip)
 
 	router.GET(options.BaseURL+"/music/status", wrapper.GetMusicStatus)
+
+	router.GET(options.BaseURL+"/user/films", wrapper.GetUserFilms)
+
+	router.GET(options.BaseURL+"/user/info", wrapper.GetUserInfo)
+
+	router.PATCH(options.BaseURL+"/user/info", wrapper.PatchUserInfo)
+
+	router.GET(options.BaseURL+"/user/songs", wrapper.GetUserSongs)
 
 	return router
 }

@@ -5,7 +5,7 @@ info:
   description: This API controls the music player and movie library
   contact:
     name: Andrei Khodko
-    url: 'mailto:andrei.khodko@gmail.com'
+    url: 'https://github.com/khodand'
     email: andrei.khodko@gmail.com
   license:
     name: Apache 2.0
@@ -26,8 +26,8 @@ tags:
     description: Acess to the films library
   - name: music
     description: Music player control
-  - name: protected
-    description: Access by authorization only
+  - name: user
+    description: User profile and data
 paths:
   '/music/enqueue/{service}/{kind}':
     parameters:
@@ -94,7 +94,6 @@ paths:
                     type: string
       tags:
         - music
-        - protected
       description: Finds and enqueues a song for playback in the selected service and by the specified ID.
       security:
         - JWT: []
@@ -138,7 +137,6 @@ paths:
         - JWT: []
       tags:
         - music
-        - protected
   /music/status:
     get:
       summary: Player status
@@ -207,7 +205,6 @@ paths:
       security:
         - JWT: []
       tags:
-        - protected
         - music
       requestBody:
         $ref: '#/components/requestBodies/Enable-mode'
@@ -227,7 +224,6 @@ paths:
         '500':
           $ref: '#/components/responses/Error'
       tags:
-        - protected
         - music
       description: Set the player to radio mode
       requestBody:
@@ -270,6 +266,178 @@ paths:
                 - login
                 - password
         description: Login and password
+  /films/new:
+    post:
+      summary: Add new film
+      operationId: post-films-new
+      responses:
+        '200':
+          $ref: '#/components/responses/Film'
+      description: Add new film to the lib
+      security:
+        - JWT: []
+      requestBody:
+        $ref: '#/components/requestBodies/New-film'
+      parameters:
+        - schema:
+            type: boolean
+            default: true
+          in: query
+          name: kinopoisk
+          description: Use kinopoisk api help
+      tags:
+        - films
+  /films/kinopoisk:
+    post:
+      summary: Add kinopoisk film
+      operationId: post-films-kinopoisk
+      responses:
+        '200':
+          $ref: '#/components/responses/Film'
+      description: Add new kinopoisk film
+      tags:
+        - films
+      requestBody:
+        $ref: '#/components/requestBodies/New-kinoposk'
+      security:
+        - JWT: []
+  '/films/{id}':
+    get:
+      summary: Get film
+      tags:
+        - films
+      responses:
+        '200':
+          $ref: '#/components/responses/Film'
+      operationId: get-films
+      description: Get full film data
+    parameters:
+      - $ref: '#/components/parameters/film-id'
+    patch:
+      summary: Edit film
+      operationId: patch-films-id
+      responses:
+        '200':
+          $ref: '#/components/responses/Film'
+      description: Edit an existing film
+      security:
+        - JWT: []
+      requestBody:
+        $ref: '#/components/requestBodies/New-film'
+      tags:
+        - films
+  '/films/{id}/score':
+    parameters:
+      - $ref: '#/components/parameters/film-id'
+    post:
+      summary: Score film
+      operationId: post-films-id-score
+      responses:
+        '200':
+          $ref: '#/components/responses/Film'
+      description: Add user score to the film
+      security:
+        - JWT: []
+      requestBody:
+        $ref: '#/components/requestBodies/Score'
+      tags:
+        - films
+  '/films/{id}/comment':
+    parameters:
+      - $ref: '#/components/parameters/film-id'
+    post:
+      summary: Comment film
+      operationId: post-films-id-comment
+      responses:
+        '200':
+          description: OK
+      description: Add user comment to the film
+      requestBody:
+        $ref: '#/components/requestBodies/Comment'
+      tags:
+        - films
+      security:
+        - JWT: []
+  /films/all:
+    get:
+      summary: All films
+      tags:
+        - films
+      responses:
+        '200':
+          $ref: '#/components/responses/Films'
+      operationId: get-films-all
+      description: Get all films
+      parameters:
+        - $ref: '#/components/parameters/sort'
+  /user/info:
+    get:
+      summary: Get info
+      tags:
+        - user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                example-1:
+                  value:
+                    username: string
+                    avatar: 'http://example.com'
+      operationId: get-user-info
+      security:
+        - JWT: []
+      description: Get information about the user
+    patch:
+      summary: Edit info
+      operationId: patch-user-info
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+      description: Edit user information
+      tags:
+        - user
+      security:
+        - JWT: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: New user info
+  /user/songs:
+    get:
+      summary: Get songs
+      tags:
+        - user
+      responses:
+        '200':
+          $ref: '#/components/responses/Songs'
+      operationId: get-user-songs
+      description: Get the songs that the user played in the music player
+      security:
+        - JWT: []
+  /user/films:
+    get:
+      summary: Get films
+      tags:
+        - user
+      responses:
+        '200':
+          $ref: '#/components/responses/Films'
+      operationId: get-user-films
+      description: Get films that the user has rated
+      security:
+        - JWT: []
+      parameters:
+        - $ref: '#/components/parameters/sort'
 components:
   schemas:
     Song:
@@ -317,6 +485,116 @@ components:
         - thumbnail_url
         - playbacks
         - last_play
+    Film:
+      type: object
+      x-examples:
+        example-1:
+          film_id: string
+          title: string
+          title_original: string
+          cover: string
+          poster: string
+          director: string
+          description: string
+          duration: string
+          score: 0
+          user_score: 0
+          average: 0
+          kinopoisk: string
+          rating_kinopoisk: 0
+          rating_kinopoisk_vote_count: 0
+          rating_imdb: 0
+          rating_imdb_vote_count: 0
+          year: 0
+          film_length: 0
+          serial: true
+          short_film: true
+          genres:
+            - string
+          scores: {}
+      title: Film
+      description: Film structure
+      x-tags:
+        - films
+      properties:
+        film_id:
+          type: string
+        title:
+          type: string
+        title_original:
+          type: string
+        cover:
+          type: string
+        poster:
+          type: string
+        director:
+          type: string
+        description:
+          type: string
+        duration:
+          type: string
+        score:
+          type: integer
+        user_score:
+          type: integer
+        average:
+          type: number
+        kinopoisk:
+          type: string
+        rating_kinopoisk:
+          type: number
+        rating_kinopoisk_vote_count:
+          type: integer
+        rating_imdb:
+          type: number
+        rating_imdb_vote_count:
+          type: integer
+        year:
+          type: integer
+        film_length:
+          type: integer
+        serial:
+          type: boolean
+        short_film:
+          type: boolean
+        genres:
+          type: array
+          items:
+            type: string
+        scores:
+          type: object
+        comments:
+          type: object
+      required:
+        - film_id
+        - title
+        - score
+        - average
+        - kinopoisk
+        - rating_kinopoisk
+        - rating_kinopoisk_vote_count
+        - rating_imdb
+        - rating_imdb_vote_count
+        - serial
+        - short_film
+    User:
+      type: object
+      x-examples:
+        example-1:
+          username: khodand
+          avatar: 'https://static-cdn.jtvnw.net/jtv_user_pictures/4398953f-51e5-4519-ba37-5d12eceea5fa-profile_image-300x300.png'
+      properties:
+        username:
+          type: string
+          x-oapi-codegen-extra-tags:
+            binding: required
+        avatar:
+          type: string
+          format: uri
+      required:
+        - username
+      title: UserInfo
+      description: User common info
   securitySchemes:
     JWT:
       type: http
@@ -352,6 +630,105 @@ components:
             example-1:
               value:
                 token: string
+    Films:
+      description: Array of films
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Film'
+            required:
+              - items
+          examples:
+            example-1:
+              value:
+                items:
+                  - film_id: string
+                    title: string
+                    title_original: string
+                    cover: string
+                    poster: string
+                    director: string
+                    description: string
+                    duration: string
+                    score: 0
+                    user_score: 0
+                    average: 0
+                    kinopoisk: string
+                    rating_kinopoisk: 0
+                    rating_kinopoisk_vote_count: 0
+                    rating_imdb: 0
+                    rating_imdb_vote_count: 0
+                    year: 0
+                    film_length: 0
+                    serial: true
+                    short_film: true
+                    genres:
+                      - string
+                    scores: {}
+                    comments: {}
+    Film:
+      description: Response film
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Film'
+          examples:
+            example-1:
+              value:
+                film_id: string
+                title: string
+                title_original: string
+                cover: string
+                poster: string
+                director: string
+                description: string
+                duration: string
+                score: 0
+                user_score: 0
+                average: 0
+                kinopoisk: string
+                rating_kinopoisk: 0
+                rating_kinopoisk_vote_count: 0
+                rating_imdb: 0
+                rating_imdb_vote_count: 0
+                year: 0
+                film_length: 0
+                serial: true
+                short_film: true
+                genres:
+                  - string
+                scores: {}
+    Songs:
+      description: Array of songs
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Song'
+            required:
+              - items
+          examples:
+            example-1:
+              value:
+                items:
+                  - title: string
+                    url: 'http://example.com'
+                    service: youtube
+                    artist_name: string
+                    artist_url: 'http://example.com'
+                    artwork_url: 'http://example.com'
+                    thumbnail_url: 'http://example.com'
+                    playbacks: 0
+                    last_play: '2022-07-29T17:51:09.851964+03:00'
   requestBodies:
     Enable-mode:
       content:
@@ -367,3 +744,83 @@ components:
                 x-oapi-codegen-extra-tags:
                   binding: required
       description: Enable/disable mode
+    New-film:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Film'
+      description: New film
+    Score:
+      content:
+        application/json:
+          schema:
+            type: object
+            x-examples:
+              example-1:
+                score: 0
+            properties:
+              score:
+                type: integer
+            required:
+              - score
+      description: Film score
+    Comment:
+      content:
+        application/json:
+          schema:
+            type: object
+            x-examples:
+              example-1:
+                text: good film
+            properties:
+              text:
+                type: string
+            required:
+              - text
+          examples:
+            example-1:
+              value:
+                text: string
+      description: User comment
+    New-kinoposk:
+      content:
+        application/json:
+          schema:
+            type: object
+            x-examples:
+              example-1:
+                score: 0
+                url: sdf
+            properties:
+              score:
+                type: integer
+              url:
+                type: string
+            required:
+              - score
+              - url
+      description: New kinopoisk film with score
+  parameters:
+    film-id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Film kinopoisk id
+    sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - title
+          - random
+          - score
+          - average
+          - kinopoisk
+          - imdb
+          - halva
+        default: title
+      description: Sorting key

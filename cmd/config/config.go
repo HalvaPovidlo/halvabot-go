@@ -1,13 +1,13 @@
 package config
 
 import (
-	"encoding/json"
-	"io/ioutil"
+	"os"
 
+	"encoding/json"
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/discord"
+	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 )
 
@@ -15,23 +15,24 @@ const FilePath = "secret_config.json"
 const SwaggerPath = "/docs/swagger/swagger.yaml"
 
 type Config struct {
-	General GeneralConfig  `json:"general"`
-	Host    HostConfig     `json:"host"`
-	Discord DiscordConfig  `json:"discord"`
-	Youtube youtube.Config `json:"youtube"`
-	Secret  string         `json:"secret"`
+	General   GeneralConfig  `json:"general"`
+	Host      HostConfig     `json:"host"`
+	Discord   DiscordConfig  `json:"discord"`
+	Youtube   youtube.Config `json:"youtube"`
+	Secret    string         `json:"secret"`
+	Kinopoisk string         `json:"kinopoisk"`
 	// Sheets  SheetsConfig  `json:"sheets"`
 	// VK      VKConfig      `json:"vk"`
 	// Lichess LichessConfig `json:"lichess"`
 }
 
 type DiscordConfig struct {
-	Token  string            `json:"token"`
-	Bot    string            `json:"bot"`
-	ID     int64             `json:"id"`
-	Prefix string            `json:"prefix"`
-	API    discord.APIConfig `json:"api"`
-	Voice  VoiceConfig       `json:"voice"`
+	Token  string          `json:"token"`
+	Bot    string          `json:"bot"`
+	ID     int64           `json:"id"`
+	Prefix string          `json:"prefix"`
+	API    music.APIConfig `json:"api"`
+	Voice  VoiceConfig     `json:"voice"`
 }
 
 type VoiceConfig struct {
@@ -65,7 +66,7 @@ type HostConfig struct {
 
 func InitConfig() (*Config, error) {
 	var config Config
-	jsonFile, err := ioutil.ReadFile(FilePath)
+	jsonFile, err := os.ReadFile(FilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "read failed")
 	}

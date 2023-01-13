@@ -11,18 +11,18 @@ import (
 	"google.golang.org/grpc/status"
 
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
-	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
+	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
 type playerService interface {
-	Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error)
+	Play(ctx context.Context, query, userID, guildID, channelID string) (*item.Song, error)
 	Skip(ctx context.Context)
 	SetLoop(ctx context.Context, b bool)
 	SetRadio(ctx context.Context, b bool, guildID, channelID string) error
-	Status() pkg.PlayerStatus
+	Status() item.PlayerStatus
 }
 
 type Handler struct {
@@ -55,37 +55,16 @@ func (h *Handler) PostMusicEnqueueServiceIdentifier(c *gin.Context, service stri
 			c.Status(http.StatusConflict)
 			return
 		case status.Convert(err).Code() != codes.OK && status.Convert(err).Code() != codes.Unknown:
-			c.JSON(http.StatusInsufficientStorage, gin.H{"song": song, "msg": err.Error()})
+			c.JSON(http.StatusInsufficientStorage, gin.H{"song": v1.BuildSong(song), "msg": err.Error()})
 			return
 		case err != nil:
 			c.JSON(http.StatusInternalServerError, v1.Error{Msg: err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, buildSong(song))
+		c.JSON(http.StatusOK, v1.BuildSong(song))
 		return
 	}
 	c.Status(http.StatusNotImplemented)
-}
-
-func buildSong(song *pkg.Song) *v1.Song {
-	return &v1.Song{
-		ArtistName:   song.ArtistName,
-		ArtistUrl:    song.ArtistURL,
-		ArtworkUrl:   song.ArtworkURL,
-		LastPlay:     song.LastPlay,
-		Playbacks:    song.Playbacks,
-		Service:      convertService(song.Service),
-		ThumbnailUrl: song.ThumbnailURL,
-		Title:        song.Title,
-		Url:          song.URL,
-	}
-}
-
-func convertService(service pkg.ServiceName) v1.SongService {
-	if service == pkg.ServiceYouTube {
-		return v1.Youtube
-	}
-	return v1.Unknown
 }
 
 func (h *Handler) PostMusicSkip(c *gin.Context) {
@@ -124,7 +103,7 @@ func (h *Handler) PostMusicRadio(c *gin.Context) {
 func (h *Handler) GetMusicStatus(c *gin.Context) {
 	st := h.player.Status()
 	if st.Now == nil {
-		st.Now = &pkg.Song{}
+		st.Now = &item.Song{}
 	}
 	c.JSON(http.StatusOK, st)
 }

@@ -1,4 +1,4 @@
-package pkg
+package item
 
 import (
 	"regexp"
@@ -34,11 +34,6 @@ type Song struct {
 	Requester *discordgo.User `firestore:"-" csv:"-" json:"-"`
 	StreamURL string          `firestore:"-" csv:"-" json:"-"`
 	Duration  float64         `firestore:"-" csv:"-" json:"-"`
-}
-
-type User struct {
-	Name  string          `firestore:"username,omitempty" csv:"name,omitempty" json:"name,omitempty"`
-	Songs map[string]Song `firestore:"songs,omitempty" csv:"songs" json:"songs,omitempty"`
 }
 
 type SessionStats struct {

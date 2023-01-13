@@ -16,16 +16,22 @@ import (
 
 	"github.com/HalvaPovidlo/halvabot-go/cmd/config"
 	v1 "github.com/HalvaPovidlo/halvabot-go/internal/api/v1"
-	"github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
-	musicrest "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
-	capi "github.com/HalvaPovidlo/halvabot-go/internal/chess/api/discord"
+	v1chess "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/chess"
+	v1film "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/film"
+	v1login "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/login"
+	v1music "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/music"
+	v1user "github.com/HalvaPovidlo/halvabot-go/internal/api/v1/user"
 	"github.com/HalvaPovidlo/halvabot-go/internal/chess/lichess"
+	"github.com/HalvaPovidlo/halvabot-go/internal/film"
+	fstorage "github.com/HalvaPovidlo/halvabot-go/internal/film/storage"
+	"github.com/HalvaPovidlo/halvabot-go/internal/login"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
-	dapi "github.com/HalvaPovidlo/halvabot-go/internal/music/discord"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
 	ytsearch "github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/storage/firestore"
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/user"
+	ustorage "github.com/HalvaPovidlo/halvabot-go/internal/user/storage"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	dpkg "github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
@@ -50,7 +56,7 @@ func main() {
 	}
 	defer session.Close()
 	// Load master
-	loadMaster := pkg.NewLoadMaster(ctx, 12*time.Hour)
+	loadMaster := music.NewLoadMaster(ctx, 12*time.Hour)
 
 	// Cache
 	songsCache := firestore.NewSongsCache(ctx, 12*time.Hour)
@@ -84,24 +90,28 @@ func main() {
 	}
 
 	// Music stage
-	voiceClient := audio.NewVoiceClient(session)
-	rawAudioPlayer := audio.NewPlayer(loadMaster, &cfg.Discord.Voice.EncodeOptions)
-	musicPlayer := player.NewMusicService(ctx, fireService, ytClient, voiceClient, rawAudioPlayer)
+	musicService := v1music.NewMusicService(
+		ctx,
+		fireService,
+		ytClient,
+		player.NewPlayer(ctx, audio.NewVoiceClient(session), audio.NewPlayer(loadMaster, &cfg.Discord.Voice.EncodeOptions)),
+	)
 
 	// Chess
 	lichessClient := lichess.NewClient()
 
 	// Discord commands
-	musicCog := dapi.NewCog(musicPlayer, cfg.Discord.Prefix, cfg.Discord.API)
-	musicCog.RegisterCommands(ctx, session, cfg.General.Debug, logger)
-	chessCog := capi.NewCog(cfg.Discord.Prefix, lichessClient)
-	chessCog.RegisterCommands(session, cfg.General.Debug, logger)
+	v1music.NewDiscordMusicHandler(musicService, cfg.Discord.Prefix, cfg.Discord.API).RegisterCommands(ctx, session, cfg.General.Debug, logger)
+	v1chess.NewDiscordChessHandler(cfg.Discord.Prefix, lichessClient).RegisterCommands(session, cfg.General.Debug, logger)
 
-	// Auth stage
-	loginService := login.NewLoginService(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret))
+	// Handlers stage
+	loginHandler := v1login.NewLoginHandler(login.NewLoginService(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret)))
+	filmHandler := v1film.NewFilmHandler(film.NewService(fstorage.NewStorage(fireClient), cfg.Kinopoisk))
+	musicHandler := v1music.NewMusicHandler(musicService, logger)
+	userHandler := v1user.NewUserHandler(user.NewUserService(ustorage.NewStorage(fireClient)))
 
 	// Http routers
-	server := v1.NewServer(musicrest.NewMusicHandler(musicPlayer, logger), loginService)
+	server := v1.NewServer(loginHandler, musicHandler, filmHandler, userHandler)
 	server.Run(cfg.Host.IP, cfg.Host.Bot, config.SwaggerPath, cfg.General.Debug)
 
 	sc := make(chan os.Signal, 1)

@@ -6,10 +6,8 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-)
 
-const (
-	loginsCollection = "logins"
+	pfirestore "github.com/HalvaPovidlo/halvabot-go/pkg/storage/firestore"
 )
 
 type AccountInfo struct {
@@ -28,7 +26,7 @@ func NewAccountStorage(client *firestore.Client) *storage {
 }
 
 func (s *storage) GetAccount(ctx context.Context, login string) (*AccountInfo, error) {
-	doc, err := s.client.Collection(loginsCollection).Doc(login).Get(ctx)
+	doc, err := s.client.Collection(pfirestore.LoginsCollection).Doc(login).Get(ctx)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return nil, nil

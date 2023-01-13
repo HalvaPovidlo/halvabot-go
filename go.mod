@@ -5,10 +5,14 @@ go 1.19
 require (
 	cloud.google.com/go/firestore v1.6.1
 	firebase.google.com/go v3.13.0+incompatible
+	github.com/AlekSi/pointer v1.2.0
 	github.com/bwmarrin/discordgo v0.25.0
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/diamondburned/arikawa/v3 v3.2.0
+	github.com/diamondburned/oggreader v0.0.0-20201118014549-87df9534b647
 	github.com/gin-gonic/gin v1.8.1
+	github.com/gocarina/gocsv v0.0.0-20220727205534-7fbf8e1b37fb
 	github.com/google/uuid v1.3.0
 	github.com/khodand/dca v0.0.0-20220506230422-2986c6769dd8
 	github.com/kkdai/youtube/v2 v2.7.16-0.20220814133111-5a2a7203e451
@@ -24,7 +28,7 @@ require (
 	cloud.google.com/go v0.103.0 // indirect
 	cloud.google.com/go/compute v1.8.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
-	cloud.google.com/go/storage v1.25.0 // indirect
+	cloud.google.com/go/storage v1.23.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
@@ -46,6 +50,8 @@ require (
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.5.1 // indirect
+	github.com/googleapis/go-type-adapters v1.0.0 // indirect
+	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/jonas747/ogg v0.0.0-20161220051205-b4f6f4cf3757 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -69,6 +75,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20220808172628-8227340efae7 // indirect
 	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect

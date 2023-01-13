@@ -1,11 +1,11 @@
-package player
+package music
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 type MockPlayer struct {
@@ -14,8 +14,8 @@ type MockPlayer struct {
 	radioStatus bool
 }
 
-func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID string) (*pkg.Song, error) {
-	song := &pkg.Song{
+func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID string) (*item.Song, error) {
+	song := &item.Song{
 		Title:        query,
 		URL:          "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 		Service:      "youtube",
@@ -25,7 +25,7 @@ func (m *MockPlayer) Play(ctx context.Context, query, userID, guildID, channelID
 		ThumbnailURL: "https://s.namemc.com/3d/skin/body.png?id=d4347e67364ad441&model=slim&width=282&height=282",
 		Playbacks:    10,
 		LastPlay:     time.Now(),
-		ID: pkg.SongID{
+		ID: item.SongID{
 			ID:      "dQw4w9WgXcQ",
 			Service: "youtube",
 		},
@@ -50,8 +50,8 @@ func (m *MockPlayer) LoopStatus() bool {
 	return b
 }
 
-func (m *MockPlayer) NowPlaying() *pkg.Song {
-	return &pkg.Song{
+func (m *MockPlayer) NowPlaying() *item.Song {
+	return &item.Song{
 		Title:        "Mock song",
 		URL:          "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
 		Service:      "youtube",
@@ -61,7 +61,7 @@ func (m *MockPlayer) NowPlaying() *pkg.Song {
 		ThumbnailURL: "https://s.namemc.com/3d/skin/body.png?id=d4347e67364ad441&model=slim&width=282&height=282",
 		Playbacks:    10,
 		LastPlay:     time.Now(),
-		ID: pkg.SongID{
+		ID: item.SongID{
 			ID:      "dQw4w9WgXcQ",
 			Service: "youtube",
 		},
@@ -71,8 +71,8 @@ func (m *MockPlayer) NowPlaying() *pkg.Song {
 	}
 }
 
-func (m *MockPlayer) SongStatus() pkg.SessionStats {
-	return pkg.SessionStats{
+func (m *MockPlayer) SongStatus() item.SessionStats {
+	return item.SessionStats{
 		Pos:      111,
 		Duration: 212,
 	}
@@ -92,8 +92,8 @@ func (m *MockPlayer) RadioStatus() bool {
 	return b
 }
 
-func (m *MockPlayer) Status() pkg.PlayerStatus {
-	return pkg.PlayerStatus{
+func (m *MockPlayer) Status() item.PlayerStatus {
+	return item.PlayerStatus{
 		Loop:  m.LoopStatus(),
 		Radio: m.RadioStatus(),
 		Song:  m.SongStatus(),

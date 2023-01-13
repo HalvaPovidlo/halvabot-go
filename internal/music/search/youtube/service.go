@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/api/youtube/v3"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 const (
@@ -25,6 +25,10 @@ var (
 	ErrSongNotFound = errors.New("song not found")
 )
 
+type loader interface {
+	Download(ctx context.Context, v *ytdl.Video, format *ytdl.Format, outputFile string) error
+}
+
 type Config struct {
 	Download  bool   `json:"download"`
 	OutputDir string `json:"output"`
@@ -33,7 +37,7 @@ type Config struct {
 type YouTube struct {
 	ytdl    *ytdl.Client
 	youtube *youtube.Service
-	loader  *Downloader
+	loader  loader
 	config  Config
 }
 
@@ -88,7 +92,8 @@ func getYTDLImages(ts ytdl.Thumbnails) (string, string) {
 	return thumbnails[maxIter].URL, thumbnails[maxIter].URL
 }
 
-func (y *YouTube) findSong(ctx context.Context, query string) (*pkg.Song, error) {
+func (y *YouTube) findSong(ctx context.Context, query string) (*item.Song, error) {
+	y.youtube.Videos.List()
 	call := y.youtube.Search.List([]string{"id, snippet"}).
 		Q(query).
 		MaxResults(maxSearchResult)
@@ -98,20 +103,20 @@ func (y *YouTube) findSong(ctx context.Context, query string) (*pkg.Song, error)
 		return nil, ErrSongNotFound
 	}
 
-	for _, item := range response.Items {
-		if item.Id.Kind == videoKind {
-			art, thumb := getImages(item.Snippet.Thumbnails)
-			return &pkg.Song{
-				Title:        item.Snippet.Title,
-				URL:          videoPrefix + item.Id.VideoId,
-				Service:      pkg.ServiceYouTube,
-				ArtistName:   item.Snippet.ChannelTitle,
-				ArtistURL:    channelPrefix + item.Snippet.ChannelId,
+	for _, resp := range response.Items {
+		if resp.Id.Kind == videoKind {
+			art, thumb := getImages(resp.Snippet.Thumbnails)
+			return &item.Song{
+				Title:        resp.Snippet.Title,
+				URL:          videoPrefix + resp.Id.VideoId,
+				Service:      item.ServiceYouTube,
+				ArtistName:   resp.Snippet.ChannelTitle,
+				ArtistURL:    channelPrefix + resp.Snippet.ChannelId,
 				ArtworkURL:   art,
 				ThumbnailURL: thumb,
-				ID: pkg.SongID{
-					ID:      item.Id.VideoId,
-					Service: pkg.ServiceYouTube,
+				ID: item.SongID{
+					ID:      resp.Id.VideoId,
+					Service: item.ServiceYouTube,
 				},
 			}, nil
 		}
@@ -119,7 +124,7 @@ func (y *YouTube) findSong(ctx context.Context, query string) (*pkg.Song, error)
 	return nil, ErrSongNotFound
 }
 
-func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.Song, error) {
+func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *item.Song) (*item.Song, error) {
 	videoInfo, err := y.ytdl.GetVideo(song.URL)
 	if err != nil {
 		return nil, errors.Wrapf(err, "loag video metadata by url %s", song.URL)
@@ -155,24 +160,24 @@ func (y *YouTube) EnsureStreamInfo(ctx context.Context, song *pkg.Song) (*pkg.So
 	return song, nil
 }
 
-func songFromInfo(v *ytdl.Video) *pkg.Song {
+func songFromInfo(v *ytdl.Video) *item.Song {
 	art, thumb := getYTDLImages(v.Thumbnails)
-	return &pkg.Song{
+	return &item.Song{
 		Title:        v.Title,
 		URL:          videoPrefix + v.ID,
-		Service:      pkg.ServiceYouTube,
+		Service:      item.ServiceYouTube,
 		ArtistName:   v.Author,
 		ArtworkURL:   art,
 		ThumbnailURL: thumb,
-		ID: pkg.SongID{
+		ID: item.SongID{
 			ID:      v.ID,
-			Service: pkg.ServiceYouTube,
+			Service: item.ServiceYouTube,
 		},
 		Duration: v.Duration.Seconds(),
 	}
 }
 
-func (y *YouTube) FindSong(ctx context.Context, query string) (*pkg.Song, error) {
+func (y *YouTube) FindSong(ctx context.Context, query string) (*item.Song, error) {
 	song, err := y.findSong(ctx, query)
 	if err != nil {
 		return nil, err

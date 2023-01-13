@@ -1,4 +1,4 @@
-package discord
+package chess
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type Service struct {
 	prefix string
 }
 
-func NewCog(prefix string, client chessClient) *Service {
+func NewDiscordChessHandler(prefix string, client chessClient) *Service {
 	s := Service{
 		prefix: prefix,
 		client: client,

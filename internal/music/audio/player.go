@@ -8,7 +8,7 @@ import (
 	"github.com/khodand/dca"
 	"github.com/pkg/errors"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 var (
@@ -33,7 +33,7 @@ type Player struct {
 	isPlaying     bool
 
 	statsLock sync.Mutex
-	stats     pkg.SessionStats
+	stats     item.SessionStats
 }
 
 func NewPlayer(files filesCache, options *dca.EncodeOptions) *Player {
@@ -63,7 +63,7 @@ func (p *Player) Stop() {
 	}
 }
 
-func (p *Player) Stats() pkg.SessionStats {
+func (p *Player) Stats() item.SessionStats {
 	p.statsLock.Lock()
 	defer p.statsLock.Unlock()
 	return p.stats

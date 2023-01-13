@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/pkg"
+	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
 type Item struct {
-	song    pkg.Song
+	song    item.Song
 	updated time.Time
 }
 
@@ -30,7 +30,7 @@ func NewSongsCache(ctx context.Context, expirationTime time.Duration) *SongsCach
 	return c
 }
 
-func (c *SongsCache) Get(k string) (*pkg.Song, bool) {
+func (c *SongsCache) Get(k string) (*item.Song, bool) {
 	c.Lock()
 	defer c.Unlock()
 	s, ok := c.songs[k]
@@ -42,7 +42,7 @@ func (c *SongsCache) Get(k string) (*pkg.Song, bool) {
 	return &s.song, true
 }
 
-func (c *SongsCache) Set(k string, song *pkg.Song) {
+func (c *SongsCache) Set(k string, song *item.Song) {
 	if song == nil {
 		return
 	}
@@ -54,7 +54,7 @@ func (c *SongsCache) Set(k string, song *pkg.Song) {
 	c.Unlock()
 }
 
-func (c *SongsCache) KeyFromID(s pkg.SongID) string {
+func (c *SongsCache) KeyFromID(s item.SongID) string {
 	return s.String()
 }
 

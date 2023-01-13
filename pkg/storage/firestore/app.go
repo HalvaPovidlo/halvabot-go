@@ -9,6 +9,15 @@ import (
 	"google.golang.org/api/option"
 )
 
+const (
+	SongsCollection    = "songs"
+	UsersCollection    = "users"
+	FilmsCollection    = "films"
+	CommentsCollection = "comments"
+	LoginsCollection   = "logins"
+	BatchSize          = 500
+)
+
 func NewFirestoreClient(ctx context.Context, creds string) (*firestore.Client, error) {
 	opts := option.WithCredentialsFile(creds)
 	app, err := firebase.NewApp(ctx, nil, opts)
