@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/voice"
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
@@ -37,7 +37,6 @@ type Player interface {
 	IsConnected() bool
 	Disconnect(ctx context.Context)
 	NowPlaying() *item.Song
-	SongStatus() item.SessionStats
 	SubscribeOnErrors(h player.ErrorHandler)
 }
 
@@ -93,9 +92,9 @@ func (s *Service) Random(ctx context.Context, n int) ([]*item.Song, error) {
 	return s.storage.GetRandomSongs(ctx, n)
 }
 
-func (s *Service) SetRadio(ctx context.Context, b bool, guildID, channelID string) error {
-	if !b {
-		s.setRadio(b)
+func (s *Service) SetRadio(ctx context.Context, enable bool, guildID, channelID string) error {
+	if !enable {
+		s.setRadio(enable)
 		return nil
 	}
 	if !s.player.IsConnected() {
@@ -104,7 +103,7 @@ func (s *Service) SetRadio(ctx context.Context, b bool, guildID, channelID strin
 		}
 		s.player.Connect(ctx, guildID, channelID)
 	}
-	s.setRadio(b)
+	s.setRadio(enable)
 	if s.player.NowPlaying() == nil {
 		return s.playRandomSong(ctx)
 	}
@@ -126,7 +125,7 @@ func (s *Service) playRandomSong(ctx context.Context) error {
 	if song.StreamURL == "" {
 		song, err = s.youtube.EnsureStreamInfo(ctx, song)
 		if err != nil {
-			contexts.GetLogger(ctx).Error("ensure stream info for radio", zap.Error(err))
+			contexts.GetLogger(ctx).Error("ensure stream info for radio failed", zap.Error(err))
 			return s.playRandomSong(ctx)
 		}
 		if song.Duration > maxRadioSongDuration {
@@ -155,14 +154,14 @@ func (s *Service) handleError(err error) {
 		}
 		return
 	}
-	if !errors.Is(err, audio.ErrManualStop) && !errors.Is(err, io.EOF) {
+	if !errors.Is(err, voice.ErrManualStop) && !errors.Is(err, io.EOF) {
 		s.setRadio(false)
 	}
 }
 
 func (s *Service) SubscribeOnErrors(h player.ErrorHandler) {
 	s.player.SubscribeOnErrors(func(err error) {
-		if errors.Is(err, io.EOF) || errors.Is(err, audio.ErrManualStop) || errors.Is(err, player.ErrQueueEmpty) {
+		if errors.Is(err, io.EOF) || errors.Is(err, voice.ErrManualStop) || errors.Is(err, player.ErrQueueEmpty) {
 			return
 		}
 		h(err)
@@ -178,7 +177,6 @@ func (s *Service) Status() item.PlayerStatus {
 	return item.PlayerStatus{
 		Loop:  s.player.LoopStatus(),
 		Radio: s.RadioStatus(),
-		Song:  s.player.SongStatus(),
 		Now:   s.player.NowPlaying(),
 	}
 }
@@ -197,8 +195,4 @@ func (s *Service) Skip(ctx context.Context) {
 
 func (s *Service) NowPlaying() *item.Song {
 	return s.player.NowPlaying()
-}
-
-func (s *Service) SongStatus() item.SessionStats {
-	return s.player.SongStatus()
 }

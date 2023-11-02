@@ -1,6 +1,7 @@
 package firestore
 
 import (
+	"cloud.google.com/go/firestore"
 	"context"
 	"math/rand"
 	"sync"
@@ -27,7 +28,12 @@ type Service struct {
 	updated      bool
 }
 
-func NewFirestoreService(ctx context.Context, client *Client, songs *SongsCache) (*Service, error) {
+func NewFirestoreService(ctx context.Context, fireClient *firestore.Client, songs *SongsCache, debug bool) (*Service, error) {
+	client, err := NewFirestoreClient(ctx, fireClient, debug)
+	if err != nil {
+		return nil, errors.Wrap(err, "new firestore storage")
+	}
+
 	f := Service{
 		cache:      songs,
 		client:     client,

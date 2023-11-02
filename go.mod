@@ -20,6 +20,7 @@ require (
 	github.com/swaggo/files v0.0.0-20220728132757-551d4a08d97a
 	github.com/swaggo/gin-swagger v1.5.2
 	go.uber.org/zap v1.22.0
+	golang.org/x/sync v0.1.0
 	google.golang.org/api v0.92.0
 	google.golang.org/grpc v1.48.0
 )

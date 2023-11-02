@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	ytdl "github.com/kkdai/youtube/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
@@ -26,14 +24,14 @@ import (
 	fstorage "github.com/HalvaPovidlo/halvabot-go/internal/film/storage"
 	"github.com/HalvaPovidlo/halvabot-go/internal/login"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music"
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/player"
 	ytsearch "github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/storage/firestore"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/voice"
 	"github.com/HalvaPovidlo/halvabot-go/internal/user"
 	ustorage "github.com/HalvaPovidlo/halvabot-go/internal/user/storage"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
-	dpkg "github.com/HalvaPovidlo/halvabot-go/pkg/discord"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/http/jwt"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 	pfirestore "github.com/HalvaPovidlo/halvabot-go/pkg/storage/firestore"
@@ -46,15 +44,10 @@ func main() {
 		panic(errors.Wrap(err, "config read failed"))
 	}
 	logger := log.NewLogger(cfg.General.Debug)
-	ctx := contexts.WithLogger(context.Background(), logger)
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(contexts.WithLogger(context.Background(), logger))
 
 	// Initialize discord session
-	session, err := dpkg.OpenSession(cfg.Discord.Token, cfg.General.Debug, logger)
-	if err != nil {
-		logger.Panic("discord open session failed", zap.Error(err))
-	}
-	defer session.Close()
+	discordService := discord.New(cfg.Discord.Token, cfg.Discord.Prefix, cfg.General.Debug, logger)
 	// Load master
 	loadMaster := music.NewLoadMaster(ctx, 12*time.Hour)
 
@@ -63,28 +56,18 @@ func main() {
 	defer songsCache.Clear()
 
 	// YouTube services
-	ytService, err := youtube.NewService(ctx, option.WithCredentialsFile("halvabot-google.json"))
+	ytClient, err := youtube.NewService(ctx, option.WithCredentialsFile("halvabot-google.json"))
 	if err != nil {
 		logger.Panic("youtube init failed", zap.Error(err))
 	}
-	ytdlClient := ytdl.Client{Debug: cfg.General.Debug, HTTPClient: http.DefaultClient}
-	ytClient := ytsearch.NewYouTubeClient(
-		&ytdlClient,
-		ytService,
-		ytsearch.NewDownloader(ytdlClient, cfg.Youtube.OutputDir, loadMaster),
-		cfg.Youtube,
-	)
+	ytService := ytsearch.NewYouTubeClient(ytClient, ytsearch.NewYouTubeDL(loadMaster), cfg.Youtube)
 
 	// Firestore stage
 	fireClient, err := pfirestore.NewFirestoreClient(ctx, "halvabot-firebase.json")
 	if err != nil {
 		logger.Panic("new firestore client", zap.Error(err))
 	}
-	fireStorage, err := firestore.NewFirestoreClient(ctx, fireClient, cfg.General.Debug)
-	if err != nil {
-		logger.Panic("new firestore storage", zap.Error(err))
-	}
-	fireService, err := firestore.NewFirestoreService(ctx, fireStorage, songsCache)
+	fireService, err := firestore.NewFirestoreService(ctx, fireClient, songsCache, cfg.General.Debug)
 	if err != nil {
 		logger.Panic("new firestore service", zap.Error(err))
 	}
@@ -93,8 +76,8 @@ func main() {
 	musicService := v1music.NewMusicService(
 		ctx,
 		fireService,
-		ytClient,
-		player.NewPlayer(ctx, audio.NewVoiceClient(session), audio.NewPlayer(loadMaster, &cfg.Discord.Voice.EncodeOptions)),
+		ytService,
+		player.NewPlayer(ctx, voice.NewVoiceClient(session), voice.NewPlayer(loadMaster, &cfg.Discord.Voice.EncodeOptions)),
 	)
 
 	// Chess
@@ -102,7 +85,7 @@ func main() {
 
 	// Discord commands
 	v1music.NewDiscordMusicHandler(musicService, cfg.Discord.Prefix, cfg.Discord.API).RegisterCommands(ctx, session, cfg.General.Debug, logger)
-	v1chess.NewDiscordChessHandler(cfg.Discord.Prefix, lichessClient).RegisterCommands(session, cfg.General.Debug, logger)
+	v1chess.NewDiscordChessHandler(cfg.Discord.Prefix, lichessClient).RegisterCommands(discordService)
 
 	// Handlers stage
 	loginHandler := v1login.NewLoginHandler(login.NewLoginService(login.NewAccountStorage(fireClient), jwt.NewJWTokenizer(cfg.Secret)))
@@ -114,16 +97,19 @@ func main() {
 	server := v1.NewServer(loginHandler, musicHandler, filmHandler, userHandler)
 	server.Run(cfg.Host.IP, cfg.Host.Bot, config.SwaggerPath, cfg.General.Debug)
 
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-sc
-	cancel()
+	ctx, cancel = signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	defer cancel()
+
+	if err := discordService.Connect(ctx); err != nil {
+		logger.Error("discord connect", zap.Error(err))
+	}
+
 	if err := os.RemoveAll("/" + cfg.Youtube.OutputDir + "/"); err != nil {
 		logger.Error(err.Error())
 	}
-	if err := os.MkdirAll("/"+cfg.Youtube.OutputDir+"/", 0o755); err != nil {
-		logger.Error(err.Error())
-	}
+	//if err := os.MkdirAll("/"+cfg.Youtube.OutputDir+"/", 0o755); err != nil {
+	//	logger.Error(err.Error())
+	//}
 
 	logger.Info("Graceful shutdown")
 	_ = logger.Sync()

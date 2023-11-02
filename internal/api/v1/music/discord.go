@@ -3,22 +3,26 @@ package music
 import (
 	"context"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/bwmarrin/discordgo"
+	"github.com/diamondburned/arikawa/v3/api"
+	ads "github.com/diamondburned/arikawa/v3/discord"
+	"github.com/diamondburned/arikawa/v3/gateway"
+	"github.com/diamondburned/arikawa/v3/state"
+	"github.com/diamondburned/arikawa/v3/state/store"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/music/search/youtube"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
-	"github.com/HalvaPovidlo/halvabot-go/pkg/discord/command"
+	"github.com/HalvaPovidlo/halvabot-go/pkg/discord"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/util"
 )
 
 const (
-	play       = "play "
+	play       = "play"
 	skip       = "skip"
 	skipFS     = "fs"
 	loop       = "loop"
@@ -26,7 +30,6 @@ const (
 	random     = "random"
 	radio      = "radio"
 	disconnect = "disconnect"
-	hello      = "hello"
 )
 
 type APIConfig struct {
@@ -36,19 +39,18 @@ type APIConfig struct {
 
 type DiscordHandler struct {
 	player *Service
-	prefix string
+	state  *state.State
 
 	channelsMx     sync.RWMutex
-	allChannels    map[string]string   // id name
-	openChannels   map[string]struct{} // name{}
-	statusChannels map[string]struct{} // name{}
+	allChannels    map[ads.ChannelID]string // id name
+	openChannels   map[string]struct{}      // name{}
+	statusChannels map[string]struct{}      // name{}
 }
 
-func NewDiscordMusicHandler(player *Service, prefix string, config APIConfig) *DiscordHandler {
+func NewDiscordMusicHandler(player *Service, config APIConfig) *DiscordHandler {
 	s := DiscordHandler{
 		player:         player,
-		prefix:         prefix,
-		allChannels:    make(map[string]string),
+		allChannels:    make(map[ads.ChannelID]string),
 		openChannels:   make(map[string]struct{}),
 		statusChannels: make(map[string]struct{}),
 	}
@@ -63,156 +65,181 @@ func NewDiscordMusicHandler(player *Service, prefix string, config APIConfig) *D
 	}
 	s.channelsMx.Unlock()
 
+	s.updateListeningStatus(context.Background())
 	return &s
 }
 
-func registerSlashBasicCommand(s *discordgo.Session, debug bool) (unregisterCommand func()) {
-	sc := command.NewSlashCommand(
-		&discordgo.ApplicationCommand{Name: "basic2-command", Description: "Basic command"},
-		func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Hey there! Congratulations, you just executed your first slash command",
-				},
-			})
-		}, debug,
-	)
-	return sc.RegisterCommand(s)
-}
-
-func (h *DiscordHandler) RegisterCommands(ctx context.Context, session *discordgo.Session, debug bool, logger *zap.Logger) {
-	registerSlashBasicCommand(session, debug)
-	command.NewMessageCommand(h.prefix+play, h.playMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+skip, h.skipMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+skipFS, h.skipMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+loop, h.loopMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+nowPlaying, h.nowMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+random, h.randomMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+radio, h.radioMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+disconnect, h.disconnectMessageHandler, debug).RegisterCommand(session, logger)
-	command.NewMessageCommand(h.prefix+hello, h.helloMessageHandler, debug).RegisterCommand(session, logger)
-	h.updateListeningStatus(ctx, session)
+func (h *DiscordHandler) RegisterCommands(ds *discord.Service) {
+	ds.RegisterMessageCommand(play, h.playMessageHandler)
+	ds.RegisterMessageCommand(skip, h.skipMessageHandler)
+	ds.RegisterMessageCommand(skipFS, h.skipMessageHandler)
+	ds.RegisterMessageCommand(loop, h.loopMessageHandler)
+	ds.RegisterMessageCommand(nowPlaying, h.nowMessageHandler)
+	ds.RegisterMessageCommand(random, h.randomMessageHandler)
+	ds.RegisterMessageCommand(radio, h.radioMessageHandler)
+	ds.RegisterMessageCommand(disconnect, h.disconnectMessageHandler)
 }
 
 func (h *DiscordHandler) helloMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
 	_, _ = session.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Hello, %s %s!", m.Author.Token, m.Author.Username))
 }
 
-func (h *DiscordHandler) playMessageHandler(ctx context.Context, ds *discordgo.Session, m *discordgo.MessageCreate) {
-	h.deleteMessage(ctx, ds, m, statusLevel)
-	query := strings.TrimPrefix(m.Content, h.prefix+play)
-	query = util.StandardizeSpaces(query)
+func (h *DiscordHandler) playMessageHandler(ctx context.Context, m *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
+	r, err := h.playHandler(ctx, m.GuildID, m.ChannelID, m.ID, m.Content, m.Member)
+	if err != nil {
+		return nil, err
+	}
+	return responseToMessage(r), nil
+}
 
-	id, err := findAuthorVoiceChannelID(ds, m)
+func responseToMessage(r *api.InteractionResponseData) *api.SendMessageData {
+	if r == nil {
+		return nil
+	}
+	var embeds []ads.Embed
+	if r.Embeds != nil {
+		embeds = *r.Embeds
+	}
+	var components ads.ContainerComponents
+	if r.Components != nil {
+		components = *r.Components
+	}
+	return &api.SendMessageData{
+		Content:         r.Content.Val,
+		TTS:             r.TTS,
+		Embeds:          embeds,
+		Files:           r.Files,
+		Components:      components,
+		AllowedMentions: r.AllowedMentions,
+	}
+}
+
+func (h *DiscordHandler) playHandler(
+	ctx context.Context,
+	guildID ads.GuildID, channelID ads.ChannelID, messageID ads.MessageID, content string,
+	member *ads.Member) (*api.InteractionResponseData, error) {
+	h.deleteMessage(ctx, guildID, channelID, messageID, statusLevel)
+	query := util.StandardizeSpaces(content)
+
+	author := member.User
+	voiceChannelID, err := h.findAuthorVoiceChannelID(guildID, author.ID)
 	logger := contexts.GetLogger(ctx)
 	if err != nil {
-		h.sendNotInVoiceWarning(ctx, ds, m)
-		logger.Error("failed to find author's voice channel", zap.Error(err))
-		return
-	}
-	h.sendSearchingMessage(ctx, ds, m)
-	song, err := h.player.Play(ctx, query, m.Author.ID, m.GuildID, id)
-	if err != nil {
-		if errors.Is(err, youtube.ErrSongNotFound) {
-			h.sendNotFoundMessage(ctx, ds, m)
-			return
+		if !errors.Is(store.ErrNotFound, err) {
+			return nil, err
 		}
-		if strings.Contains(err.Error(), "can't bypass age restriction") {
-			h.sendAgeRestrictionMessage(ctx, ds, m)
-			return
-		}
-		logger.Error("player play song", zap.String("query", query), zap.Error(err))
-		h.sendInternalErrorMessage(ctx, ds, m, statusLevel)
-		return
+		logger.Warn("failed to find author's voice channel", zap.Error(err))
+		h.sendNotInVoiceWarning(ctx, channelID)
+		return nil, nil
 	}
-	h.sendFoundMessage(ctx, ds, m, song.ArtistName, song.Title, song.Playbacks)
+
+	h.sendSearchingMessage(ctx, channelID)
+	song, err := h.player.Play(ctx, query, author.ID, guildID, voiceChannelID)
+	switch {
+	case errors.Is(err, youtube.ErrSongNotFound):
+		h.sendNotFoundMessage(ctx, channelID)
+		return nil, nil
+	case strings.Contains(err.Error(), "can't bypass age restriction"):
+		h.sendAgeRestrictionMessage(ctx, channelID)
+		return nil, nil
+	case err != nil:
+		return nil, errors.Wrap(err, "player play song")
+	}
+
+	h.sendFoundMessage(ctx, channelID, song.ArtistName, song.Title, song.Playbacks)
+	return nil, nil
 }
 
-func (h *DiscordHandler) skipMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
-	h.deleteMessage(ctx, session, m, statusLevel)
+func (h *DiscordHandler) skipMessageHandler(ctx context.Context, m *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
+	h.deleteMessage(ctx, m.GuildID, m.ChannelID, m.ID, statusLevel)
 	h.player.Skip(ctx)
-	h.sendSkipMessage(ctx, session, m)
+	h.sendSkipMessage(ctx, m.ChannelID)
 }
 
-func (h *DiscordHandler) loopMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
-	h.deleteMessage(ctx, session, m, statusLevel)
+func (h *DiscordHandler) loopMessageHandler(ctx context.Context, m *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
+	h.deleteMessage(ctx, m.GuildID, m.ChannelID, m.ID, statusLevel)
 	b := h.player.LoopStatus()
-	h.sendLoopMessage(ctx, session, m, !b)
+	h.sendLoopMessage(ctx, m.ChannelID, !b)
 	h.player.SetLoop(ctx, !b)
 }
 
-func (h *DiscordHandler) nowMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
-	h.deleteMessage(ctx, session, m, infoLevel)
-	h.sendNowPlayingMessage(ctx, session, m, h.player.NowPlaying(), h.player.SongStatus().Pos)
+func (h *DiscordHandler) nowMessageHandler(ctx context.Context, m *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
+	h.deleteMessage(ctx, m.GuildID, m.ChannelID, m.ID, infoLevel)
+	h.sendNowPlayingMessage(ctx, m.ChannelID, h.player.NowPlaying(), h.player.SongStatus().Pos)
 }
 
-func (h *DiscordHandler) randomMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
-	h.deleteMessage(ctx, session, m, statusLevel)
+func (h *DiscordHandler) randomMessageHandler(ctx context.Context, m *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
+	h.deleteMessage(ctx, m.GuildID, m.ChannelID, m.ID, statusLevel)
 	songs, err := h.player.Random(ctx, 10)
 	if err != nil {
-		contexts.GetLogger(ctx).Error("get random songs", zap.Error(err))
-		h.sendInternalErrorMessage(ctx, session, m, infoLevel)
-		return
+		return nil, errors.Wrap(err, "random song")
 	}
-	h.sendRandomMessage(ctx, session, m, songs)
+	h.sendRandomMessage(ctx, m.ChannelID, songs)
 }
 
-func (h *DiscordHandler) radioMessageHandler(ctx context.Context, ds *discordgo.Session, m *discordgo.MessageCreate) {
-	h.deleteMessage(ctx, ds, m, statusLevel)
+func (h *DiscordHandler) radioMessageHandler(ctx context.Context, m *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
+	h.deleteMessage(ctx, m.GuildID, m.ChannelID, m.ID, statusLevel)
 	if h.player.RadioStatus() {
-		h.sendRadioMessage(ctx, ds, m, false)
+		h.sendRadioMessage(ctx, m.ChannelID, false)
 		_ = h.player.SetRadio(ctx, false, "", "")
-		return
+		return nil, nil
 	}
-	id, err := findAuthorVoiceChannelID(ds, m)
+
+	id, err := h.findAuthorVoiceChannelID(m.GuildID, m.Member.User.ID)
 	logger := contexts.GetLogger(ctx)
 	if err != nil {
-		h.sendNotInVoiceWarning(ctx, ds, m)
-		logger.Error("failed to find author's voice channel", zap.Error(err))
-		return
+		if !errors.Is(store.ErrNotFound, err) {
+			return nil, err
+		}
+		logger.Warn("failed to find author's voice channel", zap.Error(err))
+		h.sendNotInVoiceWarning(ctx, m.ChannelID)
+		return nil, nil
 	}
+
 	err = h.player.SetRadio(ctx, true, m.GuildID, id)
 	if err != nil {
-		h.sendInternalErrorMessage(ctx, ds, m, statusLevel)
-		logger.Error("enable radio", zap.Error(err))
+		return nil, errors.Wrap(err, "enable radio")
 	} else {
-		h.sendRadioMessage(ctx, ds, m, true)
+		h.sendRadioMessage(ctx, m.ChannelID, true)
 	}
+	return nil, nil
 }
 
-func (h *DiscordHandler) disconnectMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
-	h.deleteMessage(ctx, session, m, statusLevel)
+func (h *DiscordHandler) disconnectMessageHandler(ctx context.Context, m *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
+	h.deleteMessage(ctx, m.GuildID, m.ChannelID, m.ID, statusLevel)
 	h.player.Disconnect(ctx)
+	return nil, nil
 }
 
-func (h *DiscordHandler) updateListeningStatus(ctx context.Context, session *discordgo.Session) {
+func (h *DiscordHandler) updateListeningStatus(ctx context.Context) {
 	// TODO: dirty temp code
 	// better way to use channels like error chan
-	timer := time.NewTicker(1 * time.Second)
-	go func() {
-		defer timer.Stop()
-		for {
-			select {
-			case <-timer.C:
-				song := h.player.NowPlaying()
-				title := ""
-				if song != nil {
-					title = song.Title
-				}
-				_ = session.UpdateListeningStatus(title)
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	//timer := time.NewTicker(1 * time.Second)
+	//go func() {
+	//	defer timer.Stop()
+	//	for {
+	//		select {
+	//		case <-timer.C:
+	//			song := h.player.NowPlaying()
+	//			title := ""
+	//			if song != nil {
+	//				title = song.Title
+	//			}
+	//			me, _ := h.state.Me()
+	//			ctx.Gat
+	//			_ = h.state.Upda().SetState
+	//		case <-ctx.Done():
+	//			return
+	//		}
+	//	}
+	//}()
 }
 
-func (h *DiscordHandler) deleteMessage(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate, level int) {
+func (h *DiscordHandler) deleteMessage(ctx context.Context, guildID ads.GuildID, channelID ads.ChannelID, messageID ads.MessageID, level int) {
 	go func() {
-		h.loadChannelsID(session, m.GuildID)
-		if h.toDelete(m.ChannelID, level) {
-			err := session.ChannelMessageDelete(m.ChannelID, m.Message.ID)
+		h.loadChannelsID(guildID)
+		if h.toDelete(channelID, level) {
+			err := h.state.DeleteMessage(channelID, messageID, "wrong message channel")
 			if err != nil {
 				contexts.GetLogger(ctx).Error("deleting message", zap.Error(err))
 			}
@@ -220,21 +247,10 @@ func (h *DiscordHandler) deleteMessage(ctx context.Context, session *discordgo.S
 	}()
 }
 
-func findAuthorVoiceChannelID(s *discordgo.Session, m *discordgo.MessageCreate) (string, error) {
-	guild, err := s.State.Guild(m.GuildID)
+func (h *DiscordHandler) findAuthorVoiceChannelID(guildID ads.GuildID, userID ads.UserID) (ads.ChannelID, error) {
+	voiceState, err := h.state.VoiceState(guildID, userID)
 	if err != nil {
-		return "", err
+		return ads.NullChannelID, errors.Wrap(err, "find user voice state")
 	}
-	id := ""
-	for _, voiceState := range guild.VoiceStates {
-		if voiceState.UserID == m.Author.ID {
-			id = voiceState.ChannelID
-			break
-		}
-	}
-	if id == "" {
-		return "", errors.New("unable to find user voice channel")
-	}
-
-	return id, nil
+	return voiceState.ChannelID, nil
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/kkdai/youtube/v2"
+
 	"github.com/kkdai/youtube/v2/downloader"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -14,13 +15,9 @@ import (
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 )
 
-type filesCache interface {
-	Add(path string)
-	Remove(path string)
-}
-
 type Downloader struct {
 	loaded filesCache
+	ytdl   *youtube.Client
 	downloader.Downloader
 }
 
@@ -34,43 +31,54 @@ func NewDownloader(client youtube.Client, outputDir string, cache filesCache) *D
 	}
 }
 
-func (dl *Downloader) Download(ctx context.Context, v *youtube.Video, format *youtube.Format, outputFile string) error {
-	destinationFile, err := dl.getOutputFile(outputFile)
+func (dl *Downloader) Download(ctx context.Context, id, outputDir string) (string, error) {
+	videoInfo, err := dl.ytdl.GetVideo(id)
 	if err != nil {
-		return err
+		return "", errors.Wrapf(err, "loag video metadata by url %s", id)
 	}
+	formats := videoInfo.Formats.WithAudioChannels().Type(videoType)
+	if len(formats) == 0 {
+		return "", errors.New("unable to get list of formats")
+	}
+
+	fileName := id + videoFormat
+	dl.OutputDir = outputDir
+	file, err := dl.getOutputFile(fileName)
+	if err != nil {
+		return "", err
+	}
+
 	logger := contexts.GetLogger(ctx)
-	dl.loaded.Add(destinationFile)
+	dl.loaded.Add(file)
 
 	var out *os.File
-	_, err = os.Stat(destinationFile)
+	_, err = os.Stat(file)
 	switch err {
 	case nil:
-		logger.Info("file is already downloaded", zap.String("name", destinationFile))
-		return nil
+		logger.Info("file is already downloaded", zap.String("name", file))
+		return file, nil
 	default:
 		if errors.Is(err, os.ErrNotExist) {
-			out, err = os.Create(destinationFile)
+			out, err = os.Create(file)
 			if err != nil {
-				dl.loaded.Remove(destinationFile)
-				return err
+				dl.loaded.Remove(file)
+				return "", err
 			}
 		} else {
-			dl.loaded.Remove(destinationFile)
-			return err
+			dl.loaded.Remove(file)
+			return "", err
 		}
 	}
 	defer out.Close()
 
-	logger.Info("downloading video",
-		zap.String("title", v.Title),
-		zap.String("codec", format.MimeType),
-		zap.String("filename", destinationFile))
-	if err := dl.videoDLWorker(ctx, out, v, format); err != nil {
-		dl.loaded.Remove(destinationFile)
-		return err
+	formats.Sort()
+	format := formats[len(formats)-1]
+	logger.Info("downloading video", zap.String("codec", format.MimeType), zap.String("filename", file))
+	if err := dl.videoDLWorker(ctx, out, videoInfo, &format); err != nil {
+		dl.loaded.Remove(file)
+		return "", err
 	}
-	return nil
+	return file, nil
 }
 
 func (dl *Downloader) getOutputFile(outputFile string) (string, error) {

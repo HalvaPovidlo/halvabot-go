@@ -3,13 +3,14 @@ package chess
 import (
 	"context"
 
-	"github.com/bwmarrin/discordgo"
-	"go.uber.org/zap"
+	"github.com/diamondburned/arikawa/v3/api"
+	"github.com/diamondburned/arikawa/v3/api/cmdroute"
+	"github.com/diamondburned/arikawa/v3/gateway"
+	"github.com/diamondburned/arikawa/v3/utils/json/option"
+	"github.com/pkg/errors"
 
 	"github.com/HalvaPovidlo/halvabot-go/internal/chess/lichess"
-	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/discord"
-	"github.com/HalvaPovidlo/halvabot-go/pkg/discord/command"
 )
 
 const chess = "chess"
@@ -32,26 +33,26 @@ func NewDiscordChessHandler(prefix string, client chessClient) *Service {
 	return &s
 }
 
-func (s *Service) RegisterCommands(session *discordgo.Session, debug bool, logger *zap.Logger) {
-	command.NewMessageCommand(s.prefix+chess, s.chessMessageHandler, debug).RegisterCommand(session, logger)
+func (s *Service) RegisterCommands(ds *discord.Service) {
+	ds.RegisterCommand(api.CreateCommandData{
+		Name:        chess,
+		Description: "Start chess game",
+	}, s.chessCommandHandler)
+	ds.RegisterMessageCommand(chess, s.chessMessageHandler)
 }
 
-func (s *Service) chessMessageHandler(ctx context.Context, session *discordgo.Session, m *discordgo.MessageCreate) {
+func (s *Service) chessMessageHandler(ctx context.Context, c *gateway.MessageCreateEvent) (*api.SendMessageData, error) {
 	game, err := s.client.StartOpenGame(ctx)
 	if err != nil {
-		s.sendInternalErrorMessage(ctx, session, m)
-		return
+		return nil, errors.Wrap(err, "start chess game")
 	}
-	go session.ChannelMessageSend(m.ChannelID, game.Challenge.URL)
+	return &api.SendMessageData{Content: game.Challenge.URL}, nil
 }
 
-func (s *Service) sendInternalErrorMessage(ctx context.Context, ds *discordgo.Session, m *discordgo.MessageCreate) {
-	go func() {
-		_, err := ds.ChannelMessageSendComplex(m.ChannelID, &discordgo.MessageSend{Content: discord.MessageInternalError})
-		if err != nil {
-			contexts.GetLogger(ctx).Error("sending message",
-				zap.String("channel", m.ChannelID),
-				zap.Error(err))
-		}
-	}()
+func (s *Service) chessCommandHandler(ctx context.Context, data cmdroute.CommandData) (*api.InteractionResponseData, error) {
+	game, err := s.client.StartOpenGame(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "start chess game")
+	}
+	return &api.InteractionResponseData{Content: option.NewNullableString(game.Challenge.URL)}, nil
 }

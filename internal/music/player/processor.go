@@ -8,15 +8,15 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/voice"
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/log"
 )
 
 func (p *Service) processCommands(ctx context.Context) (chan *command, chan error) {
-	requests := make(chan *audio.SongRequest)
-	playerErrors := p.audio.Process(requests)
+	requests := make(chan *voice.SongRequest)
+	playerErrors := p.audio.Process(ctx, requests)
 	commands := make(chan *command)
 	out := make(chan error)
 	go func() {
@@ -33,20 +33,20 @@ func (p *Service) processCommands(ctx context.Context) (chan *command, chan erro
 					out <- err
 				}
 			case err := <-playerErrors:
-				if err == nil || errors.Is(err, audio.ErrManualStop) || errors.Is(err, io.EOF) {
+				if err == nil || errors.Is(err, voice.ErrManualStop) || errors.Is(err, io.EOF) {
 					go func() {
 						p.commands <- &command{Type: next}
 					}()
 				}
 				if err != nil {
 					if logError(err) {
-						contexts.GetLogger(ctx).Error("audio player", zap.Error(err))
+						contexts.GetLogger(ctx).Error("voice player", zap.Error(err))
 					}
 					out <- err
 				}
 			case <-ctx.Done():
 				p.queue.Clear()
-				p.audio.Stop()
+				p.audio.Disconnect()
 				return
 			}
 		}
@@ -55,7 +55,7 @@ func (p *Service) processCommands(ctx context.Context) (chan *command, chan erro
 	return commands, out
 }
 
-func (p *Service) processCommand(c *command, requests chan *audio.SongRequest) error {
+func (p *Service) processCommand(c *command, requests chan *voice.SongRequest) error {
 	if c.logger == nil {
 		c.logger = log.NewLogger(false)
 	}
@@ -72,21 +72,15 @@ func (p *Service) processCommand(c *command, requests chan *audio.SongRequest) e
 		p.queue.SetLoop(c.loop)
 	case skip:
 		p.audio.Stop()
-	case stop:
-		p.reset()
 	case disconnect:
 		p.reset()
-		if err := p.voice.Disconnect(); err != nil {
-			return err
-		}
-	case connect:
-		return p.processConnect(c.guildID, c.channelID)
+		p.audio.Disconnect()
 	}
 	return nil
 }
 
-func (p *Service) processPlay(entry *item.Song, requests chan *audio.SongRequest, logger *zap.Logger) error {
-	if !p.voice.IsConnected() {
+func (p *Service) processPlay(entry *item.Song, requests chan *voice.SongRequest, logger *zap.Logger) error {
+	if !p.audio.IsConnected() {
 		return ErrNotConnected
 	}
 	logger.Debug("adding to queue", zap.String("title", entry.Title))
@@ -95,13 +89,13 @@ func (p *Service) processPlay(entry *item.Song, requests chan *audio.SongRequest
 		s := p.queue.Next()
 		p.setNowPlaying(s)
 		logger.Debug("pushing song req")
-		requests <- requestFromEntry(s, p.voice.Connection())
+		requests <- buildRequest(s, p.voice.Connection())
 	}
 	return nil
 }
 
-func (p *Service) processNext(out chan *audio.SongRequest) error {
-	if !p.voice.IsConnected() {
+func (p *Service) processNext(out chan *voice.SongRequest) error {
+	if !p.audio.IsConnected() {
 		p.setNowPlaying(nil)
 		return nil
 	}
@@ -110,13 +104,13 @@ func (p *Service) processNext(out chan *audio.SongRequest) error {
 	}
 	if s := p.queue.Next(); s != nil {
 		p.setNowPlaying(s)
-		out <- requestFromEntry(s, p.voice.Connection())
+		out <- buildRequest(s, p.voice.Connection())
 		return nil
 	}
 	p.setNowPlaying(nil)
 	if p.isWaited {
 		p.isWaited = false
-		err := p.voice.Disconnect()
+		err := p.audio.Disconnect()
 		if err != nil {
 			return errors.Wrap(err, "player: disconnecting because there is nothing to play next")
 		}
@@ -126,17 +120,6 @@ func (p *Service) processNext(out chan *audio.SongRequest) error {
 	}
 
 	return ErrQueueEmpty
-}
-
-func (p *Service) processConnect(gID, cID string) error {
-	if p.voice.IsConnected() && p.voice.Connection().GuildID == gID && p.voice.Connection().ChannelID == cID {
-		return nil
-	}
-	p.reset()
-	if err := p.voice.Connect(gID, cID); err != nil {
-		return errors.Wrapf(err, "connect on gid:%s cid:%s", gID, cID)
-	}
-	return nil
 }
 
 func (p *Service) reset() {
@@ -176,5 +159,5 @@ func (p *Service) tryNextAfterTimeout(d time.Duration) {
 }
 
 func logError(err error) bool {
-	return !errors.Is(err, io.EOF) && !errors.Is(err, audio.ErrManualStop) && !errors.Is(err, ErrQueueEmpty)
+	return !errors.Is(err, io.EOF) && !errors.Is(err, voice.ErrManualStop) && !errors.Is(err, ErrQueueEmpty)
 }

@@ -1,11 +1,10 @@
 package player
 
 import (
+	"github.com/diamondburned/arikawa/v3/discord"
 	"sync"
 
-	"github.com/bwmarrin/discordgo"
-
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/voice"
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 )
 
@@ -61,9 +60,9 @@ func (q *Queue) Front() *item.Song {
 	return q.entries[0]
 }
 
-func requestFromEntry(e *item.Song, connection *discordgo.VoiceConnection) *audio.SongRequest {
-	return &audio.SongRequest{
-		Voice: connection,
-		URI:   e.StreamURL,
+func buildRequest(e *item.Song, id discord.ChannelID) *voice.SongRequest {
+	return &voice.SongRequest{
+		ID:   id,
+		Path: e.StreamURL,
 	}
 }

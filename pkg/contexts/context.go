@@ -27,6 +27,15 @@ func WithValues(parent context.Context, logger *zap.Logger, traceID string) cont
 	return ctx
 }
 
+func WithCommandValues(parent context.Context, name string, logger *zap.Logger, traceID string) context.Context {
+	if traceID == "" {
+		traceID = uuid.New().String()
+	}
+	ctx := WithTraceID(parent, traceID)
+	ctx = WithLogger(ctx, logger.With(zap.String("traceID", traceID), zap.String("command", name)))
+	return ctx
+}
+
 func WithLogger(parent context.Context, logger *zap.Logger) context.Context {
 	return context.WithValue(parent, loggerKey, logger)
 }

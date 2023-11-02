@@ -4,30 +4,24 @@ import (
 	"context"
 	"sync"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/HalvaPovidlo/halvabot-go/internal/music/audio"
+	"github.com/HalvaPovidlo/halvabot-go/internal/music/voice"
 	"github.com/HalvaPovidlo/halvabot-go/internal/pkg/item"
 	"github.com/HalvaPovidlo/halvabot-go/pkg/contexts"
+	"github.com/diamondburned/arikawa/v3/state"
 )
 
 var ErrNotConnected = errors.New("player not connected")
 var ErrQueueEmpty = errors.New("queue is empty")
 
 type MediaPlayer interface {
-	Process(requests <-chan *audio.SongRequest) <-chan error
-	Stats() item.SessionStats
+	Process(ctx context.Context, requests <-chan *voice.SongRequest) <-chan error
 	IsPlaying() bool
-	Stop()
-}
-
-type VoiceClient interface {
-	Connection() *discordgo.VoiceConnection
-	Connect(guildID, channelID string) error
+	Disconnect()
 	IsConnected() bool
-	Disconnect() error
+	Stop()
 }
 
 type ErrorHandler func(err error)
@@ -41,7 +35,6 @@ const (
 	stop
 	connect
 	disconnect
-	shuffle
 	loop
 )
 
@@ -59,8 +52,6 @@ func (c commandType) String() string {
 		return "connect"
 	case disconnect:
 		return "disconnect"
-	case shuffle:
-		return "shuffle"
 	case loop:
 		return "loop"
 	}
@@ -79,21 +70,22 @@ type command struct {
 // Service all public methods are concurrent and
 // most private methods are designed to be synchronous
 type Service struct {
-	voice VoiceClient
+	state *state.State
 	audio MediaPlayer
 
-	currentLock   sync.Mutex
-	current       *item.Song
-	isWaited      bool
-	queue         Queue
+	currentLock sync.Mutex
+	current     *item.Song
+	isWaited    bool
+	queue       Queue
+
 	errs          chan error
 	commands      chan *command
 	errorHandlers chan ErrorHandler
 }
 
-func NewPlayer(ctx context.Context, voice VoiceClient, audio MediaPlayer) *Service {
+func NewPlayer(ctx context.Context, state *state.State, audio MediaPlayer) *Service {
 	p := Service{
-		voice: voice,
+		state: state,
 		audio: audio,
 	}
 	p.commands, p.errs = p.processCommands(ctx)
@@ -146,7 +138,7 @@ func (p *Service) Connect(ctx context.Context, guildID, channelID string) {
 }
 
 func (p *Service) IsConnected() bool {
-	return p.voice.IsConnected()
+	return p.audio.IsConnected()
 }
 
 func (p *Service) Disconnect(ctx context.Context) {
@@ -164,20 +156,8 @@ func (p *Service) NowPlaying() *item.Song {
 
 func (p *Service) setNowPlaying(s *item.Song) {
 	p.currentLock.Lock()
-	defer p.currentLock.Unlock()
 	p.current = s
-}
-
-func (p *Service) SongStatus() item.SessionStats {
-	s := p.audio.Stats()
-	if s.Duration == 0 {
-		now := p.NowPlaying()
-		if now == nil {
-			return item.SessionStats{}
-		}
-		s.Duration = now.Duration
-	}
-	return s
+	p.currentLock.Unlock()
 }
 
 func (p *Service) SubscribeOnErrors(h ErrorHandler) {
